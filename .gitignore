@@ -1,0 +1,7 @@
+# Block all private files and raw Excel/PDF agent data sets
+projects/*/data/
+data/
+
+# Block Python system caches
+__pycache__/
+*.pyc
