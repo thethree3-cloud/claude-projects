@@ -5,3 +5,6 @@ data/
 # Block Python system caches
 __pycache__/
 *.pyc
+
+# Block secrets
+.env
