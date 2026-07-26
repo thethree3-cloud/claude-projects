@@ -49,8 +49,29 @@ gitignored — re-download it and re-run `build_toc.py` to regenerate
 
 ## Usage
 
+Run from the repo root, with the venv activated:
+
+```bash
+source /home/t9/venv/bin/activate
+python projects/01_guidebook_agent/ask.py "What is the policy on smoking?"
+```
+
+Or from inside `projects/01_guidebook_agent/` itself:
+
 ```bash
 python ask.py "What is the policy on smoking?"
+```
+
+## Tests
+
+`test_ask.py` covers the pure logic — page-range math in `compute_ranges`
+(including the same-start-page edge case below) and router-response parsing
+in `parse_route_lines` (exact match, `NONE`, fuzzy-matched paraphrasing,
+dedup, unmatched lines). No API key or network access needed:
+
+```bash
+cd projects/01_guidebook_agent
+python -m unittest test_ask.py -v
 ```
 
 ## Demo
@@ -108,9 +129,10 @@ No matching section found in the table of contents.
 
 ## Known limitations
 
-- Router output is matched by exact string against the ToC — if Claude
-  paraphrases a subject instead of copying it verbatim, that section is
-  silently dropped (logged as "unrecognized router output").
+- Router output is matched against the ToC by exact string first, falling
+  back to fuzzy matching (`difflib.get_close_matches`, cutoff 0.6) for minor
+  paraphrasing. A subject that doesn't clear that bar is reported and
+  dropped rather than guessed at.
 - No conversation memory — each question is answered independently.
 - `build_toc.py` is specific to this PDF's printed ToC layout and won't
   generalize to a differently formatted handbook.

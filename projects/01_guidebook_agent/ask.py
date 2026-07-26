@@ -1,4 +1,5 @@
 import csv
+import difflib
 import os
 import sys
 from pathlib import Path
@@ -10,21 +11,25 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 PDF_PATH = BASE_DIR / "data" / "las_vegas_employee_handbook.pdf"
 TOC_CSV = BASE_DIR / "data" / "table_of_contents.csv"
-MODEL = "claude-haiku-4-5-20251001"
-
 ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
-load_dotenv(ENV_PATH)
-api_key = os.environ.get("ANTHROPIC_API_KEY")
-if not api_key:
-    raise RuntimeError(f"ANTHROPIC_API_KEY not found. Checked: {ENV_PATH}")
+MODEL = "claude-haiku-4-5-20251001"
+FUZZY_MATCH_CUTOFF = 0.6
 
-client = Anthropic(api_key=api_key)
+_client = None
 
 
-def load_sections(doc_page_count):
-    with TOC_CSV.open(newline="") as f:
-        rows = list(csv.DictReader(f))
+def get_client():
+    global _client
+    if _client is None:
+        load_dotenv(ENV_PATH)
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError(f"ANTHROPIC_API_KEY not found. Checked: {ENV_PATH}")
+        _client = Anthropic(api_key=api_key)
+    return _client
 
+
+def compute_ranges(rows, doc_page_count):
     sections = []
     for i, row in enumerate(rows):
         start = int(row["start_page"])
@@ -34,9 +39,36 @@ def load_sections(doc_page_count):
     return sections
 
 
+def load_sections(doc_page_count):
+    with TOC_CSV.open(newline="") as f:
+        rows = list(csv.DictReader(f))
+    return compute_ranges(rows, doc_page_count)
+
+
+def parse_route_lines(raw_text, valid_subjects):
+    lines = [line.strip() for line in raw_text.strip().splitlines() if line.strip()]
+    if not lines or lines == ["NONE"]:
+        return [], []
+
+    matched, unmatched = [], []
+    for line in lines:
+        if line in valid_subjects:
+            match = line
+        else:
+            close = difflib.get_close_matches(line, valid_subjects, n=1, cutoff=FUZZY_MATCH_CUTOFF)
+            match = close[0] if close else None
+
+        if match is None:
+            unmatched.append(line)
+        elif match not in matched:
+            matched.append(match)
+
+    return matched, unmatched
+
+
 def route(question, sections):
     subject_list = "\n".join(s["subject"] for s in sections)
-    response = client.messages.create(
+    response = get_client().messages.create(
         model=MODEL,
         max_tokens=100,
         temperature=0.0,
@@ -55,10 +87,8 @@ def route(question, sections):
             }
         ],
     )
-    lines = [line.strip() for line in response.content[0].text.strip().splitlines() if line.strip()]
-    if not lines or lines == ["NONE"]:
-        return []
-    return lines
+    valid_subjects = [s["subject"] for s in sections]
+    return parse_route_lines(response.content[0].text, valid_subjects)
 
 
 def extract_pages(start_page, end_page):
@@ -72,7 +102,7 @@ def answer(question, sections_with_text):
     context = "\n\n".join(
         f"=== {s['subject']} ===\n{s['text']}" for s in sections_with_text
     )
-    response = client.messages.create(
+    response = get_client().messages.create(
         model=MODEL,
         max_tokens=500,
         temperature=0.0,
@@ -103,21 +133,16 @@ def main():
     doc.close()
 
     sections = load_sections(page_count)
-    subjects = route(question, sections)
+    subjects, unmatched = route(question, sections)
 
+    if unmatched:
+        print(f"(router suggested unmatched subjects, ignoring: {unmatched!r})")
     if not subjects:
         print("No matching section found in the table of contents.")
         return
 
     by_subject = {s["subject"]: s for s in sections}
-    matched = [by_subject[subj] for subj in subjects if subj in by_subject]
-    unrecognized = [subj for subj in subjects if subj not in by_subject]
-    if unrecognized:
-        print(f"(ignoring unrecognized router output: {unrecognized!r})")
-    if not matched:
-        print("Router returned no recognizable sections.")
-        return
-
+    matched = [by_subject[subj] for subj in subjects]
     for s in matched:
         print(f"Routed to section: {s['subject']} (pages {s['start']}-{s['end']})")
 
