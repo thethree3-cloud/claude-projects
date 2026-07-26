@@ -38,7 +38,7 @@ def route(question, sections):
     subject_list = "\n".join(s["subject"] for s in sections)
     response = client.messages.create(
         model=MODEL,
-        max_tokens=50,
+        max_tokens=100,
         temperature=0.0,
         messages=[
             {
@@ -47,14 +47,18 @@ def route(question, sections):
                     "Here are the section subjects from an employee handbook's "
                     f"table of contents:\n\n{subject_list}\n\n"
                     f"Question: {question}\n\n"
-                    "Reply with ONLY the single subject line that would contain the "
-                    "answer, copied exactly as it appears above. If none of them "
-                    "would help, reply with exactly: NONE"
+                    "Reply with the subject lines (up to 3, most relevant first) "
+                    "that would contain the answer, copied exactly as they appear "
+                    "above, one per line. If none of them would help, reply with "
+                    "exactly: NONE"
                 ),
             }
         ],
     )
-    return response.content[0].text.strip()
+    lines = [line.strip() for line in response.content[0].text.strip().splitlines() if line.strip()]
+    if not lines or lines == ["NONE"]:
+        return []
+    return lines
 
 
 def extract_pages(start_page, end_page):
@@ -64,7 +68,10 @@ def extract_pages(start_page, end_page):
     return text
 
 
-def answer(question, section_text, subject):
+def answer(question, sections_with_text):
+    context = "\n\n".join(
+        f"=== {s['subject']} ===\n{s['text']}" for s in sections_with_text
+    )
     response = client.messages.create(
         model=MODEL,
         max_tokens=500,
@@ -73,8 +80,8 @@ def answer(question, section_text, subject):
             {
                 "role": "user",
                 "content": (
-                    f"Here is the '{subject}' section of an employee handbook:\n\n"
-                    f"{section_text}\n\n"
+                    "Here are section(s) of an employee handbook:\n\n"
+                    f"{context}\n\n"
                     f"Question: {question}\n\n"
                     "Answer using only the text above. If the answer isn't in "
                     "this text, say so."
@@ -96,20 +103,28 @@ def main():
     doc.close()
 
     sections = load_sections(page_count)
-    subject = route(question, sections)
+    subjects = route(question, sections)
 
-    if subject == "NONE":
+    if not subjects:
         print("No matching section found in the table of contents.")
         return
 
-    matched = next((s for s in sections if s["subject"] == subject), None)
-    if matched is None:
-        print(f"Router returned an unrecognized subject: {subject!r}")
+    by_subject = {s["subject"]: s for s in sections}
+    matched = [by_subject[subj] for subj in subjects if subj in by_subject]
+    unrecognized = [subj for subj in subjects if subj not in by_subject]
+    if unrecognized:
+        print(f"(ignoring unrecognized router output: {unrecognized!r})")
+    if not matched:
+        print("Router returned no recognizable sections.")
         return
 
-    print(f"Routed to section: {matched['subject']} (pages {matched['start']}-{matched['end']})")
-    section_text = extract_pages(matched["start"], matched["end"])
-    print(f"\n{answer(question, section_text, matched['subject'])}")
+    for s in matched:
+        print(f"Routed to section: {s['subject']} (pages {s['start']}-{s['end']})")
+
+    sections_with_text = [
+        {**s, "text": extract_pages(s["start"], s["end"])} for s in matched
+    ]
+    print(f"\n{answer(question, sections_with_text)}")
 
 
 if __name__ == "__main__":
