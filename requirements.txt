@@ -3,3 +3,4 @@ python-dotenv==1.2.2
 pymupdf==1.28.0
 streamlit==1.60.0
 fpdf2==2.8.7
+mcp[cli]==1.28.1

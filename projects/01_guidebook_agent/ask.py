@@ -122,12 +122,12 @@ def answer(question, sections_with_text):
     return response.content[0].text.strip()
 
 
-def main():
-    if len(sys.argv) < 2:
-        print(f"Usage: python {Path(__file__).name} \"<question>\"")
-        sys.exit(1)
-    question = " ".join(sys.argv[1:])
+def answer_question(question):
+    """Pure (no printing) entry point -- routes, extracts, and answers.
 
+    Kept print-free so it's safe to call from contexts where stdout must
+    stay clean, like an MCP server using stdio transport (see Project 06).
+    """
     doc = fitz.open(PDF_PATH)
     page_count = doc.page_count
     doc.close()
@@ -135,21 +135,30 @@ def main():
     sections = load_sections(page_count)
     subjects, unmatched = route(question, sections)
 
-    if unmatched:
-        print(f"(router suggested unmatched subjects, ignoring: {unmatched!r})")
     if not subjects:
-        print("No matching section found in the table of contents.")
-        return
+        return "No matching section found in the table of contents."
 
     by_subject = {s["subject"]: s for s in sections}
     matched = [by_subject[subj] for subj in subjects]
-    for s in matched:
-        print(f"Routed to section: {s['subject']} (pages {s['start']}-{s['end']})")
-
     sections_with_text = [
         {**s, "text": extract_pages(s["start"], s["end"])} for s in matched
     ]
-    print(f"\n{answer(question, sections_with_text)}")
+
+    routed_line = "Routed to: " + ", ".join(
+        f"{s['subject']} (pages {s['start']}-{s['end']})" for s in matched
+    )
+    reply = f"{routed_line}\n\n{answer(question, sections_with_text)}"
+    if unmatched:
+        reply += f"\n\n(router suggested unmatched subjects, ignoring: {unmatched!r})"
+    return reply
+
+
+def main():
+    if len(sys.argv) < 2:
+        print(f"Usage: python {Path(__file__).name} \"<question>\"")
+        sys.exit(1)
+    question = " ".join(sys.argv[1:])
+    print(answer_question(question))
 
 
 if __name__ == "__main__":

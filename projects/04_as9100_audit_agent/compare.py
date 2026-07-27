@@ -169,33 +169,51 @@ def compare_documents(internal_row, internal_text, reference_text, reference_nam
     return response.content[0].text.strip()
 
 
-def main():
-    if len(sys.argv) < 2:
-        print(f"Usage: python {Path(__file__).name} <path-to-reference-document.pdf>")
-        sys.exit(1)
-    reference_path = Path(sys.argv[1])
+def compute_comparison(reference_path):
+    """Pure (no printing) entry point -- safe to call from an MCP server.
 
+    Returns a dict with either an "error" key, or "best_match", "secondary",
+    "confidence", and "comparison" on success.
+    """
+    reference_path = Path(reference_path)
     registry = load_registry()
     reference_text = extract_pdf_text(reference_path)
 
     best_match, secondary, confidence = match_document(reference_text, registry)
     if best_match == "NONE":
-        print("No relevant internal document found in the registry for this reference document.")
-        return
+        return {"error": "No relevant internal document found in the registry for this reference document."}
 
     by_doc_number = {row["Doc_Number"]: row for row in registry}
     internal_row = by_doc_number.get(best_match)
     if internal_row is None:
-        print(f"Matcher returned an unrecognized Doc_Number: {best_match!r}")
-        return
-
-    print(f"Best match: {internal_row['Doc_Number']} -- {internal_row['Title']} (confidence: {confidence})")
-    if secondary != "NONE":
-        print(f"Secondary matches considered: {secondary}")
+        return {"error": f"Matcher returned an unrecognized Doc_Number: {best_match!r}"}
 
     internal_text = extract_pdf_text(WI_DIR / internal_row["File_Name"])
-    result = compare_documents(internal_row, internal_text, reference_text, reference_path.name, registry)
-    print(f"\n{result}")
+    comparison = compare_documents(internal_row, internal_text, reference_text, reference_path.name, registry)
+
+    return {
+        "best_match": internal_row["Doc_Number"],
+        "best_match_title": internal_row["Title"],
+        "secondary": secondary,
+        "confidence": confidence,
+        "comparison": comparison,
+    }
+
+
+def main():
+    if len(sys.argv) < 2:
+        print(f"Usage: python {Path(__file__).name} <path-to-reference-document.pdf>")
+        sys.exit(1)
+
+    result = compute_comparison(sys.argv[1])
+    if "error" in result:
+        print(result["error"])
+        return
+
+    print(f"Best match: {result['best_match']} -- {result['best_match_title']} (confidence: {result['confidence']})")
+    if result["secondary"] != "NONE":
+        print(f"Secondary matches considered: {result['secondary']}")
+    print(f"\n{result['comparison']}")
 
 
 if __name__ == "__main__":

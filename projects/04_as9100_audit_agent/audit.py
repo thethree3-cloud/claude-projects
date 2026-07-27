@@ -88,7 +88,8 @@ def evaluate_clause(clause, corpus):
     return parse_verdict(response.content[0].text)
 
 
-def run_audit():
+def compute_audit_results():
+    """Pure (no printing) entry point -- safe to call from an MCP server."""
     criteria = load_criteria()
     documents = load_work_instructions()
     corpus = build_corpus(documents)
@@ -97,10 +98,19 @@ def run_audit():
     for clause in criteria:
         status, source, rationale = evaluate_clause(clause, corpus)
         results.append({**clause, "status": status, "source": source, "rationale": rationale})
-        print(f"[{status:7}] {clause['id']} -- {clause['title']}")
-        print(f"          {rationale}")
-        if source:
-            print(f"          Source: {source}")
+
+    counts = {status: sum(1 for r in results if r["status"] == status) for status in VALID_STATUSES}
+    return results, counts
+
+
+def run_audit():
+    results, counts = compute_audit_results()
+
+    for r in results:
+        print(f"[{r['status']:7}] {r['id']} -- {r['title']}")
+        print(f"          {r['rationale']}")
+        if r["source"]:
+            print(f"          Source: {r['source']}")
 
     with REPORT_CSV.open("w", newline="") as f:
         fieldnames = ["id", "title", "requirement", "status", "source", "rationale"]
@@ -108,7 +118,6 @@ def run_audit():
         writer.writeheader()
         writer.writerows(results)
 
-    counts = {status: sum(1 for r in results if r["status"] == status) for status in VALID_STATUSES}
     print(f"\nSummary: {counts['Met']} Met, {counts['Partial']} Partial, {counts['Gap']} Gap")
     print(f"Full report written to {REPORT_CSV}")
 
