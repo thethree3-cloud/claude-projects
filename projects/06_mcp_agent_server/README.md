@@ -57,20 +57,31 @@ To register it with Claude Code so you can call these tools directly from
 a Claude Code session:
 
 ```bash
-claude mcp add guidebook-agent -- python /home/t9/claude-projects/projects/06_mcp_agent_server/server.py
+claude mcp add guidebook-agent -- /home/t9/venv/bin/python /home/t9/claude-projects/projects/06_mcp_agent_server/server.py
 ```
 
-(Run `claude mcp add --help` if the flags above don't match your installed
-version.) Claude Desktop and other MCP clients use a similar
-command+args registration in their own config file.
+Use the venv's absolute python path, not a bare `python` -- Claude Code
+launches this command directly, without your shell's venv activation, so
+a bare `python` would resolve to system Python and miss the dependencies.
+
+Claude Desktop and other MCP clients use a similar command+args
+registration in their own config file.
 
 ## Verifying it works
 
-This was verified end-to-end with a real MCP client speaking the actual
-protocol over stdio (not just a direct Python import test) — connecting,
-listing tools, and calling `ask_handbook` and `run_as9100_audit`
-successfully, confirming the stdout-safety split above actually holds up
-under the real transport.
+Verified twice, at two different levels:
+
+1. **Protocol-level**: a real MCP client speaking the actual protocol over
+   stdio (not just a direct Python import test) -- connecting, listing
+   tools, and calling `ask_handbook` and `run_as9100_audit` successfully,
+   confirming the stdout-safety split above actually holds up under the
+   real transport.
+2. **Live registration**: registered with Claude Code itself via
+   `claude mcp add` (local scope), confirmed `✔ Connected` via both
+   `claude mcp list` and `claude mcp get guidebook-agent`. Doing this
+   also required installing Node.js (via nvm) and the Claude Code CLI
+   itself (`npm install -g @anthropic-ai/claude-code`) in this WSL
+   environment, since neither was previously installed.
 
 ## Known limitations
 

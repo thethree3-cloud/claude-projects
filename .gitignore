@@ -8,3 +8,7 @@ __pycache__/
 
 # Block secrets
 .env
+
+# Local Claude Code tooling (skills, agent config) -- not portfolio content
+.claude/
+.agents/
