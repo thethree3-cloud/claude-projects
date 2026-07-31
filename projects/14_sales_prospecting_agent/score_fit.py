@@ -101,7 +101,11 @@ def score_fit(company_name, research_text, profile):
     )
 
     parsed = json.loads(response.content[0].text)
-    matched_terms = [m["term"] for m in parsed["matches"]]
+    # dict.fromkeys dedupes while preserving order -- Claude can return the
+    # same term more than once (e.g. citing separate pieces of evidence for
+    # it), and without this matched_signals/fit_reason would list it
+    # multiple times even though compute_score already dedupes internally.
+    matched_terms = list(dict.fromkeys(m["term"] for m in parsed["matches"]))
     evidence_by_term = {m["term"]: m["evidence"] for m in parsed["matches"]}
     insufficient_information = parsed["insufficient_information"]
 

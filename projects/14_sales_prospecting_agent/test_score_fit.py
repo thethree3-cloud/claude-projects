@@ -93,6 +93,36 @@ class ScoreFitTests(unittest.TestCase):
         self.assertIn("MIL-STD-810", result["fit_reason"])
 
     @patch("score_fit.get_client")
+    def test_duplicate_term_in_matches_is_deduped(self, mock_get_client):
+        # Regression test: found live that Claude can return the same term
+        # multiple times in "matches" (citing separate evidence for it).
+        # compute_score already dedupes internally, but matched_signals and
+        # fit_reason used to list the term multiple times.
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = SimpleNamespace(
+            content=[
+                SimpleNamespace(
+                    text=json.dumps(
+                        {
+                            "matches": [
+                                {"term": "MIL-STD-810", "evidence": "first quote"},
+                                {"term": "MIL-STD-810", "evidence": "second quote"},
+                            ],
+                            "insufficient_information": False,
+                        }
+                    )
+                )
+            ]
+        )
+        mock_get_client.return_value = mock_client
+
+        result = score_fit("Test Co", "some research text", PROFILE)
+
+        self.assertEqual(result["score"], 25)
+        self.assertEqual(len(result["matched_signals"]), 1)
+        self.assertEqual(result["fit_reason"], "Matched 1 of 3 signals: MIL-STD-810")
+
+    @patch("score_fit.get_client")
     def test_insufficient_information_yields_unknown_band(self, mock_get_client):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = SimpleNamespace(

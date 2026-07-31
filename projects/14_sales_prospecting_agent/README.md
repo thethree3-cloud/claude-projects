@@ -239,6 +239,24 @@ a real API key.
   and/or making `extract_location` share the same
   "insufficient_information" judgment as `score_fit` instead of deciding
   independently.
+- **A real bug, found and fixed (2026-07-30):** `score_fit()` could report
+  the same matched signal multiple times in `fit_reason` (e.g. "Matched 3
+  of 9 signals: defense-related, defense-related, defense-related") when
+  Claude cited separate evidence for the same term more than once in a
+  single response. `compute_score` already deduped internally, so the
+  numeric score was always correct — only the human-readable `matched_
+  signals`/`fit_reason` display was affected. Fixed by deduping
+  `matched_terms` with `dict.fromkeys()` before building the display data,
+  with a regression test (`test_duplicate_term_in_matches_is_deduped`) and
+  live re-verification on the exact company that surfaced it.
+- **Intentional design decision, confirmed 2026-07-30:** a lead's `Fit
+  Score` stays visible in the CRM export even when `Fit Band` is
+  `"Unknown"` (Claude can return real matched signals *and* flag
+  `insufficient_information: true` in the same response — e.g. score 35,
+  band Unknown). This can look contradictory at a glance, but the score is
+  kept visible on purpose, for audit purposes — a human reviewer can see
+  what partially matched even when overall confidence in the research was
+  low, rather than that evidence being hidden.
 - Dedup in `existing_customers.py` is exact-match only (case-insensitive) —
   no fuzzy matching, so a customer listed with a slightly different name
   (abbreviation, "Inc." vs "Incorporated", a typo) won't be flagged.
