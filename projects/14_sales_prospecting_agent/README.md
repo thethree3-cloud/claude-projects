@@ -1,8 +1,10 @@
-# Sales Prospecting Agent — Slices 1–3: Search, Fit Scoring, Routing
+# Sales Prospecting Agent — Slices 1–4: Agent 1 + Agent 2 (CRM Export)
 
-**Status: Slices 1–3 of a multi-session build.** Search/extraction, fit
-scoring, and salesperson routing are done — no CRM export yet (Agent 2).
-See "What's deferred" below before assuming this does more than it does.
+**Status: all four planned slices are done.** Search/extraction, fit
+scoring, salesperson routing (Agent 1), and CRM export (Agent 2) are all
+built. See "Known limitations" before assuming any of this is bulletproof —
+a live test in Slice 4 surfaced a real, not-yet-fixed accuracy gap
+(entity-name collisions), documented below rather than hidden.
 
 Genericized, open-source rebuild of a real sales-prospecting/lead-routing
 agent originally built in Copilot Studio. The real product it supports is
@@ -130,6 +132,43 @@ purpose:
 python -c "from pipeline import evaluate_lead; import json; print(json.dumps(evaluate_lead('Polytronix Inc, a manufacturer of rugged displays based in Richardson, Texas', 'data/sample_client_profile.yaml', 'data/sample_territory_routing.csv'), indent=2))"
 ```
 
+## Slice 4: Agent 2 (CRM export)
+
+`existing_customers.py` + `crm_export.py` are Agent 2 — a separate,
+smaller step that formats already-evaluated leads (from
+`pipeline.evaluate_lead`) into a CSV a CRM's import feature could consume,
+and flags matches against an existing-customers list. **Agent 2 makes zero
+LLM calls** — it's pure formatting and lookup, matching what was already
+established: Agent 2 is a formatter/dedup step, not a reasoning agent.
+
+**The CSV layout is invented, not copied from anywhere.** No real CRM
+import format was available to reference for the original Zerocases
+workflow, so `CSV_FIELDNAMES` in `crm_export.py` is a generic layout
+loosely following common CRM lead-import conventions (company, fit rating,
+lead source/status, owner), adapted to what this pipeline actually gathers.
+`Lead Status` only ever auto-assigns `"New"` or `"Needs Review"` on
+generation — the other states from the original Lead Status design
+(`Contacted`, `Qualified`, `Follow Up Later`, `Not A Fit`) are things a
+human sets later, not something this step invents.
+
+Dedup against `existing_customers.py` is a case-insensitive **exact** name
+match only — deliberately no fuzzy matching, since a fuzzy match risks
+flagging a similarly-named but different company as an existing customer,
+a worse mistake than under-flagging.
+
+```bash
+python -c "
+from pipeline import evaluate_lead
+from crm_export import export_leads_to_csv
+from existing_customers import load_existing_customers
+
+companies = ['Ironclad Avionics Systems', 'Meridian Energy Solutions', 'Cascade Signal Networks']
+leads = [evaluate_lead(name, 'data/sample_client_profile.yaml', 'data/sample_territory_routing.csv') for name in companies]
+existing = load_existing_customers('data/sample_existing_customers.csv')
+export_leads_to_csv(leads, existing, 'data/demo_leads.csv')
+"
+```
+
 ## Setup
 
 ```bash
@@ -143,25 +182,16 @@ gitignored — regenerate all sample data anytime with `generate_sample_data.py`
 ## Tests
 
 ```bash
-python -m unittest test_extract_exhibitors.py test_web_search_agent.py test_client_profile.py test_score_fit.py test_territory_routing.py test_route_salesperson.py -v
+python -m unittest discover -p "test_*.py" -v
 ```
 
-None of these hit the live API — `test_web_search_agent.py`,
-`test_score_fit.py`, and `test_route_salesperson.py` mock
-`client.messages.create` entirely; `test_territory_routing.py`'s
-`route_salesperson()` tests are pure functions needing no mocking at all;
-`test_client_profile.py` / `test_extract_exhibitors.py` run against real
-generated fictional data with no network access. To confirm the full
-pipeline works end to end against real search, scoring, and location-
-extraction calls (not just that the mocked logic is correct), run the
-Slice 3 command above with a real API key.
-
-## What's deferred to later sessions
-
-- **Agent 2 (CRM export)** — a separate step that formats leads into a CSV
-  shaped for a target CRM's import feature and flags matches against an
-  `existing_customers.csv` reference file. No live CRM API integration is
-  planned — Alan confirmed the real version was CSV export, not an API call.
+None of these hit the live API — every test that would otherwise need
+Claude mocks `client.messages.create`, and everything else (CSV/YAML/PDF
+parsing, routing, CRM row building) is pure-function or real-fictional-data
+testing with no network access. To confirm the full pipeline works end to
+end against real search, scoring, location-extraction, and export (not
+just that the mocked logic is correct), run the Slice 4 command above with
+a real API key.
 
 ## Known limitations
 
@@ -181,3 +211,40 @@ Slice 3 command above with a real API key.
   text. A stricter version would verify each evidence string is an actual
   substring of `research_text` before counting the match, and downgrade to
   "Not Found" otherwise — not yet built.
+- **No entity disambiguation — fictional company names can collide with
+  unrelated real ones.** Found live while testing Slice 4: searching for
+  the fictional "Ironclad Avionics Systems" returned real results about an
+  unrelated real product called "IronClad" (a secure flight controller for
+  unmanned systems) and an unrelated real "Ironclad Technology Services" —
+  the pipeline scored the fictional query as a 70/High fit using evidence
+  about those different, real, unrelated entities, because nothing in the
+  pipeline checks whether the search results actually describe the
+  intended company. Searching for the fictional "Meridian Energy Solutions"
+  surfaced **four different real companies** all sharing that name
+  fragment (a residential solar installer, a Texas systems-design firm, a
+  commercial-efficiency firm, and a renewable-energy consultancy) — an
+  honestly ambiguous result. On that one, `score_fit`'s
+  `insufficient_information` correctly came back `true` (Unknown band), but
+  `extract_location`'s separate LLM call still confidently returned a state
+  (`TX`, from the one company in the results actually based there) without
+  flagging the same ambiguity — the two evidence-detection calls can
+  disagree about how much is actually known from the identical text. None
+  of this affects genuinely unique real company names (Polytronix Inc.
+  scored consistently well across three separate live runs); it's a risk
+  specific to made-up names that happen to collide with something real, and
+  to companies where third-party search results are ambiguous across
+  multiple entities. Not fixed here — a real fix would need an explicit
+  entity-confirmation step (e.g. require a distinguishing detail like city
+  or industry, and have the LLM confirm the specific entity before scoring)
+  and/or making `extract_location` share the same
+  "insufficient_information" judgment as `score_fit` instead of deciding
+  independently.
+- Dedup in `existing_customers.py` is exact-match only (case-insensitive) —
+  no fuzzy matching, so a customer listed with a slightly different name
+  (abbreviation, "Inc." vs "Incorporated", a typo) won't be flagged.
+- `pipeline.evaluate_lead`'s `company_name` field in its output is whatever
+  `query` string was passed in — clean for the PDF-exhibitor path (already
+  clean names), but a caller passing a full sentence as the query (as
+  happened in an earlier ad hoc test this session) produces a messy
+  "Company Name" cell in the CRM CSV. No separate company-name-cleanup step
+  exists; this is a caller-discipline expectation, not enforced by the code.

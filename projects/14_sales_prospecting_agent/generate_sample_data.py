@@ -144,7 +144,30 @@ def write_sample_territory_routing():
     print(f"Wrote {out_path}")
 
 
+# Fictional past customers -- deliberately includes two names from the
+# fictional EXHIBITORS list above (Ironclad Avionics Systems, Sentinel
+# Power Systems) plus one name that isn't, so a full-pipeline demo (score
+# every exhibitor, export, some flagged as existing customers) has a real
+# mix of matches and non-matches to show.
+EXISTING_CUSTOMERS = [
+    "Ironclad Avionics Systems",
+    "Sentinel Power Systems",
+    "Harborline Marine Electronics",
+]
+
+
+def write_sample_existing_customers():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = DATA_DIR / "sample_existing_customers.csv"
+    with out_path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["company_name"])
+        writer.writeheader()
+        writer.writerows({"company_name": name} for name in EXISTING_CUSTOMERS)
+    print(f"Wrote {out_path}")
+
+
 if __name__ == "__main__":
     write_exhibitor_list_pdf()
     write_sample_client_profile()
     write_sample_territory_routing()
+    write_sample_existing_customers()
