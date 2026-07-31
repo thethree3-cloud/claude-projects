@@ -1,10 +1,13 @@
-# Sales Prospecting Agent — Slices 1–4: Agent 1 + Agent 2 (CRM Export)
+# Sales Prospecting Agent — Slices 1–5: Agent 1 + Agent 2 (Live HubSpot CRM)
 
-**Status: all four planned slices are done.** Search/extraction, fit
-scoring, salesperson routing (Agent 1), and CRM export (Agent 2) are all
-built. See "Known limitations" before assuming any of this is bulletproof —
-a live test in Slice 4 surfaced a real, not-yet-fixed accuracy gap
-(entity-name collisions), documented below rather than hidden.
+**Status: all five planned slices are done.** Search/extraction, fit
+scoring, salesperson routing (Agent 1), and CRM integration (Agent 2) are
+all built. **Agent 2's primary path is now a live HubSpot API integration,
+not the CSV export** — that reverses the original Slice 4 decision; see
+"Slice 5" below for why. See "Known limitations" before assuming any of
+this is bulletproof — live tests surfaced real, not-yet-fixed accuracy
+gaps (entity-name collisions, a domain-vs-name dedup weakness), documented
+below rather than hidden.
 
 Genericized, open-source rebuild of a real sales-prospecting/lead-routing
 agent originally built in Copilot Studio. The real product it supports is
@@ -132,17 +135,23 @@ purpose:
 python -c "from pipeline import evaluate_lead; import json; print(json.dumps(evaluate_lead('Polytronix Inc, a manufacturer of rugged displays based in Richardson, Texas', 'data/sample_client_profile.yaml', 'data/sample_territory_routing.csv'), indent=2))"
 ```
 
-## Slice 4: Agent 2 (CRM export)
+## Slice 4: Agent 2, CSV export (now the fallback/reference path)
 
-`existing_customers.py` + `crm_export.py` are Agent 2 — a separate,
-smaller step that formats already-evaluated leads (from
+`existing_customers.py` + `crm_export.py` were built as Agent 2 — a
+separate, smaller step that formats already-evaluated leads (from
 `pipeline.evaluate_lead`) into a CSV a CRM's import feature could consume,
 and flags matches against an existing-customers list. **Agent 2 makes zero
 LLM calls** — it's pure formatting and lookup, matching what was already
 established: Agent 2 is a formatter/dedup step, not a reasoning agent.
 
-**The CSV layout is invented, not copied from anywhere.** No real CRM
-import format was available to reference for the original Zerocases
+**This code is still here and still works, but Slice 5 (below) replaced
+it as the primary path** — Alan asked for a live CRM API integration
+instead. `crm_export.build_crm_row()` remains the single source of truth
+for lead → flat-field-value logic; the HubSpot integration reuses it
+directly rather than recomputing the same decisions twice (see Slice 5).
+
+**The CSV/field layout is invented, not copied from anywhere.** No real
+CRM import format was available to reference for the original Zerocases
 workflow, so `CSV_FIELDNAMES` in `crm_export.py` is a generic layout
 loosely following common CRM lead-import conventions (company, fit rating,
 lead source/status, owner), adapted to what this pipeline actually gathers.
@@ -169,6 +178,99 @@ export_leads_to_csv(leads, existing, 'data/demo_leads.csv')
 "
 ```
 
+## Slice 5: live HubSpot CRM integration (now the primary path)
+
+**This reverses the Slice 4 decision.** The real Zerocases workflow never
+called a CRM API — that's why Agent 2 was originally CSV-only — but Alan
+asked for a real live integration afterward. There's no real Zerocases CRM
+to match anyway, so **HubSpot** was a free choice: it has a free developer
+account, a well-documented REST API, and an official Python SDK. Same
+"free developer sandbox instead of real employer infrastructure" pattern
+already used for Projects 07/08 (MS365 Developer Program, ServiceNow
+Developer instance).
+
+`hubspot_crm.py` is the new primary path:
+
+- **Object model: HubSpot Companies, not Contacts** — every lead here is
+  company-level; no individual contact name is ever gathered anywhere in
+  this pipeline.
+- **Idempotent upsert, not blind create.** `find_existing_company_id()`
+  searches by the `name` property before creating, so re-running the
+  pipeline against the same company updates the existing record instead of
+  piling up duplicates. **Known limitation, stated plainly:** HubSpot's own
+  canonical dedup key for Companies is `domain`, not `name` — this
+  pipeline has never extracted a company website/domain (a Slice 1
+  limitation), so name-based matching is a real, weaker substitute for
+  proper HubSpot-native dedup, not a claim that this fully replicates it.
+- **Custom properties, created once via `ensure_custom_properties()`**, not
+  on every run — HubSpot's default Company object has `name`/`state`/
+  `country` built in; the other ~9 fields (fit score, band, salesperson,
+  territory, lead status, etc.) need custom property definitions created
+  via the Properties API first.
+- **Reuses `crm_export.build_crm_row()`** for all field-value decisions
+  (Not-Found fallbacks, Lead Status logic, Review Notes) —
+  `build_hubspot_properties()` only translates the human-readable column
+  names into HubSpot's required snake_case internal property names
+  (`HUBSPOT_PROPERTY_NAME_MAP`, asserted at import time to cover every
+  `crm_export.CSV_FIELDNAMES` entry). One formatting decision lives in one
+  place, not two.
+- **Per-company error handling.** `upsert_company()` catches the SDK's
+  `ApiException` per company rather than letting one bad record crash a
+  whole batch — a real external API call can fail independently per
+  record, a failure mode CSV writes never had.
+- Exact HubSpot SDK class/method names (`hubspot.crm.companies.
+  BasicApi.create/update`, `SearchApi.do_search`, `hubspot.crm.properties.
+  CoreApi.get_by_name/create`, `PropertyCreate`, `OptionInput`,
+  `PublicObjectSearchRequest`/`Filter`/`FilterGroup`) were confirmed by
+  installing `hubspot-api-client==12.0.0` and inspecting the real package
+  (`inspect.signature(...)`) before writing calls against them — not
+  guessed from training data.
+
+### One-time setup Alan needs to do outside this codebase
+
+This is the one piece that genuinely can't be done from inside the
+codebase — it requires an account only Alan can create. **Note: HubSpot's
+UI has moved past legacy Private Apps** — the current recommended path
+(confirmed live, since this changed after this skill's cached knowledge)
+is **Service Keys**, a public-beta credential type for exactly this kind
+of account-level, data-only, no-webhooks integration:
+
+1. Sign up for a free HubSpot account.
+2. **Development → Keys → Service Keys → Create service key.**
+3. Grant scopes: `crm.objects.companies.read`, `crm.objects.companies.
+   write`, `crm.schemas.companies.write`.
+4. Copy the generated key into `.env` at the repo root as
+   `HUBSPOT_ACCESS_TOKEN` — it's a Bearer token, same format and same
+   `HubSpot(access_token=...)` SDK usage as the older Private App tokens,
+   confirmed working live with no code changes needed.
+
+**Confirmed live end to end (2026-07-31):** ran 3 real fictional exhibitor
+leads through the full pipeline and into a real HubSpot account via
+`export_leads_to_hubspot()`. First run: all 3 created. Re-running the
+exact same batch: all 3 came back `"updated"` against the *same* HubSpot
+company IDs — the name-based upsert logic works as designed, no
+duplicates. One real bug surfaced and fixed in the process: the
+`lead_status` custom property's label ("Lead Status") collided with
+HubSpot's own built-in `hs_lead_status` property, which uses that exact
+label — HubSpot enforces unique labels per object type. Fixed by renaming
+the label to "Prospecting Lead Status" (the internal property name,
+`lead_status`, was never the problem).
+
+```bash
+python -c "
+from extract_exhibitors import extract_company_names
+from pipeline import evaluate_lead
+from hubspot_crm import export_leads_to_hubspot
+from existing_customers import load_existing_customers
+
+names = extract_company_names('data/sample_expo_exhibitors.pdf')[:3]
+leads = [evaluate_lead(name, 'data/sample_client_profile.yaml', 'data/sample_territory_routing.csv') for name in names]
+existing = load_existing_customers('data/sample_existing_customers.csv')
+for result in export_leads_to_hubspot(leads, existing):
+    print(result)
+"
+```
+
 ## Setup
 
 ```bash
@@ -185,13 +287,18 @@ gitignored — regenerate all sample data anytime with `generate_sample_data.py`
 python -m unittest discover -p "test_*.py" -v
 ```
 
-None of these hit the live API — every test that would otherwise need
-Claude mocks `client.messages.create`, and everything else (CSV/YAML/PDF
-parsing, routing, CRM row building) is pure-function or real-fictional-data
-testing with no network access. To confirm the full pipeline works end to
-end against real search, scoring, location-extraction, and export (not
-just that the mocked logic is correct), run the Slice 4 command above with
-a real API key.
+None of these hit a live API — every test that would otherwise need Claude
+mocks `client.messages.create`, `test_hubspot_crm.py` mocks the HubSpot
+client entirely, and everything else (CSV/YAML/PDF parsing, routing, CRM
+row building) is pure-function or real-fictional-data testing with no
+network access. To confirm search/scoring/routing works end to end against
+real API calls, run the Slice 3 command with a real Anthropic API key.
+
+The HubSpot integration has now been verified live end to end against a
+real (free) HubSpot account — see the confirmation note under Slice 5
+above. That verification required Alan's own account/Service Key, which
+this repo's automated tests deliberately can't reproduce or fake; the
+mocked `test_hubspot_crm.py` suite is what runs in CI/without credentials.
 
 ## Known limitations
 
