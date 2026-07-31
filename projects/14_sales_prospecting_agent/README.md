@@ -1,8 +1,8 @@
-# Sales Prospecting Agent — Slices 1 & 2: Search + Fit Scoring
+# Sales Prospecting Agent — Slices 1–3: Search, Fit Scoring, Routing
 
-**Status: Slices 1–2 of a multi-session build.** Search/extraction and fit
-scoring are done — no salesperson routing, no CRM export yet. See "What's
-deferred" below before assuming this does more than it does.
+**Status: Slices 1–3 of a multi-session build.** Search/extraction, fit
+scoring, and salesperson routing are done — no CRM export yet (Agent 2).
+See "What's deferred" below before assuming this does more than it does.
 
 Genericized, open-source rebuild of a real sales-prospecting/lead-routing
 agent originally built in Copilot Studio. The real product it supports is
@@ -99,6 +99,37 @@ distinction the project's original design called for (Weak/Low ≠ Unknown).
 python -c "from score_fit import evaluate_company; import json; print(json.dumps(evaluate_company('Polytronix Inc, a manufacturer of rugged displays', 'data/sample_client_profile.yaml'), indent=2))"
 ```
 
+## Slice 3: salesperson/territory routing
+
+`territory_routing.py` + `route_salesperson.py` add the last piece of Agent
+1: matching each lead to a salesperson via `territory_routing.csv` (a
+fictional example is generated alongside the exhibitor list and client
+profile). Same architectural split as Slice 2, applied consistently on
+purpose:
+
+- **`route_salesperson.extract_location()`** — one Claude call, no tools,
+  reading the *same* research text `score_fit` already used (no second
+  search). JSON-schema-constrained output for state/country, with an
+  explicit instruction not to infer location from industry or general
+  knowledge — only what the text actually states.
+- **`territory_routing.route_salesperson()`** — pure Python, no LLM call.
+  Matches the extracted state/country against `territory_routing.csv`'s
+  rows. Non-domestic companies route to the row with the `INTERNATIONAL`
+  coverage sentinel, if one exists. Any case with no covering row —
+  unmatched state, non-domestic with no international row, or no location
+  determined at all — returns `"Needs Review"` rather than guessing.
+  **Never assigns a salesperson not literally present in the CSV** (tested
+  directly in `test_territory_routing.py`).
+- **`pipeline.evaluate_lead(query, client_profile_path,
+  territory_routing_path)`** — the full Agent 1 pipeline so far: one
+  search, feeding both fit scoring and location extraction, then routing.
+  This is the fullest single-lead output built to date; Agent 2 (CRM
+  export) is still a separate piece.
+
+```bash
+python -c "from pipeline import evaluate_lead; import json; print(json.dumps(evaluate_lead('Polytronix Inc, a manufacturer of rugged displays based in Richardson, Texas', 'data/sample_client_profile.yaml', 'data/sample_territory_routing.csv'), indent=2))"
+```
+
 ## Setup
 
 ```bash
@@ -112,21 +143,21 @@ gitignored — regenerate all sample data anytime with `generate_sample_data.py`
 ## Tests
 
 ```bash
-python -m unittest test_extract_exhibitors.py test_web_search_agent.py test_client_profile.py test_score_fit.py -v
+python -m unittest test_extract_exhibitors.py test_web_search_agent.py test_client_profile.py test_score_fit.py test_territory_routing.py test_route_salesperson.py -v
 ```
 
-None of these hit the live API — `test_web_search_agent.py` and
-`test_score_fit.py` mock `client.messages.create` entirely, and
+None of these hit the live API — `test_web_search_agent.py`,
+`test_score_fit.py`, and `test_route_salesperson.py` mock
+`client.messages.create` entirely; `test_territory_routing.py`'s
+`route_salesperson()` tests are pure functions needing no mocking at all;
 `test_client_profile.py` / `test_extract_exhibitors.py` run against real
 generated fictional data with no network access. To confirm the full
-pipeline works end to end against a real search and a real scoring call
-(not just that the mocked logic is correct), run the Slice 2 command above
-with a real API key.
+pipeline works end to end against real search, scoring, and location-
+extraction calls (not just that the mocked logic is correct), run the
+Slice 3 command above with a real API key.
 
 ## What's deferred to later sessions
 
-- **Salesperson routing** — matching a company's location against
-  `territory_routing.csv` and assigning a salesperson/territory.
 - **Agent 2 (CRM export)** — a separate step that formats leads into a CSV
   shaped for a target CRM's import feature and flags matches against an
   `existing_customers.csv` reference file. No live CRM API integration is

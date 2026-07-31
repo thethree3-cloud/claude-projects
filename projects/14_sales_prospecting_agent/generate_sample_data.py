@@ -7,6 +7,7 @@ customer profile might span (aerospace, defense, energy, medical,
 telecom) -- not real exhibitors from any real trade show.
 """
 
+import csv
 from pathlib import Path
 
 import yaml
@@ -104,6 +105,46 @@ def write_sample_client_profile():
     print(f"Wrote {out_path}")
 
 
+# Fictional salespeople and territories -- coverage is semicolon-separated
+# state abbreviations for a domestic row, or the sentinel "INTERNATIONAL"
+# for the one international row. Never invent an assignment beyond what's
+# in this file -- a state/country with no covering row here means "Needs
+# Review", not a guessed salesperson.
+TERRITORY_ROUTING_ROWS = [
+    {
+        "salesperson_name": "Jordan Reyes",
+        "email": "jordan.reyes@fictionalrugged.example",
+        "territory": "Southwest",
+        "coverage": "TX;NM;AZ;OK",
+    },
+    {
+        "salesperson_name": "Casey Kim",
+        "email": "casey.kim@fictionalrugged.example",
+        "territory": "Southeast",
+        "coverage": "FL;GA;AL;SC;NC",
+    },
+    {
+        "salesperson_name": "Morgan Blake",
+        "email": "morgan.blake@fictionalrugged.example",
+        "territory": "International",
+        "coverage": "INTERNATIONAL",
+    },
+]
+
+
+def write_sample_territory_routing():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = DATA_DIR / "sample_territory_routing.csv"
+    with out_path.open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f, fieldnames=["salesperson_name", "email", "territory", "coverage"]
+        )
+        writer.writeheader()
+        writer.writerows(TERRITORY_ROUTING_ROWS)
+    print(f"Wrote {out_path}")
+
+
 if __name__ == "__main__":
     write_exhibitor_list_pdf()
     write_sample_client_profile()
+    write_sample_territory_routing()
