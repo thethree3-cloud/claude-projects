@@ -371,6 +371,24 @@ Requires `ANTHROPIC_API_KEY` in a `.env` file at the repo root. `data/` is
 gitignored — regenerate all sample data anytime with `generate_sample_data.py`
 (writes both the exhibitor PDF and the sample client profile).
 
+## Dashboard
+
+`streamlit_app.py` is a lead-triage dashboard over whatever CSV a pipeline
+run already wrote to `data/` — a sortable, filterable leaderboard (score,
+band, fit reason) with a per-lead drill-down dialog showing the full fit
+reason, location, salesperson/territory assignment, and grounding source.
+Works with either CSV shape this project has produced (`crm_export.py`'s
+Title Case columns or `run_full_exhibitor_list.py`'s snake_case columns
+with `source`), picking the newest real run by default.
+
+```bash
+streamlit run streamlit_app.py
+```
+
+If `data/` has no lead CSVs yet, run `generate_sample_data.py` for
+fictional sample data or `run_full_exhibitor_list.py` against a real
+exhibitor PDF first.
+
 ## Tests
 
 ```bash
