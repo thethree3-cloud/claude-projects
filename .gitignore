@@ -12,3 +12,6 @@ __pycache__/
 # Local Claude Code tooling (skills, agent config) -- not portfolio content
 .claude/
 .agents/
+
+# Personal career/job-search drafts -- not portfolio content
+LINKEDIN_DRAFT.md

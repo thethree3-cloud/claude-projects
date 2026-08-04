@@ -1,13 +1,14 @@
-# Sales Prospecting Agent — Slices 1–5: Agent 1 + Agent 2 (Live HubSpot CRM)
+# Sales Prospecting Agent — Slices 1–6: Agent 1 + Agent 2 (Live HubSpot CRM) + real-PDF grounding
 
-**Status: all five planned slices are done.** Search/extraction, fit
+**Status: all six planned slices are done.** Search/extraction, fit
 scoring, salesperson routing (Agent 1), and CRM integration (Agent 2) are
 all built. **Agent 2's primary path is now a live HubSpot API integration,
 not the CSV export** — that reverses the original Slice 4 decision; see
-"Slice 5" below for why. See "Known limitations" before assuming any of
-this is bulletproof — live tests surfaced real, not-yet-fixed accuracy
-gaps (entity-name collisions, a domain-vs-name dedup weakness), documented
-below rather than hidden.
+"Slice 5" below for why. **Slice 6 adds grounding straight from a real
+trade-show program PDF**, not just live web search — see below. See
+"Known limitations" before assuming any of this is bulletproof — live
+tests surfaced real, not-yet-fixed accuracy gaps (entity-name collisions,
+a domain-vs-name dedup weakness), documented below rather than hidden.
 
 Genericized, open-source rebuild of a real sales-prospecting/lead-routing
 agent originally built in Copilot Studio. The real product it supports is
@@ -271,6 +272,95 @@ for result in export_leads_to_hubspot(leads, existing):
 "
 ```
 
+## Slice 6: grounding straight from a real trade-show program PDF
+
+Every earlier slice was only ever tested against the fictional PDF
+`generate_sample_data.py` writes — a flat numbered list of made-up
+companies. This slice was tested against a **real** trade-show program PDF
+(a real defense-industry expo's exhibitor program, obtained by Alan and
+kept local-only — see below), and it surfaced real structural differences
+a fictional test PDF could never have shown.
+
+**A real program has two different exhibitor sections, not one:**
+
+1. A **flat index** (what the fictional PDF's numbered list approximates)
+   — every exhibitor, name + booth number, no description.
+2. **Full profiles** for a subset of exhibitors — name, a real marketing
+   description, website, and booth number, straight from the program
+   itself.
+
+`extract_exhibitor_profiles.py` (new) parses the profile section directly
+into structured records. `pipeline.evaluate_lead()` now takes an optional
+`exhibitor_profiles` lookup (`extract_exhibitor_profiles.build_profile_lookup()`):
+when a company has a real profile, its description/website is used as
+`research_text` directly — **no live web search needed at all** — and the
+lead's new `source` field points at the exact PDF page it came from
+instead of the opaque `"Web search"` used everywhere else. Companies with
+no matching profile still fall back to `web_search_agent.search()`
+exactly as before. Confirmed live against the real program: 151 of 159
+flat-index companies had a matching profile and used it; nothing in the
+pipeline required an API call to reach that grounding text.
+
+```bash
+python -c "
+from extract_exhibitors import extract_company_names
+from extract_exhibitor_profiles import extract_exhibitor_profiles, build_profile_lookup
+from pipeline import evaluate_lead
+
+pdf = 'data/your_real_expo_program.pdf'  # not provided -- data/ is gitignored
+names = extract_company_names(pdf)
+lookup = build_profile_lookup(extract_exhibitor_profiles(pdf))
+for name in names[:3]:
+    print(evaluate_lead(name, 'data/sample_client_profile.yaml', 'data/sample_territory_routing.csv', exhibitor_profiles=lookup))
+"
+```
+
+**Why this needed real engineering, not just a new regex:** a real PDF
+export (InDesign, in this case) groups text into paragraph-level blocks
+with real column layout, floor-plan labels, and logo captions overlapping
+the reading order — nothing like the fictional PDF's simple per-line
+output. `extract_exhibitor_profiles.py` reads PyMuPDF's block-level
+output (not plain text), clusters blocks into columns by x-position, and
+**filters stray fragments by alignment to the column's dominant left
+edge**, not by text length — an earlier length-based filter was tried and
+rejected live once it was caught dropping a genuinely short-but-real block
+("313 Industries, Inc.") while also failing to drop a longer real-word
+logo-caption artifact that merged two unrelated exhibitors' data together.
+Alignment-based filtering fixed both problems at once and is honestly
+simpler.
+
+`extract_exhibitors.py`'s flat-index parser also needed a second format:
+the real program right-aligns a booth number after each name
+(`Name  BoothNum`) instead of the fictional PDF's `N. Name` numbering.
+`extract_company_names()` now tries the numbered format first and falls
+back to the tab+booth format -- **requiring more than one match** before
+trusting the numbered format, because a single coincidental match (a real
+PDF's body text contained a `$70.0K`-shaped figure that happened to match
+`N. text`) would otherwise have silently short-circuited before the real
+parser ever ran.
+
+**This parser was rewritten once already, live.** The first version
+worked off plain text and got tripped up by wrapped two-line names, since
+plain text linearizes a page into one flat line stream with no way to
+tell a genuine new entry from a continuation of the previous one. Instead
+of accepting that as a permanent limitation, the fix reads PyMuPDF's
+*span-level* geometry (`page.get_text("dict")`): every name+booth entry
+turned out to share one exact rule in the real document -- the booth
+number always sits on the same row (same y-coordinate) as the name's
+*first* line, even when the name continues onto a second row below it
+with no booth number of its own. That single geometric fact is what makes
+correct merging possible, and it's information plain text extraction
+throws away. See "Known limitations" for the before/after.
+
+**The real PDF itself is never committed** — `data/` is gitignored, and a
+real trade-show program is the show organizer's copyrighted material, not
+something to redistribute. Only the parsing *code*, tested against a
+fictional analog (`generate_sample_data.write_exhibitor_profiles_pdf()`,
+`data/sample_exhibitor_profiles.pdf`), is part of this repo. The fictional
+fixture deliberately includes one entry whose description is split across
+a separate block from its name (mirroring a real layout variant found
+live) to exercise that accumulation logic without needing the real file.
+
 ## Setup
 
 ```bash
@@ -305,10 +395,36 @@ mocked `test_hubspot_crm.py` suite is what runs in CI/without credentials.
 - `web_search_agent.search()` returns Claude's free-text answer only — no
   structured extraction of company websites, addresses, or a distinct
   per-claim source URL. `score_fit()`'s evidence quotes come from that same
-  free text, not from a specific cited URL.
-- `extract_company_names()` assumes a flat `N. Company Name` numbered list —
-  it doesn't handle exhibitor lists formatted as tables, multi-column
-  layouts, or booth-number-prefixed entries.
+  free text, not from a specific cited URL. (Slice 6's `source` field
+  closes this gap for leads sourced from a PDF profile — it points at the
+  exact page — but `"Web search"` leads still don't have a specific URL.)
+- **Fixed:** `extract_exhibitors.py`'s tab+booth index parser used to merge
+  a wrapped two-line company name into the wrong entry (a real program's
+  index can render a two-line-wrapped name with the booth number
+  positioned after the *first* line, not after both -- e.g. "Diversified
+  Manufacturing" / booth number / "and Assembly, LLC" as what looks like
+  three separate lines in plain text, for one company). A plain-text line
+  scan can't tell a continuation line from a new entry; the fix reads
+  PyMuPDF's span-level geometry instead -- the booth number always shares
+  the *same y-coordinate* as the name's first line, even when the name
+  wraps, so a row with no booth number of its own is provably a
+  continuation of whatever came before it, and an entry only closes once a
+  *following* row proves itself independent by carrying its own booth
+  number. Re-verified against the same real 27-page program that surfaced
+  the bug: 159 clean names, zero duplicates, zero known merge corruptions
+  (previously ~2%, a handful out of 158).
+- **Fixed:** a bare number with a K/M/B/% suffix (confirmed live: `"1.0K"`,
+  pulled from a dashboard-mockup ad's chart labels on a non-index page)
+  could be mistaken for a company name. `extract_company_names()` now
+  rejects any candidate matching a generic numeric-label shape
+  (`NUMERIC_LABEL_PATTERN`) before returning it.
+- **`extract_exhibitor_profiles.py`'s block-merge logic found exactly one
+  corruption case in the one real 27-page program tested**: a stylized,
+  letter-spaced logo wordmark sitting between two real profile blocks was
+  briefly mistaken for real content before the alignment filter was added
+  (see Slice 6) — after that fix, a live re-check found zero remaining
+  known corruptions in that same document, but this is one data point, not
+  a guarantee against every possible real-world layout.
 - **Evidence matching can be loose, not strictly literal.** In a live test
   against a real company (Polytronix Inc.), one matched signal
   ("field service equipment") was backed by an evidence quote that didn't

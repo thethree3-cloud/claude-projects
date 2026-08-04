@@ -97,6 +97,131 @@ def write_exhibitor_list_pdf():
     print(f"Wrote {out_path}")
 
 
+# Only some real trade-show programs give every exhibitor a full write-up --
+# confirmed against a real 27-page expo program, where 159 of roughly 300
+# indexed exhibitors had a full name/description/website/booth profile and
+# the rest were index-only. This fictional set mirrors that split: 6 of the
+# 10 EXHIBITORS above get a profile, the other 4 stay index-only so a full
+# pipeline run has a real mix of "use the PDF's own text" vs. "fall back to
+# live web search" cases to exercise.
+#
+# "Titanium Ridge Aerostructures" deliberately splits its description into
+# a second block (rendered as a separate multi_cell call below) -- this
+# mirrors a real layout variant found live (RENK Group, MDEX 2026 program)
+# where the description sits in its own block rather than combined with the
+# name, which extract_exhibitor_profiles._parse_column() must still catch
+# as one entry, not two.
+EXHIBITOR_PROFILES = [
+    {
+        "name": "Ironclad Avionics Systems",
+        "tagline": "Rugged Avionics Manufacturer",
+        "description": (
+            "Ironclad Avionics Systems designs MIL-STD-810 rated avionics "
+            "enclosures for defense and aerospace platforms."
+        ),
+        "website": "https://www.ironcladavionics.example/",
+        "booth": "3015",
+    },
+    {
+        "name": "Meridian Energy Solutions",
+        "tagline": "Field-Deployed Power Systems",
+        "description": (
+            "Meridian Energy Solutions builds hazardous-environment power "
+            "distribution equipment for oil, gas, and grid field sites."
+        ),
+        "website": "https://www.meridianenergy.example/",
+        "booth": "4021",
+    },
+    {
+        "name": "Vantage Defense Composites",
+        "tagline": "Composite Structures for Defense",
+        "description": (
+            "Vantage Defense Composites manufactures rugged composite "
+            "airframe and vehicle panels for defense-related programs."
+        ),
+        "website": "https://www.vantagedefense.example/",
+        "booth": "5023",
+    },
+    {
+        "name": "Titanium Ridge Aerostructures",
+        "tagline": "",
+        "description": (
+            "Titanium Ridge Aerostructures is a supplier of MIL-STD-810 "
+            "rated airframe components for avionics and defense-related "
+            "aircraft programs."
+        ),
+        "description_extra": (
+            "The company also offers field service equipment for "
+            "on-site maintenance of deployed aerostructures."
+        ),
+        "website": "https://www.titaniumridge.example/",
+        "booth": "6018",
+    },
+    {
+        "name": "Northbridge Medical Devices",
+        "tagline": "Portable Diagnostic Equipment",
+        "description": (
+            "Northbridge Medical Devices produces ISO 13485 certified "
+            "portable diagnostic equipment for field medical use."
+        ),
+        "website": "https://www.northbridgemedical.example/",
+        "booth": "8013",
+    },
+    {
+        "name": "Apex Telecom Infrastructure",
+        "tagline": "Field Service Equipment",
+        "description": (
+            "Apex Telecom Infrastructure supplies field service equipment "
+            "for telecommunications network deployment and maintenance."
+        ),
+        "website": "https://www.apextelecom.example/",
+        "booth": "9008",
+    },
+]
+
+
+def write_exhibitor_profiles_pdf():
+    """Fictional analog of a real trade-show program's exhibitor-profile
+    pages -- name, description, website, and booth per exhibitor, in the
+    same block shape extract_exhibitor_profiles.py parses (name+description
+    as one block or two, then a separate website+booth block)."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", "", 11)
+
+    for profile in EXHIBITOR_PROFILES:
+        pdf.set_font("Helvetica", "", 11)
+        name_block = profile["name"]
+        if profile["tagline"]:
+            name_block += "\n" + profile["tagline"]
+        if "description_extra" not in profile:
+            name_block += "\n" + profile["description"]
+        pdf.multi_cell(0, 6, name_block, new_x="LMARGIN", new_y="NEXT")
+
+        if "description_extra" in profile:
+            pdf.multi_cell(
+                0,
+                6,
+                profile["description"] + "\n" + profile["description_extra"],
+                new_x="LMARGIN",
+                new_y="NEXT",
+            )
+
+        pdf.multi_cell(
+            0,
+            6,
+            f"{profile['website']}\nBooth {profile['booth']}",
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
+        pdf.ln(4)
+
+    out_path = DATA_DIR / "sample_exhibitor_profiles.pdf"
+    pdf.output(str(out_path))
+    print(f"Wrote {out_path}")
+
+
 def write_sample_client_profile():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DATA_DIR / "sample_client_profile.yaml"
@@ -168,6 +293,7 @@ def write_sample_existing_customers():
 
 if __name__ == "__main__":
     write_exhibitor_list_pdf()
+    write_exhibitor_profiles_pdf()
     write_sample_client_profile()
     write_sample_territory_routing()
     write_sample_existing_customers()
