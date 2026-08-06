@@ -69,7 +69,7 @@ class EvaluateLeadTests(unittest.TestCase):
     def test_unmatched_company_falls_back_to_web_search(
         self, mock_score_fit, mock_extract_location, mock_route_salesperson, mock_search
     ):
-        mock_search.return_value = "Some live search result text."
+        mock_search.side_effect = ["Identity search text.", "Scoring search text."]
         mock_score_fit.side_effect = self._fake_fit_result
         mock_extract_location.side_effect = self._fake_location
         mock_route_salesperson.side_effect = self._fake_routing
@@ -81,10 +81,22 @@ class EvaluateLeadTests(unittest.TestCase):
             exhibitor_profiles={},
         )
 
-        mock_search.assert_called_once_with("Some Other Company")
+        self.assertEqual(mock_search.call_count, 2)
+        # First call is the neutral identity search, used for location.
+        self.assertEqual(mock_search.call_args_list[0].args, ("Some Other Company",))
+        location_text_used = mock_extract_location.call_args[0][0]
+        self.assertEqual(location_text_used, "Identity search text.")
+
+        # Second call is the targeted scoring search, built from the
+        # client profile's own signal terms -- not the bare company name.
+        second_call_query = mock_search.call_args_list[1].args[0]
+        self.assertIn("Some Other Company", second_call_query)
+        self.assertNotEqual(second_call_query, "Some Other Company")
+
         self.assertEqual(result["source"], WEB_SEARCH_SOURCE)
-        research_text_used = mock_score_fit.call_args[0][1]
-        self.assertEqual(research_text_used, "Some live search result text.")
+        scoring_text_used = mock_score_fit.call_args[0][1]
+        self.assertIn("Identity search text.", scoring_text_used)
+        self.assertIn("Scoring search text.", scoring_text_used)
 
     @patch("pipeline.search")
     @patch("pipeline.route_salesperson")
@@ -93,7 +105,7 @@ class EvaluateLeadTests(unittest.TestCase):
     def test_no_exhibitor_profiles_argument_defaults_to_search(
         self, mock_score_fit, mock_extract_location, mock_route_salesperson, mock_search
     ):
-        mock_search.return_value = "Some live search result text."
+        mock_search.side_effect = ["Identity search text.", "Scoring search text."]
         mock_score_fit.side_effect = self._fake_fit_result
         mock_extract_location.side_effect = self._fake_location
         mock_route_salesperson.side_effect = self._fake_routing
@@ -102,7 +114,8 @@ class EvaluateLeadTests(unittest.TestCase):
             "Any Company", self.client_profile_path, self.territory_routing_path
         )
 
-        mock_search.assert_called_once_with("Any Company")
+        self.assertEqual(mock_search.call_count, 2)
+        self.assertEqual(mock_search.call_args_list[0].args, ("Any Company",))
         self.assertEqual(result["source"], WEB_SEARCH_SOURCE)
 
 

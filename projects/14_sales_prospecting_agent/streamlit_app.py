@@ -64,12 +64,33 @@ def load_leads(csv_path: str) -> pd.DataFrame:
     normalized["score"] = pd.to_numeric(normalized["score"], errors="coerce").fillna(0).astype(int)
     normalized["band"] = normalized["band"].fillna("Unknown")
     normalized["company_name"] = normalized["company_name"].fillna("Unknown")
+
+    # A "Web search" source means score_fit only had a generic company-name
+    # search to work with (corporate overview text, not a verified source
+    # page) -- real, but weaker evidence than a PDF-grounded lead. Flagging
+    # it here rather than trusting the score alone; see README's "Known
+    # limitations" for the live Collins Aerospace/BAE Systems/Boeing SC
+    # example that surfaced this.
+    def _confidence(s):
+        if pd.isna(s):
+            return "Unknown"
+        return "⚠️ Verify manually" if s == "Web search" else "📄 PDF-grounded"
+
+    normalized["confidence"] = normalized["source"].apply(_confidence)
     return normalized.sort_values("score", ascending=False).reset_index(drop=True)
 
 
 def render_lead_dialog(row: pd.Series) -> None:
     badge_color = BAND_BADGE_COLOR.get(row["band"], "gray")
     st.markdown(f":{badge_color}-badge[{row['band']} fit -- score {row['score']}]")
+
+    if row["source"] == "Web search":
+        st.warning(
+            "Score is directional only -- grounded in a generic company-name "
+            "search (corporate overview text), not a verified product/spec "
+            "source. Confirm fit manually before treating this as a "
+            "qualified lead."
+        )
 
     st.markdown("**Fit reason**")
     st.write(row["fit_reason"] if pd.notna(row["fit_reason"]) else "Not available")
@@ -172,6 +193,7 @@ with st.container(border=True):
             ),
             "score": st.column_config.NumberColumn("Score", format="%d"),
             "band": st.column_config.TextColumn("Band", width="small"),
+            "confidence": st.column_config.TextColumn("Confidence", width="small"),
             "fit_reason": st.column_config.TextColumn("Fit reason", width="large"),
             "salesperson": st.column_config.TextColumn("Salesperson", width="small"),
             "territory": st.column_config.TextColumn("Territory", width="small"),
@@ -181,6 +203,7 @@ with st.container(border=True):
             "company_name",
             "score",
             "band",
+            "confidence",
             "fit_reason",
             "salesperson",
             "territory",

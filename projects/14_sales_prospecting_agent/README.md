@@ -166,6 +166,12 @@ match only — deliberately no fuzzy matching, since a fuzzy match risks
 flagging a similarly-named but different company as an existing customer,
 a worse mistake than under-flagging.
 
+`load_existing_customers()` accepts either a CSV (`company_name` header,
+exact) or an `.xlsx`/`.xlsm` workbook (first sheet, header matched
+case/whitespace-insensitively since a hand-authored real customer list
+won't have this project's own tidy CSV header) — pass whichever file you
+already have.
+
 ```bash
 python -c "
 from pipeline import evaluate_lead
@@ -361,6 +367,39 @@ fixture deliberately includes one entry whose description is split across
 a separate block from its name (mirroring a real layout variant found
 live) to exercise that accumulation logic without needing the real file.
 
+## Slice 7: geo-radius lead search
+
+The geo-radius query mode (`"manufacturing businesses within 10 miles of
+Dallas, TX"`) existed from Slice 1 as a raw `web_search_agent.search()`
+capability, but wasn't wired into a full lead pipeline — a geo-radius
+search returns one blob of text naming several businesses, and
+`pipeline.evaluate_lead()` expects a single company per call. This slice
+closes that gap.
+
+`geo_search.py` adds `find_companies_near(location_query)`: runs the
+geo-radius search, then a second, tool-free Claude call
+(`extract_company_names_from_text()`) pulls the distinct real company
+names out of that result text via structured JSON output — same
+evidence-detection pattern as `score_fit.py` (Claude only reads text
+already gathered, can't invent a company that isn't actually named in
+it). Each extracted name is then run through `pipeline.evaluate_lead()`
+individually, exactly like a PDF-extracted exhibitor name — this mode
+just sources its company list from a live search instead of a PDF.
+
+`run_geo_radius_search.py` is the driver script (mirrors
+`run_full_exhibitor_list.py`): runs the whole thing end to end and writes
+a CSV + summary to `data/`, viewable in the same `streamlit_app.py`
+dashboard.
+
+```bash
+python run_geo_radius_search.py "manufacturing businesses within 10 miles of Dallas, TX"
+```
+
+Verified live: a real query against Dallas, TX returned 9 real company
+names (Texas Instruments, TECO Metal Products, DLT Manufacturing, and
+others), each scored, located, and routed correctly through the existing
+pipeline with no changes needed there.
+
 ## Setup
 
 ```bash
@@ -410,6 +449,57 @@ mocked `test_hubspot_crm.py` suite is what runs in CI/without credentials.
 
 ## Known limitations
 
+- **Fixed:** a generic company-name search returns corporate-overview text,
+  not product-spec text — so real defense/aerospace primes were scoring
+  surprisingly low. Verified live: searching "Collins Aerospace" and "BAE
+  Systems, Inc." returned revenue, headcount, and business-unit
+  descriptions, which supported broad signal terms (`avionics`,
+  `defense-related`) but never the sample profile's more specific,
+  spec-sheet-level terms (`MIL-STD-810`, `rugged`, `field-deployed`,
+  `hazardous environment`) — both scored 35/Low despite being real, large
+  defense contractors. Surfaced during geo-radius mode (Slice 7) testing
+  against a real 20-mile-radius Charleston, SC query, but applied to any
+  lead sourced from a bare company-name web search, not just geo-radius
+  mode.
+
+  **Fix:** `pipeline.evaluate_lead()` now runs a second, targeted search
+  (`_scoring_search_query()`) built from the client profile's own signal
+  terms — e.g. "Collins Aerospace products, certifications, and technical
+  specifications related to: MIL-STD-810, avionics, ..." — and appends its
+  result to the neutral identity search before scoring. The neutral search
+  is still what location extraction uses, so this only adds evidence, it
+  doesn't change what location/routing sees. Query terms come from
+  `client_profile.yaml`, not hardcoded product language, so this stays
+  generic across clients. Doubles search-call cost/latency per web-search-
+  sourced lead — the tradeoff accepted over the cheaper but riskier option
+  of just biasing the single identity search query itself.
+
+  **Re-verified live, same three companies:** Collins Aerospace 35→**100
+  High** (6 of 9 signals now matched, including `MIL-STD-810` — the
+  targeted search surfaced "Flight2 integrated avionics system is
+  qualified to Military Standard 810" and specific field-deployable test
+  equipment). BAE Systems 35→**95 High** (6 of 9 matched). Boeing SC
+  0→**75/Unknown** (real matches found, but Claude still judged the
+  combined text insufficient overall — Unknown, not a fabricated High,
+  showing the fix adds evidence without abandoning the "don't invent a
+  match" grounding rule). Confirmed the added evidence is real, not
+  query-echo: the same live check showed Claude explicitly reporting it
+  did *not* find ISO 13485 or hazardous-environment specifics for Collins
+  Aerospace, rather than fabricating a match just because those terms were
+  in the search query.
+- **Fixed:** early geo-radius mode (Slice 7) testing found "Yelp",
+  "Google Maps", and "Dallas Chamber of Commerce" coming back as if they
+  were lead companies — real names mentioned in the search result, but
+  sources the text cited or a trade association, not actual prospects.
+  `extract_company_names_from_text()`'s schema now asks Claude to classify
+  each extracted name (`is_real_prospect_business`) and Python filters out
+  anything flagged false — same "LLM classifies, Python decides" split as
+  `score_fit.py`. Re-verified live against the same query: the false
+  positives are gone. **Still open:** dedup remains exact-string only — a
+  run separately returned "TECO Metal" and "TECO Metal Products" as two
+  leads (likely the same company, referenced two ways), same limitation
+  `existing_customers.py`'s exact-match design already has, just not yet
+  fixed here either.
 - `web_search_agent.search()` returns Claude's free-text answer only — no
   structured extraction of company websites, addresses, or a distinct
   per-claim source URL. `score_fit()`'s evidence quotes come from that same
