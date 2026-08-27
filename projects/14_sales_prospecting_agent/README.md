@@ -18,7 +18,7 @@ agent's core value: triage a large trade-show exhibitor list down to
 strong-fit companies so salespeople spend limited floor time on the booths
 worth visiting, instead of walking the whole show cold. All company names and
 sample data here are **fictional** — generated for testing, never real
-Zerocases or customer data (same approach as Project 04).
+employer or customer data (same approach as Project 04).
 
 ## Why this exists
 
@@ -152,7 +152,7 @@ for lead → flat-field-value logic; the HubSpot integration reuses it
 directly rather than recomputing the same decisions twice (see Slice 5).
 
 **The CSV/field layout is invented, not copied from anywhere.** No real
-CRM import format was available to reference for the original Zerocases
+CRM import format was available to reference for the original internal
 workflow, so `CSV_FIELDNAMES` in `crm_export.py` is a generic layout
 loosely following common CRM lead-import conventions (company, fit rating,
 lead source/status, owner), adapted to what this pipeline actually gathers.
@@ -187,9 +187,9 @@ export_leads_to_csv(leads, existing, 'data/demo_leads.csv')
 
 ## Slice 5: live HubSpot CRM integration (now the primary path)
 
-**This reverses the Slice 4 decision.** The real Zerocases workflow never
+**This reverses the Slice 4 decision.** The original internal workflow never
 called a CRM API — that's why Agent 2 was originally CSV-only — but Alan
-asked for a real live integration afterward. There's no real Zerocases CRM
+asked for a real live integration afterward. There's no real internal CRM
 to match anyway, so **HubSpot** was a free choice: it has a free developer
 account, a well-documented REST API, and an official Python SDK. Same
 "free developer sandbox instead of real employer infrastructure" pattern
