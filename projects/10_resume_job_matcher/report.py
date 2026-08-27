@@ -138,6 +138,7 @@ def build_report(comparison, resume, job):
 
     return {
         "job_title": job["title"],
+        "company": job["company"],
         "score": scored["score"],
         "band": scored["band"],
         "breakdown": scored["breakdown"],
@@ -149,8 +150,11 @@ def build_report(comparison, resume, job):
 
 def format_report(report):
     """Pure. Renders a report dict to a plain-text block for a human."""
+    heading = report["job_title"]
+    if report.get("company"):
+        heading += f" @ {report['company']}"
     lines = [
-        f"{report['job_title']} — {report['score']}/100 ({report['band']})",
+        f"{heading} — {report['score']}/100 ({report['band']})",
         "",
         "Score breakdown:",
     ]

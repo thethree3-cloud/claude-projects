@@ -102,6 +102,7 @@ class BuildReportTests(unittest.TestCase):
         result = report.build_report(COMPARISON_WITH_GAPS, RESUME, JOB)
 
         self.assertEqual(result["job_title"], "Junior AI Engineer")
+        self.assertEqual(result["company"], "Northwind")
         self.assertIn("score", result)
         self.assertEqual(result["gaps"]["unmet_required_skills"], ["Kubernetes"])
         self.assertEqual(len(result["suggestions"]), 1)

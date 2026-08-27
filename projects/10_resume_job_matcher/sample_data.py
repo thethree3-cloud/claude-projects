@@ -83,6 +83,44 @@ We do not require prior "machine learning" or model-training experience -- this
 is an applied engineering role.
 """
 
+# A folder of listings for the run_job_folder.py driver -- a spread of fit
+# levels so the ranking is visible. All fictional.
+SAMPLE_JOBS = {
+    "01_junior_ai_engineer.txt": SAMPLE_JOB,
+    "02_data_analyst.txt": """\
+Data Analyst
+Cedar Ridge Logistics - Hybrid (Portland, OR)
+
+Support operations with reporting and ad-hoc analysis.
+
+Requirements
+- 2+ years in an analytics or reporting role.
+- Strong SQL and Excel.
+- Python for data wrangling (pandas).
+- Clear written communication with non-technical stakeholders.
+
+Nice to have
+- Power BI or Tableau.
+- Experience in logistics, manufacturing, or supply chain.
+""",
+    "03_ml_research_scientist.txt": """\
+Senior Machine Learning Research Scientist
+Helix AI Labs - On-site (Palo Alto, CA)
+
+Push the state of the art in large-model training and evaluation.
+
+Requirements
+- PhD in Machine Learning, Statistics, or a related field.
+- 5+ years of research experience with published work at NeurIPS, ICML, or ICLR.
+- Deep expertise in PyTorch and distributed training.
+- Strong background in optimization and probability theory.
+
+Nice to have
+- Experience training models above 10B parameters.
+- A record of open-source research contributions.
+""",
+}
+
 
 def write_sample_data():
     DATA_DIR.mkdir(exist_ok=True)
@@ -90,7 +128,15 @@ def write_sample_data():
     job_path = DATA_DIR / "sample_job.txt"
     resume_path.write_text(SAMPLE_RESUME)
     job_path.write_text(SAMPLE_JOB)
-    return resume_path, job_path
+
+    jobs_dir = DATA_DIR / "sample_jobs"
+    jobs_dir.mkdir(exist_ok=True)
+    written = [resume_path, job_path]
+    for name, text in SAMPLE_JOBS.items():
+        path = jobs_dir / name
+        path.write_text(text)
+        written.append(path)
+    return written
 
 
 if __name__ == "__main__":
