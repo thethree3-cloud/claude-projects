@@ -48,6 +48,7 @@ REMOTE = [
 GOVERNMENT = [
     "usajobs.gov",
     "clearancejobs.com",
+    "governmentjobs.com",  # NeoGov — most US state / county / city career portals
 ]
 
 # Applicant-tracking-system job pages. Fewer listings per domain, but these
@@ -62,9 +63,45 @@ ATS = [
     "jobs.jobvite.com",
     "smartrecruiters.com",
     "bamboohr.com",
+    "icims.com",
 ]
 
 ALL_JOB_SITES = [*AGGREGATORS, *TECH, *AI_ML, *REMOTE, *GOVERNMENT, *ATS]
 
 # The subset whose posting pages an automated fetch can usually read in full.
 FETCHABLE = [*GOVERNMENT, *ATS]
+
+# =============================================================================
+# Local presets — extra region-specific boards to search on top of
+# ALL_JOB_SITES, plus a default location + radius.
+# =============================================================================
+
+# Utah / Salt Lake City boards (verified 2026-08). `myworkdayjobs.com` (already
+# in ATS) covers slcgov.wd1.myworkdayjobs.com and utah.wd1.myworkdayjobs.com;
+# `governmentjobs.com` covers the State of Utah and Salt Lake County portals.
+UTAH = [
+    "jobs.utah.gov",            # Dept. of Workforce Services job-seeker board
+    "statejobs.utah.gov",       # State of Utah careers / apply portal
+    "careers-slco.icims.com",   # Salt Lake County
+    "jobs.ksl.com",             # KSL Jobs
+    "classifieds.ksl.com",      # KSL Classifieds (jobs consolidating here, 2026)
+    "siliconslopes.com",        # Silicon Slopes tech job board
+    "jobs.siliconslopes.com",
+    "siliconslopesjobs.com",
+    "utah.edu",                 # University of Utah (largest SLC-area employer)
+]
+
+LOCAL_PRESETS = {
+    "Salt Lake City": {
+        "location": "Salt Lake City, Utah",
+        "radius_miles": 25,
+        "extra_sites": UTAH,
+    },
+}
+
+
+def preset_sites(preset_name):
+    """ALL_JOB_SITES plus the named preset's region boards, order-preserving
+    and de-duplicated."""
+    extra = LOCAL_PRESETS[preset_name]["extra_sites"]
+    return list(dict.fromkeys([*ALL_JOB_SITES, *extra]))

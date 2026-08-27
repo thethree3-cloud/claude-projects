@@ -85,6 +85,14 @@ class StreamlitAppTests(unittest.TestCase):
         self.assertEqual(list(at.exception), [])
         self.assertTrue(any("2 postings" in c.value for c in at.caption))
 
+    def test_salt_lake_city_preset_shows_local_boards_note(self):
+        at = AppTest.from_file("streamlit_app.py")
+        at.session_state["mode"] = "Search live jobs"
+        at.run()
+        at.selectbox[0].set_value("Salt Lake City").run()
+        self.assertEqual(list(at.exception), [])
+        self.assertTrue(any("Utah/SLC" in c.value for c in at.caption))
+
 
 if __name__ == "__main__":
     unittest.main()

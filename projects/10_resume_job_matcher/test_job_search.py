@@ -17,10 +17,26 @@ class JobSitesTests(unittest.TestCase):
         self.assertTrue(set(job_sites.FETCHABLE) <= set(job_sites.ALL_JOB_SITES))
 
     def test_sites_are_bare_hostnames(self):
-        for site in job_sites.ALL_JOB_SITES:
+        every_site = job_sites.ALL_JOB_SITES + [
+            s for p in job_sites.LOCAL_PRESETS.values() for s in p["extra_sites"]
+        ]
+        for site in every_site:
             self.assertNotIn("/", site)
             self.assertFalse(site.startswith("http"))
             self.assertIn(".", site)
+
+    def test_salt_lake_city_preset_shape(self):
+        preset = job_sites.LOCAL_PRESETS["Salt Lake City"]
+        self.assertEqual(preset["radius_miles"], 25)
+        self.assertIn("Utah", preset["location"])
+        self.assertTrue(preset["extra_sites"])
+
+    def test_preset_sites_unions_all_plus_local_without_dupes(self):
+        sites = job_sites.preset_sites("Salt Lake City")
+        self.assertEqual(len(sites), len(set(sites)))
+        self.assertTrue(set(job_sites.ALL_JOB_SITES) <= set(sites))
+        self.assertIn("jobs.ksl.com", sites)
+        self.assertIn("jobs.utah.gov", sites)
 
 
 def _resp(content, stop_reason="end_turn"):

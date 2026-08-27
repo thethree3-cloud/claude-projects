@@ -22,12 +22,12 @@ Full chain: `pipeline.evaluate_fit(resume_text, job_text)` →
 | `score.py` | `score_comparison(comparison)` → `{score, band, breakdown}`. Pure arithmetic, no LLM. Weights: required 60 / years 20 / preferred 15 / education 5 (sum 100). Bands: Strong ≥ 75, Possible ≥ 45, Weak below. `breakdown` shows each component's points/max/detail. |
 | `report.py` | `find_gaps(comparison)` (pure) → unmet skills, years shortfall, education. `build_report(comparison, resume, job)` adds the score and one LLM call for suggestions. `format_report(report)` renders it to text (pure). |
 | `pipeline.py` | `evaluate_fit(resume_text, job_text)` — raw text → finished report in one call. `rank_fits(reports)` — pure, orders a batch best-first. |
-| `job_sites.py` | The curated list of ~28 job boards `job_search` searches, grouped (aggregators / tech / AI-ML / remote / government / ATS). `FETCHABLE` is the subset whose posting pages an automated fetch can usually read in full. |
+| `job_sites.py` | The curated list of ~30 job boards `job_search` searches, grouped (aggregators / tech / AI-ML / remote / government / ATS). `FETCHABLE` = the subset that fetches cleanly. `LOCAL_PRESETS` adds region-specific boards + a default location/radius (Salt Lake City ships as one). |
 | `job_search.py` | `search_jobs(keywords, location, radius_miles, count)` → live postings via Claude's `web_search` (restricted to `job_sites`) + `web_fetch` (full posting text). Returns `{title, company, location, url, description, grounding}`; `grounding` is `"full posting"` or `"search snippet"`. `description` is what you feed to `evaluate_fit`. |
 | `run_job_folder.py` | Driver (not tested): runs one résumé against a folder of `.txt` listings, prints a ranked table + each full report. |
 | `run_job_search.py` | Driver (not tested): `search_jobs` for postings near a location (default: the résumé's own), scores each, prints ranked with the posting URL + grounding. |
-| `streamlit_app.py` | UI, two modes. **Score one listing:** paste a résumé + a job listing → score, breakdown, gaps (badges), suggestions (labelled), skill-by-skill evidence, text download. **Search live jobs:** paste a résumé + keywords + location → ranked results table, row-select for the full report + a link to the posting. |
-| `test_*.py` (47 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, the `find_gaps`/`format_report`/`job_sites` tests, and `test_streamlit_app.py` (via `AppTest`) are pure; the rest mock the client. |
+| `streamlit_app.py` | UI, two modes. **Score one listing:** paste a résumé + a job listing → score, breakdown, gaps (badges), suggestions (labelled), skill-by-skill evidence, text download. **Search live jobs:** paste a résumé + keywords + location (or a "Search area" preset like Salt Lake City) → ranked results table, row-select for the full report + a link to the posting. |
+| `test_*.py` (50 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, the `find_gaps`/`format_report`/`job_sites` tests, and `test_streamlit_app.py` (via `AppTest`) are pure; the rest mock the client. |
 
 **Grounding** (same as every slice and Project 14): `match.py` gives Claude no
 tools — a skill is "met" only if it can be quoted from the résumé.
@@ -77,13 +77,24 @@ jobs = search_jobs("junior AI engineer or Python developer", "Portland, Oregon",
 ```bash
 # search + score in one shot (location defaults to the résumé's own)
 python run_job_search.py data/sample_resume.txt "Python developer or data analyst" --radius 30 --count 8
+
+# a regional preset adds local boards + its own default location/radius
+python run_job_search.py data/sample_resume.txt "compliance analyst" --preset "Salt Lake City"
 ```
 
 `parse_resume` extracts a `location` field so the résumé's own city/state is
 the default search area.
 
+**Regional presets** (`job_sites.LOCAL_PRESETS`) bolt a set of local boards
+onto `ALL_JOB_SITES` and set a default location + radius. **Salt Lake City**
+adds `jobs.utah.gov` + `statejobs.utah.gov` (state), `governmentjobs.com` +
+`careers-slco.icims.com` (county/city), `jobs.ksl.com` + `classifieds.ksl.com`
+(KSL), `siliconslopes.com` + `siliconslopesjobs.com` (tech), and `utah.edu`,
+at a 25-mile radius. The Streamlit search mode has a "Search area" dropdown for
+the same thing. Add a region by extending the dict.
+
 One agentic Claude call: `web_search` restricted (via `allowed_domains`) to the
-~28 boards in `job_sites.py`, then `web_fetch` on the promising results for the
+boards in `job_sites.py`, then `web_fetch` on the promising results for the
 full posting text. Same forced-first-tool-call discipline as Project 14
 (`tool_choice: any` on turn 1, since Haiku won't reliably search on its own).
 
@@ -112,7 +123,7 @@ full descriptions.
 
 ```bash
 python sample_data.py        # writes data/sample_resume.txt, data/sample_job.txt, data/sample_jobs/
-python -m unittest discover   # 47 tests, offline
+python -m unittest discover   # 50 tests, offline
 python run_job_folder.py data/sample_resume.txt data/sample_jobs/   # live CLI, needs API key
 streamlit run streamlit_app.py                                      # live UI, needs API key
 ```

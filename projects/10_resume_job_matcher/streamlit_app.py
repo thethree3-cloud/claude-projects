@@ -15,6 +15,7 @@ from pathlib import Path
 
 import streamlit as st
 
+import job_sites
 from job_search import search_jobs
 from match import match_requirements
 from parse_job import parse_job
@@ -51,15 +52,24 @@ def evaluate(resume_text: str, job_text: str) -> dict:
 
 @st.cache_data(show_spinner=False, ttl="1h", max_entries=10)
 def search_and_score(
-    resume_text: str, keywords: str, location: str, radius: int, count: int
+    resume_text: str,
+    keywords: str,
+    location: str,
+    radius: int,
+    count: int,
+    sites: tuple | None = None,
 ) -> list[dict]:
     """Search live postings, score each against the résumé, return best-first.
 
     The résumé is parsed once; each posting is parsed + matched + reported.
+    `sites` (a tuple, so it's cache-hashable) overrides the board list.
     """
     resume = parse_resume(resume_text)
     results = []
-    for job in search_jobs(keywords, location, radius_miles=radius, count=count):
+    for job in search_jobs(
+        keywords, location, radius_miles=radius, count=count,
+        sites=list(sites) if sites else None,
+    ):
         parsed_job = parse_job(job["description"])
         comparison = match_requirements(resume, parsed_job)
         results.append(
@@ -247,14 +257,28 @@ if mode == "Score one listing":
 
 # --------------------------------------------------------------- search jobs
 else:
+    area = st.selectbox("Search area", ["Custom", *job_sites.LOCAL_PRESETS])
+    preset = job_sites.LOCAL_PRESETS.get(area)
+    if preset:
+        st.caption(
+            f":material/place: {preset['location']} · {preset['radius_miles']} mi · "
+            f"the standard boards plus {len(preset['extra_sites'])} local Utah/SLC "
+            "boards (state jobs, Salt Lake County, KSL, Silicon Slopes, U of U)."
+        )
+
     with st.form("search", border=False):
         keywords = st.text_input(
             "Role / keywords", placeholder="e.g. junior AI engineer or Python developer"
         )
-        loc_col, radius_col, count_col = st.columns([2, 1, 1])
-        location = loc_col.text_input("Location", placeholder="e.g. Portland, OR")
-        radius = radius_col.number_input("Radius (mi)", 5, 200, 25, step=5)
-        count = count_col.number_input("Max postings", 3, 20, 10)
+        if preset:
+            location = preset["location"]
+            radius = preset["radius_miles"]
+            count = st.number_input("Max postings", 3, 20, 10)
+        else:
+            loc_col, radius_col, count_col = st.columns([2, 1, 1])
+            location = loc_col.text_input("Location", placeholder="e.g. Portland, OR")
+            radius = radius_col.number_input("Radius (mi)", 5, 200, 25, step=5)
+            count = count_col.number_input("Max postings", 3, 20, 10)
         searched = st.form_submit_button(
             "Search & score", icon=":material/travel_explore:", type="primary"
         )
@@ -263,9 +287,10 @@ else:
         if not st.session_state.get("resume_text", "").strip():
             st.warning("Paste a résumé first.")
             st.stop()
-        if not keywords.strip() or not location.strip():
+        if not keywords.strip() or not str(location).strip():
             st.warning("Enter both keywords and a location.")
             st.stop()
+        sites = tuple(job_sites.preset_sites(area)) if preset else None
         st.session_state.search = _run(
             f"Searching job boards for “{keywords}” near {location}…",
             search_and_score,
@@ -274,6 +299,7 @@ else:
             location,
             int(radius),
             int(count),
+            sites,
         )
 
     if "search" in st.session_state:
