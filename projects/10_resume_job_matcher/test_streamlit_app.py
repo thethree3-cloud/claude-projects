@@ -47,9 +47,9 @@ class StreamlitAppTests(unittest.TestCase):
         at = AppTest.from_file("streamlit_app.py").run()
         self.assertEqual(list(at.exception), [])
 
-    def test_renders_report_from_session_state(self):
+    def test_renders_single_report_from_session_state(self):
         at = AppTest.from_file("streamlit_app.py")
-        at.session_state["result"] = {"comparison": COMPARISON, "report": REPORT}
+        at.session_state["single"] = {"comparison": COMPARISON, "report": REPORT}
         at.run()
 
         self.assertEqual(list(at.exception), [])
@@ -62,6 +62,28 @@ class StreamlitAppTests(unittest.TestCase):
         submit.click().run()
         self.assertEqual(list(at.exception), [])
         self.assertTrue(any("Paste both" in w.value for w in at.warning))
+
+    def test_search_mode_renders_ranked_results_from_session_state(self):
+        at = AppTest.from_file("streamlit_app.py")
+        at.session_state["mode"] = "Search live jobs"
+        at.session_state["search"] = [
+            {
+                "report": {**REPORT, "score": 88, "band": "Strong"},
+                "comparison": COMPARISON,
+                "url": "https://jobs.lever.co/x/1",
+                "grounding": "full posting",
+            },
+            {
+                "report": {**REPORT, "job_title": "Data Analyst", "score": 40, "band": "Weak"},
+                "comparison": COMPARISON,
+                "url": "https://indeed.com/x",
+                "grounding": "search snippet",
+            },
+        ]
+        at.run()
+
+        self.assertEqual(list(at.exception), [])
+        self.assertTrue(any("2 postings" in c.value for c in at.caption))
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ import parse_resume
 FAKE_PARSED = {
     "name": "Jordan Rivera",
     "summary": "IT support moving into automation.",
+    "location": "Portland, OR",
     "skills": ["Python", "SQL", "pandas"],
     "experience": [
         {

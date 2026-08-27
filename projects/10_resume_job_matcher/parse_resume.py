@@ -17,6 +17,10 @@ RESUME_SCHEMA = {
             "type": "string",
             "description": "The professional summary / objective, verbatim or lightly trimmed. Empty string if there isn't one.",
         },
+        "location": {
+            "type": "string",
+            "description": "The candidate's location as written — city/state, or city/state/ZIP. Empty string if the résumé doesn't give one.",
+        },
         "skills": {
             "type": "array",
             "items": {"type": "string"},
@@ -68,6 +72,7 @@ RESUME_SCHEMA = {
     "required": [
         "name",
         "summary",
+        "location",
         "skills",
         "experience",
         "education",

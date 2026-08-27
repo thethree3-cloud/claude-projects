@@ -1,0 +1,126 @@
+import json
+import unittest
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+import job_search
+import job_sites
+
+
+class JobSitesTests(unittest.TestCase):
+    def test_all_sites_has_no_duplicates(self):
+        self.assertEqual(
+            len(job_sites.ALL_JOB_SITES), len(set(job_sites.ALL_JOB_SITES))
+        )
+
+    def test_fetchable_is_subset_of_all(self):
+        self.assertTrue(set(job_sites.FETCHABLE) <= set(job_sites.ALL_JOB_SITES))
+
+    def test_sites_are_bare_hostnames(self):
+        for site in job_sites.ALL_JOB_SITES:
+            self.assertNotIn("/", site)
+            self.assertFalse(site.startswith("http"))
+            self.assertIn(".", site)
+
+
+def _resp(content, stop_reason="end_turn"):
+    return SimpleNamespace(content=content, stop_reason=stop_reason)
+
+
+def _text(t):
+    return SimpleNamespace(type="text", text=t)
+
+
+JOBS_JSON = {
+    "jobs": [
+        {
+            "title": "Junior AI Engineer",
+            "company": "Northwind",
+            "location": "Portland, OR",
+            "url": "https://jobs.lever.co/northwind/1",
+            "description": "Build LLM-backed features. 2+ years Python.",
+            "grounding": "full posting",
+        }
+    ]
+}
+
+
+class SearchJobsTests(unittest.TestCase):
+    @patch("job_search.get_client")
+    def test_parses_jobs_from_final_response(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _resp([_text(json.dumps(JOBS_JSON))])
+        mock_get_client.return_value = mock_client
+
+        jobs = job_search.search_jobs("AI engineer", "Portland, OR")
+
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]["company"], "Northwind")
+        self.assertEqual(jobs[0]["grounding"], "full posting")
+
+    @patch("job_search.get_client")
+    def test_resends_on_pause_turn_until_done(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = [
+            _resp([SimpleNamespace(type="server_tool_use", id="x")], stop_reason="pause_turn"),
+            _resp([_text(json.dumps(JOBS_JSON))]),
+        ]
+        mock_get_client.return_value = mock_client
+
+        jobs = job_search.search_jobs("AI engineer", "Portland, OR")
+
+        self.assertEqual(mock_client.messages.create.call_count, 2)
+        self.assertEqual(len(jobs), 1)
+
+    @patch("job_search.get_client")
+    def test_first_call_forces_tool_use_and_scopes_domains(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _resp([_text(json.dumps({"jobs": []}))])
+        mock_get_client.return_value = mock_client
+
+        job_search.search_jobs("x", "y", sites=["jobs.lever.co"])
+
+        _, kwargs = mock_client.messages.create.call_args_list[0]
+        self.assertEqual(kwargs["tool_choice"], {"type": "any"})
+        self.assertEqual(kwargs["tools"][0]["allowed_domains"], ["jobs.lever.co"])
+        self.assertEqual(kwargs["tools"][0]["type"], "web_search_20250305")
+        self.assertEqual(kwargs["tools"][1]["type"], "web_fetch_20250910")
+
+    @patch("job_search.get_client")
+    def test_continuation_calls_drop_forced_tool_choice(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = [
+            _resp([SimpleNamespace(type="server_tool_use")], stop_reason="pause_turn"),
+            _resp([_text(json.dumps({"jobs": []}))]),
+        ]
+        mock_get_client.return_value = mock_client
+
+        job_search.search_jobs("x", "y")
+
+        _, second = mock_client.messages.create.call_args_list[1]
+        self.assertNotIn("tool_choice", second)
+
+    @patch("job_search.get_client")
+    def test_stops_after_max_rounds(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _resp([], stop_reason="pause_turn")
+        mock_get_client.return_value = mock_client
+
+        jobs = job_search.search_jobs("x", "y")
+
+        self.assertEqual(jobs, [])
+        self.assertEqual(
+            mock_client.messages.create.call_count, job_search.MAX_TOOL_ROUNDS + 1
+        )
+
+    @patch("job_search.get_client")
+    def test_empty_final_text_returns_empty_list(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _resp([_text("")])
+        mock_get_client.return_value = mock_client
+
+        self.assertEqual(job_search.search_jobs("x", "y"), [])
+
+
+if __name__ == "__main__":
+    unittest.main()
