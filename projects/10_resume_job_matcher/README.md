@@ -9,42 +9,45 @@ does the deterministic work.** Claude reads free text (parsing) and detects
 evidence (matching); Python owns every schema, every comparison, and all the
 scoring arithmetic.
 
-## Status — Slice 2: matching + scoring
+## Status — Slice 3: gap report
 
-`parse_resume` / `parse_job` → `match.match_requirements(resume, job)` →
-`score.score_comparison(comparison)`.
+Full chain: `parse_resume` / `parse_job` → `match.match_requirements` →
+`report.build_report` → `report.format_report`.
 
 | File | What it does |
 | --- | --- |
-| `match.py` | `match_requirements(resume, job)` → a "comparison" dict: per required/preferred skill `{skill, met, evidence}`, a years-of-experience check, an education check. One enum-constrained Claude call does skill evidence-detection + the education judgment; the years check is pure Python. |
-| `score.py` | `score_comparison(comparison)` → `{score, band, breakdown}`. Pure arithmetic, no LLM. Weights: required skills 60, years 20, preferred skills 15, education 5 (sum 100). Bands: Strong ≥ 75, Possible ≥ 45, Weak below. `breakdown` shows each component's points/max/detail so a score is never opaque. |
-| `test_match.py` (6) / `test_score.py` (8) | `test_score.py` is pure (zero mocks); `test_match.py` mocks the client. |
+| `match.py` | `match_requirements(resume, job)` → a "comparison" dict: per required/preferred skill `{skill, met, evidence}`, a years check, an education check. One enum-constrained Claude call does skill evidence-detection + the education judgment; the years check is pure Python. |
+| `score.py` | `score_comparison(comparison)` → `{score, band, breakdown}`. Pure arithmetic, no LLM. Weights: required 60 / years 20 / preferred 15 / education 5 (sum 100). Bands: Strong ≥ 75, Possible ≥ 45, Weak below. `breakdown` shows each component's points/max/detail. |
+| `report.py` | `find_gaps(comparison)` (pure) → unmet skills, years shortfall, education. `build_report(comparison, resume, job)` adds the score and one LLM call for suggestions. `format_report(report)` renders it to text (pure). |
+| `test_match.py` (6) / `test_score.py` (8) / `test_report.py` (8) | `test_score.py` and the `find_gaps`/`format_report` tests are pure; the rest mock the client. |
 
-**Grounding** (same as Slice 1 and Project 14): `match.py` gives Claude no
-tools — it can only mark a skill "met" if it can quote the résumé for it.
-A skill that's merely plausible for the candidate's background doesn't count.
-Absence of evidence = not met.
+**Grounding** (same as every slice and Project 14): `match.py` gives Claude no
+tools — a skill is "met" only if it can be quoted from the résumé.
+`report.py`'s suggestion prompt goes further: it classifies each gap as
+`surface_it_better` / `adjacent_experience` / `genuine_gap` and is **forbidden
+from suggesting the candidate claim anything the résumé doesn't support** — the
+goal is a stronger honest résumé, not a padded one.
 
 **Known limitation carried over from Project 14:** the evidence quote is only
 guaranteed to come from the résumé, not to be a *strong* quote — a skill
-that's simply listed in a "Skills:" line will match with that line as its
-evidence. A stricter version would weight "named in a bullet with context"
-above "appears in a skills list."
+simply listed in a "Skills:" line matches with that line as its evidence.
 
 Live smoke test (sample data): `Jordan Rivera` vs `Junior AI Engineer` →
-**91 / Strong** (4/4 required skills, 5 yrs vs 2 required, 2/5 preferred,
-education met via "equivalent experience").
+**~88–91 / Strong**; report flags the LLM-API skills as genuine gaps (with
+"build a small public project" advice, not "claim it") and the manufacturing
+background as adjacent experience worth reframing.
 
 ```python
 from pathlib import Path
 from parse_resume import parse_resume
 from parse_job import parse_job
 from match import match_requirements
-from score import score_comparison
+from report import build_report, format_report
 
 resume = parse_resume(Path("data/sample_resume.txt").read_text())
 job = parse_job(Path("data/sample_job.txt").read_text())
-result = score_comparison(match_requirements(resume, job))
+report = build_report(match_requirements(resume, job), resume, job)
+print(format_report(report))
 ```
 
 ## Slice 1: parsing plumbing
@@ -75,7 +78,7 @@ default to required.
 
 ```bash
 python sample_data.py          # writes data/sample_resume.txt + data/sample_job.txt
-python -m unittest discover     # 21 tests, offline
+python -m unittest discover     # 29 tests, offline
 ```
 
 Model: `claude-haiku-4-5-20251001`, matching the rest of the portfolio.
@@ -87,7 +90,6 @@ dates).
 
 ## Deferred to later slices
 
-- **`report.py`** — turn a low/borderline `score_comparison` result into a gap
-  list: which required skills are unmet, and suggested résumé edits.
-- **`pipeline.py`** — wire parse → match → score → report into one call, plus a
-  small CLI/driver over a folder of job listings.
+- **`pipeline.py`** — wire parse → match → report into one call, plus a small
+  CLI/driver that runs one résumé against a folder of job listings and ranks
+  them.
