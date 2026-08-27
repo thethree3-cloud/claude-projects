@@ -23,7 +23,8 @@ Full chain: `pipeline.evaluate_fit(resume_text, job_text)` →
 | `report.py` | `find_gaps(comparison)` (pure) → unmet skills, years shortfall, education. `build_report(comparison, resume, job)` adds the score and one LLM call for suggestions. `format_report(report)` renders it to text (pure). |
 | `pipeline.py` | `evaluate_fit(resume_text, job_text)` — raw text → finished report in one call. `rank_fits(reports)` — pure, orders a batch best-first. |
 | `run_job_folder.py` | Driver (not tested): runs one résumé against a folder of `.txt` listings, prints a ranked table + each full report. |
-| `test_*.py` (34 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, and the `find_gaps`/`format_report` tests are pure; the rest mock the client. |
+| `streamlit_app.py` | UI: paste a résumé + a job listing, get the score, breakdown, gaps (as badges), suggestions (each with its `surface_it_better` / `adjacent_experience` / `genuine_gap` label), and a skill-by-skill evidence expander. "Load sample" buttons; downloadable text report. |
+| `test_*.py` (37 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, the `find_gaps`/`format_report` tests, and `test_streamlit_app.py` (via `AppTest`) are pure; the rest mock the client. |
 
 **Grounding** (same as every slice and Project 14): `match.py` gives Claude no
 tools — a skill is "met" only if it can be quoted from the résumé.
@@ -60,8 +61,9 @@ python run_job_folder.py data/sample_resume.txt data/sample_jobs/
 
 ```bash
 python sample_data.py        # writes data/sample_resume.txt, data/sample_job.txt, data/sample_jobs/
-python -m unittest discover   # 34 tests, offline
-python run_job_folder.py data/sample_resume.txt data/sample_jobs/   # live, needs API key
+python -m unittest discover   # 37 tests, offline
+python run_job_folder.py data/sample_resume.txt data/sample_jobs/   # live CLI, needs API key
+streamlit run streamlit_app.py                                      # live UI, needs API key
 ```
 
 Model: `claude-haiku-4-5-20251001`, matching the rest of the portfolio.
