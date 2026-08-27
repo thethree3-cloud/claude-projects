@@ -70,7 +70,12 @@ def search_and_score(
         keywords, location, radius_miles=radius, count=count,
         sites=list(sites) if sites else None,
     ):
-        parsed_job = parse_job(job["description"])
+        job_text = (
+            f"{job['title']}\n{job['company']}\n{job['location']}\n\n{job['description']}"
+        )
+        parsed_job = parse_job(job_text)
+        parsed_job["title"] = job["title"] or parsed_job["title"]
+        parsed_job["company"] = job["company"] or parsed_job["company"]
         comparison = match_requirements(resume, parsed_job)
         results.append(
             {

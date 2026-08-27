@@ -26,6 +26,14 @@ from pipeline import rank_fits
 from report import build_report, format_report
 
 
+def _job_text(job):
+    """A search result -> the text parse_job expects: a title/company/location
+    header (the description alone has neither), then the body."""
+    return (
+        f"{job['title']}\n{job['company']}\n{job['location']}\n\n{job['description']}"
+    )
+
+
 def main(resume_path, keywords, location, radius, count, preset):
     resume_text = Path(resume_path).read_text()
     # Parse the résumé once — it's the same for every posting.
@@ -61,7 +69,11 @@ def main(resume_path, keywords, location, radius, count, preset):
 
     reports = []
     for job in jobs:
-        parsed_job = parse_job(job["description"])
+        parsed_job = parse_job(_job_text(job))
+        # The search result already knows the title/company/location for real;
+        # trust those over whatever parse_job inferred from the body text.
+        parsed_job["title"] = job["title"] or parsed_job["title"]
+        parsed_job["company"] = job["company"] or parsed_job["company"]
         comparison = match_requirements(resume, parsed_job)
         report = build_report(comparison, resume, parsed_job)
         report["_url"] = job["url"]

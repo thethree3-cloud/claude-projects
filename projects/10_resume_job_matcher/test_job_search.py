@@ -43,9 +43,14 @@ def _resp(content, stop_reason="end_turn"):
     return SimpleNamespace(content=content, stop_reason=stop_reason)
 
 
-def _text(t):
-    return SimpleNamespace(type="text", text=t)
+def _text(t, stop_reason="end_turn"):
+    return _resp([SimpleNamespace(type="text", text=t)], stop_reason)
 
+
+FINDINGS = (
+    "Junior AI Engineer at Northwind, Portland OR, "
+    "https://jobs.lever.co/northwind/1, FULL POSTING, builds LLM features, 2+ yrs Python."
+)
 
 JOBS_JSON = {
     "jobs": [
@@ -63,23 +68,11 @@ JOBS_JSON = {
 
 class SearchJobsTests(unittest.TestCase):
     @patch("job_search.get_client")
-    def test_parses_jobs_from_final_response(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = _resp([_text(json.dumps(JOBS_JSON))])
-        mock_get_client.return_value = mock_client
-
-        jobs = job_search.search_jobs("AI engineer", "Portland, OR")
-
-        self.assertEqual(len(jobs), 1)
-        self.assertEqual(jobs[0]["company"], "Northwind")
-        self.assertEqual(jobs[0]["grounding"], "full posting")
-
-    @patch("job_search.get_client")
-    def test_resends_on_pause_turn_until_done(self, mock_get_client):
+    def test_search_then_structure_in_two_calls(self, mock_get_client):
         mock_client = MagicMock()
         mock_client.messages.create.side_effect = [
-            _resp([SimpleNamespace(type="server_tool_use", id="x")], stop_reason="pause_turn"),
-            _resp([_text(json.dumps(JOBS_JSON))]),
+            _text(FINDINGS),                 # call 1: agentic search
+            _text(json.dumps(JOBS_JSON)),    # call 2: structuring
         ]
         mock_get_client.return_value = mock_client
 
@@ -87,11 +80,31 @@ class SearchJobsTests(unittest.TestCase):
 
         self.assertEqual(mock_client.messages.create.call_count, 2)
         self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]["company"], "Northwind")
+        self.assertEqual(jobs[0]["grounding"], "full posting")
+
+    @patch("job_search.get_client")
+    def test_resends_on_pause_turn_before_structuring(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = [
+            _resp([SimpleNamespace(type="server_tool_use", id="x")], stop_reason="pause_turn"),
+            _text(FINDINGS),                 # resumed search -> findings
+            _text(json.dumps(JOBS_JSON)),    # structuring
+        ]
+        mock_get_client.return_value = mock_client
+
+        jobs = job_search.search_jobs("AI engineer", "Portland, OR")
+
+        self.assertEqual(mock_client.messages.create.call_count, 3)
+        self.assertEqual(len(jobs), 1)
 
     @patch("job_search.get_client")
     def test_first_call_forces_tool_use_and_scopes_domains(self, mock_get_client):
         mock_client = MagicMock()
-        mock_client.messages.create.return_value = _resp([_text(json.dumps({"jobs": []}))])
+        mock_client.messages.create.side_effect = [
+            _text(FINDINGS),
+            _text(json.dumps({"jobs": []})),
+        ]
         mock_get_client.return_value = mock_client
 
         job_search.search_jobs("x", "y", sites=["jobs.lever.co"])
@@ -103,18 +116,29 @@ class SearchJobsTests(unittest.TestCase):
         self.assertEqual(kwargs["tools"][1]["type"], "web_fetch_20250910")
 
     @patch("job_search.get_client")
-    def test_continuation_calls_drop_forced_tool_choice(self, mock_get_client):
+    def test_structuring_call_has_no_tools_and_uses_schema(self, mock_get_client):
         mock_client = MagicMock()
         mock_client.messages.create.side_effect = [
-            _resp([SimpleNamespace(type="server_tool_use")], stop_reason="pause_turn"),
-            _resp([_text(json.dumps({"jobs": []}))]),
+            _text(FINDINGS),
+            _text(json.dumps({"jobs": []})),
         ]
         mock_get_client.return_value = mock_client
 
         job_search.search_jobs("x", "y")
 
-        _, second = mock_client.messages.create.call_args_list[1]
-        self.assertNotIn("tool_choice", second)
+        _, structure_kwargs = mock_client.messages.create.call_args_list[1]
+        self.assertNotIn("tools", structure_kwargs)
+        self.assertNotIn("tool_choice", structure_kwargs)
+        self.assertIn("output_config", structure_kwargs)
+
+    @patch("job_search.get_client")
+    def test_empty_findings_skip_structuring(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _text("")
+        mock_get_client.return_value = mock_client
+
+        self.assertEqual(job_search.search_jobs("x", "y"), [])
+        self.assertEqual(mock_client.messages.create.call_count, 1)
 
     @patch("job_search.get_client")
     def test_stops_after_max_rounds(self, mock_get_client):
@@ -125,17 +149,10 @@ class SearchJobsTests(unittest.TestCase):
         jobs = job_search.search_jobs("x", "y")
 
         self.assertEqual(jobs, [])
+        # MAX_TOOL_ROUNDS + 1 search calls; structuring is skipped (no findings)
         self.assertEqual(
             mock_client.messages.create.call_count, job_search.MAX_TOOL_ROUNDS + 1
         )
-
-    @patch("job_search.get_client")
-    def test_empty_final_text_returns_empty_list(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = _resp([_text("")])
-        mock_get_client.return_value = mock_client
-
-        self.assertEqual(job_search.search_jobs("x", "y"), [])
 
 
 if __name__ == "__main__":

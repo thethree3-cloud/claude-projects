@@ -93,10 +93,14 @@ adds `jobs.utah.gov` + `statejobs.utah.gov` (state), `governmentjobs.com` +
 at a 25-mile radius. The Streamlit search mode has a "Search area" dropdown for
 the same thing. Add a region by extending the dict.
 
-One agentic Claude call: `web_search` restricted (via `allowed_domains`) to the
-boards in `job_sites.py`, then `web_fetch` on the promising results for the
-full posting text. Same forced-first-tool-call discipline as Project 14
-(`tool_choice: any` on turn 1, since Haiku won't reliably search on its own).
+Two Claude calls, the same split as Project 14 (`web_search_agent.search` →
+`score_fit`): (1) an agentic search — `web_search` restricted via
+`allowed_domains` to `job_sites.py`, then `web_fetch` on the promising results —
+that writes its findings as plain text; (2) a plain call, no tools, that
+structures that text against the JSON schema. Combining structured output with
+the server tools in one call proved to throw intermittent `400`s, so they're
+separated. Forced-first-tool discipline as in Project 14 (`tool_choice: any` on
+turn 1, since Haiku won't reliably search on its own).
 
 **Why not the Indeed / LinkedIn API:** Indeed closed its job-search API to new
 partners in 2023 and LinkedIn never had one; scraping either breaks constantly
@@ -114,6 +118,9 @@ results, and this project won't scrape.
   permalink.
 - **`grounding: "full posting"` is the model's own call** and can be optimistic
   when a fetched page was itself a truncated preview.
+- **Snippet postings carry only requirements text**, no title/company/location
+  header. The drivers prepend the search result's own title/company/location
+  before `parse_job` and trust those over what `parse_job` infers.
 
 Live run (`"junior AI engineer or Python developer"`, Portland OR, count 6):
 6 real postings in ~70s from dice.com / glassdoor.com / indeed.com, most with
