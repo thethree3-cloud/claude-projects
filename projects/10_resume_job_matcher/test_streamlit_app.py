@@ -56,6 +56,22 @@ class StreamlitAppTests(unittest.TestCase):
         self.assertIn("74 / 100", [m.value for m in at.metric])
         self.assertTrue(any("cloud-native" in info.value for info in at.info))
 
+    def test_renders_tailored_resume_from_session_state(self):
+        at = AppTest.from_file("streamlit_app.py")
+        at.session_state["single"] = {"comparison": COMPARISON, "report": REPORT}
+        at.session_state["tailored"] = {
+            "resume": {},
+            "markdown": "# Jordan Rivera\n\n## Summary\n\nReframed for the role.\n",
+            "changes": ["Rewrote the summary.", "Led with the analyst role."],
+        }
+        at.run()
+
+        self.assertEqual(list(at.exception), [])
+        self.assertTrue(
+            any(b.label == "Download tailored résumé (Markdown)" for b in at.download_button)
+        )
+        self.assertTrue(any("Reframed for the role." in m.value for m in at.markdown))
+
     def test_missing_inputs_warn_on_submit(self):
         at = AppTest.from_file("streamlit_app.py").run()
         submit = next(b for b in at.button if b.label == "Evaluate fit")
