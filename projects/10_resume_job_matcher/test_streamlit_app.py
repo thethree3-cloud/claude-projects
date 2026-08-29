@@ -56,11 +56,31 @@ class StreamlitAppTests(unittest.TestCase):
         self.assertIn("74 / 100", [m.value for m in at.metric])
         self.assertTrue(any("cloud-native" in info.value for info in at.info))
 
+    _RESUME_DICT = {
+        "name": "Jordan Rivera",
+        "location": "Portland, OR",
+        "email": "jordan@example.com",
+        "phone": "",
+        "links": ["github.com/jrivera"],
+        "summary": "Reframed for the role.",
+        "skills": ["Python", "pandas"],
+        "experience": [
+            {
+                "title": "IT Support Analyst",
+                "organization": "Cascade Precision",
+                "dates": "2021 - Present",
+                "highlights": ["Built a Python + pandas reporting pipeline."],
+            }
+        ],
+        "education": [],
+        "certifications": [],
+    }
+
     def test_renders_tailored_resume_from_session_state(self):
         at = AppTest.from_file("streamlit_app.py")
         at.session_state["single"] = {"comparison": COMPARISON, "report": REPORT}
         at.session_state["tailored"] = {
-            "resume": {},
+            "resume": self._RESUME_DICT,
             "markdown": "# Jordan Rivera\n\n## Summary\n\nReframed for the role.\n",
             "changes": ["Rewrote the summary.", "Led with the analyst role."],
             "flags": [],
@@ -76,10 +96,26 @@ class StreamlitAppTests(unittest.TestCase):
         at.run()
 
         self.assertEqual(list(at.exception), [])
-        self.assertTrue(
-            any(b.label == "Download tailored résumé (Markdown)" for b in at.download_button)
-        )
+        labels = {b.label for b in at.download_button}
+        self.assertTrue({"PDF", "Word", "Markdown"} <= labels)
         self.assertTrue(any("Reframed for the role." in m.value for m in at.markdown))
+
+    def test_export_buttons_hidden_when_resume_dict_missing(self):
+        at = AppTest.from_file("streamlit_app.py")
+        at.session_state["single"] = {"comparison": COMPARISON, "report": REPORT}
+        at.session_state["tailored"] = {
+            "resume": {},
+            "markdown": "# Jordan Rivera\n",
+            "changes": [],
+            "flags": [],
+            "diff": [],
+        }
+        at.run()
+        self.assertEqual(list(at.exception), [])
+        labels = {b.label for b in at.download_button}
+        self.assertIn("Markdown", labels)
+        self.assertNotIn("PDF", labels)
+        self.assertNotIn("Word", labels)
 
     def test_tailored_resume_flags_overreaching_bullets(self):
         at = AppTest.from_file("streamlit_app.py")
