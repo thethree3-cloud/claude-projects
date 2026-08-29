@@ -21,7 +21,10 @@ that in two places:
   straight through (the model never sees them as editable).
 
 The prompt carries the rest of the promise (don't invent accomplishments in
-the bullet text).
+the bullet text), and a second Claude call — `verify_bullets()` — audits the
+finished bullets against the source: any rewritten bullet that adds a claim
+the original bullets don't support is dropped and reported in `flags`. The
+UI also gets a per-role before/after `diff`.
 """
 
 from llm_client import extract_json
@@ -272,13 +275,164 @@ def render_markdown(resume):
     return "\n".join(lines).strip() + "\n"
 
 
-def build_tailored_resume(comparison, resume, job):
+def _verify_schema(positions):
+    return {
+        "type": "object",
+        "properties": {
+            "unsupported": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "experience_position": {"type": "integer", "enum": positions},
+                        "bullet_index": {"type": "integer"},
+                        "issue": {
+                            "type": "string",
+                            "description": "The specific claim the source doesn't support.",
+                        },
+                    },
+                    "required": ["experience_position", "bullet_index", "issue"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        "required": ["unsupported"],
+        "additionalProperties": False,
+    }
+
+
+_VERIFY_PROMPT = """\
+For each role below you have the candidate's ORIGINAL résumé bullets and the
+REWRITTEN bullets proposed for a job application.
+
+A rewritten bullet is FINE when it only rephrases, reorders, sharpens, or
+re-focuses what the original bullets for that role already say — including
+pulling in the target job's vocabulary.
+
+Flag a rewritten bullet ONLY when it introduces a claim the original bullets
+for that same role do not support: a number that wasn't there, a technology
+not mentioned, a broader scope, or an outcome the original never stated.
+
+{roles_block}
+
+Return every rewritten bullet that adds an unsupported claim, with the
+position of its role, its [index], and the specific unsupported claim.
+"""
+
+
+def verify_bullets(tailored, resume):
+    """One schema-constrained Claude call. Audits the rewritten bullets in
+    `tailored` against the source role's original bullets. Returns
+    {"unsupported": [{experience_position, bullet_index, issue}, ...]} — only
+    the bullets that overreach come back."""
+    entries = tailored["experience"]
+    if not entries:
+        return {"unsupported": []}
+
+    blocks = []
+    for pos, entry in enumerate(entries):
+        idx = entry["source_index"]
+        source = (
+            resume["experience"][idx]
+            if 0 <= idx < len(resume["experience"])
+            else {"title": "?", "organization": "?", "highlights": []}
+        )
+        lines = [f"Role {pos}: {source['title']} — {source['organization']}", "  ORIGINAL:"]
+        lines += [f"    - {h}" for h in source["highlights"]] or ["    (none)"]
+        lines.append("  REWRITTEN:")
+        lines += [
+            f"    [{i}] {h}" for i, h in enumerate(entry["highlights"])
+        ] or ["    (none)"]
+        blocks.append("\n".join(lines))
+
+    prompt = _VERIFY_PROMPT.format(roles_block="\n\n".join(blocks))
+    return extract_json(prompt, _verify_schema(list(range(len(entries)))))
+
+
+def _apply_verification(tailored, unsupported, resume):
+    """Pure. Drop every bullet flagged unsupported; if that empties a role,
+    fall back to its untouched source bullets. Returns
+    (clean_tailored, flags) where flags = [{role, bullet, issue}, ...]."""
+    issue_by_bullet = {}
+    for item in unsupported:
+        issue_by_bullet.setdefault(item["experience_position"], {})[
+            item["bullet_index"]
+        ] = item["issue"]
+
+    new_experience = []
+    flags = []
+    for pos, entry in enumerate(tailored["experience"]):
+        drop = issue_by_bullet.get(pos, {})
+        idx = entry["source_index"]
+        source = (
+            resume["experience"][idx]
+            if 0 <= idx < len(resume["experience"])
+            else None
+        )
+        role_name = (
+            f"{source['title']} — {source['organization']}" if source else f"role {pos}"
+        )
+        kept = []
+        for i, bullet in enumerate(entry["highlights"]):
+            if i in drop:
+                flags.append({"role": role_name, "bullet": bullet, "issue": drop[i]})
+            else:
+                kept.append(bullet)
+        if not kept and source:
+            kept = list(source["highlights"])
+        new_experience.append({**entry, "highlights": kept})
+
+    return {**tailored, "experience": new_experience}, flags
+
+
+def build_diff(resume, assembled):
+    """Pure. Per role in the tailored résumé, the original bullets next to the
+    final ones, so the UI can show every edit. Roles are matched to the source
+    by title + organization (which `assemble` copies verbatim)."""
+    remaining = list(resume["experience"])
+    rows = []
+    for role in assembled["experience"]:
+        match = next(
+            (
+                s
+                for s in remaining
+                if s["title"] == role["title"]
+                and s["organization"] == role["organization"]
+            ),
+            None,
+        )
+        if match is not None:
+            remaining.remove(match)
+        rows.append(
+            {
+                "title": role["title"],
+                "organization": role["organization"],
+                "original": list(match["highlights"]) if match else [],
+                "tailored": list(role["highlights"]),
+            }
+        )
+    return rows
+
+
+def build_tailored_resume(comparison, resume, job, verify=True):
     """The single entry point. comparison + parsed résumé + parsed job ->
-    {"resume": <assembled dict>, "markdown": str, "changes": [str, ...]}."""
+    {"resume", "markdown", "changes", "flags", "diff"}.
+
+    With `verify` (the default) a second Claude call audits the rewritten
+    bullets; any that overreach are dropped and listed in `flags`.
+    """
     tailored = tailor_resume(resume, job, comparison)
+
+    flags = []
+    if verify:
+        unsupported = verify_bullets(tailored, resume)["unsupported"]
+        tailored, flags = _apply_verification(tailored, unsupported, resume)
+
     assembled = assemble(tailored, resume)
     return {
         "resume": assembled,
         "markdown": render_markdown(assembled),
         "changes": tailored["changes"],
+        "flags": flags,
+        "diff": build_diff(resume, assembled),
     }

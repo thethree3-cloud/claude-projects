@@ -29,14 +29,15 @@ def evaluate_fit(resume_text, job_text):
     return build_report(comparison, resume, job)
 
 
-def tailor_fit(resume_text, job_text):
+def tailor_fit(resume_text, job_text, verify=True):
     """Raw résumé text + raw job-listing text -> a résumé reframed for that
-    role: {"resume", "markdown", "changes"}. Four Claude calls (résumé parse,
-    job parse, skill evidence-detection, the reframe itself)."""
+    role: {"resume", "markdown", "changes", "flags", "diff"}. Five Claude
+    calls (résumé parse, job parse, skill evidence-detection, the reframe, and
+    the bullet-verification pass — four when `verify` is False)."""
     resume = parse_resume(resume_text)
     job = parse_job(job_text)
     comparison = match_requirements(resume, job)
-    return build_tailored_resume(comparison, resume, job)
+    return build_tailored_resume(comparison, resume, job, verify=verify)
 
 
 def rank_fits(reports):

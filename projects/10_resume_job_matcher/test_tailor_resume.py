@@ -248,19 +248,163 @@ class RenderMarkdownTests(unittest.TestCase):
         self.assertIn("- h", md)
 
 
+class VerifyBulletsTests(unittest.TestCase):
+    @patch("llm_client.get_client")
+    def test_prompt_pairs_original_and_rewritten_and_enums_positions(
+        self, mock_get_client
+    ):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _json_response({"unsupported": []})
+        mock_get_client.return_value = mock_client
+
+        tailor_resume.verify_bullets(TAILORED, RESUME)
+
+        _, kwargs = mock_client.messages.create.call_args
+        prompt = kwargs["messages"][0]["content"]
+        self.assertIn("ORIGINAL:", prompt)
+        self.assertIn("Reconciled monthly accounts in Excel.", prompt)  # source
+        self.assertIn("[0] Built Python/pandas reporting pipelines.", prompt)  # rewritten
+        enum = kwargs["output_config"]["format"]["schema"]["properties"][
+            "unsupported"
+        ]["items"]["properties"]["experience_position"]["enum"]
+        self.assertEqual(enum, [0, 1])
+
+    def test_no_experience_skips_the_call(self):
+        # no client patched -> a real call would raise; it must not happen
+        out = tailor_resume.verify_bullets({**TAILORED, "experience": []}, RESUME)
+        self.assertEqual(out, {"unsupported": []})
+
+
+class ApplyVerificationTests(unittest.TestCase):
+    def test_drops_flagged_bullet_and_records_it(self):
+        tailored = {
+            **TAILORED,
+            "experience": [
+                {
+                    "source_index": 0,
+                    "highlights": ["Real reworded bullet.", "Invented 40% metric."],
+                }
+            ],
+        }
+        clean, flags = tailor_resume._apply_verification(
+            tailored,
+            [{"experience_position": 0, "bullet_index": 1, "issue": "no 40% anywhere"}],
+            RESUME,
+        )
+        self.assertEqual(clean["experience"][0]["highlights"], ["Real reworded bullet."])
+        self.assertEqual(len(flags), 1)
+        self.assertEqual(flags[0]["bullet"], "Invented 40% metric.")
+        self.assertIn("IT Support Analyst", flags[0]["role"])
+
+    def test_role_emptied_by_flags_falls_back_to_source_bullets(self):
+        tailored = {
+            **TAILORED,
+            "experience": [{"source_index": 0, "highlights": ["bad one"]}],
+        }
+        clean, flags = tailor_resume._apply_verification(
+            tailored,
+            [{"experience_position": 0, "bullet_index": 0, "issue": "unsupported"}],
+            RESUME,
+        )
+        self.assertEqual(
+            clean["experience"][0]["highlights"],
+            RESUME["experience"][0]["highlights"],
+        )
+        self.assertEqual(len(flags), 1)
+
+    def test_nothing_flagged_is_a_passthrough(self):
+        clean, flags = tailor_resume._apply_verification(TAILORED, [], RESUME)
+        self.assertEqual(flags, [])
+        self.assertEqual(
+            clean["experience"], TAILORED["experience"]
+        )
+
+
+class BuildDiffTests(unittest.TestCase):
+    def test_pairs_each_role_original_vs_tailored_after_reorder(self):
+        assembled = tailor_resume.assemble(
+            {
+                **TAILORED,
+                "experience": [
+                    {"source_index": 1, "highlights": ["Reconciled accounts."]},
+                    {"source_index": 0, "highlights": ["Built pipelines."]},
+                ],
+            },
+            RESUME,
+        )
+        diff = tailor_resume.build_diff(RESUME, assembled)
+        self.assertEqual(diff[0]["organization"], "Rose City Coffee")
+        self.assertEqual(diff[0]["original"], ["Reconciled monthly accounts in Excel."])
+        self.assertEqual(diff[0]["tailored"], ["Reconciled accounts."])
+        self.assertEqual(diff[1]["organization"], "Cascade Precision")
+
+
 class BuildTailoredResumeTests(unittest.TestCase):
     @patch("llm_client.get_client")
-    def test_end_to_end_shape(self, mock_get_client):
+    def test_end_to_end_shape_with_verification(self, mock_get_client):
         mock_client = MagicMock()
-        mock_client.messages.create.return_value = _json_response(TAILORED)
+        mock_client.messages.create.side_effect = [
+            _json_response(TAILORED),
+            _json_response({"unsupported": []}),
+        ]
         mock_get_client.return_value = mock_client
 
         out = tailor_resume.build_tailored_resume(COMPARISON, RESUME, JOB)
 
-        self.assertEqual(set(out), {"resume", "markdown", "changes"})
+        self.assertEqual(set(out), {"resume", "markdown", "changes", "flags", "diff"})
         self.assertEqual(out["changes"], TAILORED["changes"])
+        self.assertEqual(out["flags"], [])
+        self.assertEqual(len(out["diff"]), 2)
         self.assertIn("# Jordan Rivera", out["markdown"])
-        self.assertEqual(len(out["resume"]["experience"]), 2)
+        self.assertEqual(mock_client.messages.create.call_count, 2)
+
+    @patch("llm_client.get_client")
+    def test_verify_false_skips_the_audit_call(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _json_response(TAILORED)
+        mock_get_client.return_value = mock_client
+
+        out = tailor_resume.build_tailored_resume(
+            COMPARISON, RESUME, JOB, verify=False
+        )
+
+        self.assertEqual(mock_client.messages.create.call_count, 1)
+        self.assertEqual(out["flags"], [])
+
+    @patch("llm_client.get_client")
+    def test_flagged_bullet_is_dropped_end_to_end(self, mock_get_client):
+        tailored = {
+            **TAILORED,
+            "experience": [
+                {
+                    "source_index": 0,
+                    "highlights": ["Kept bullet.", "Overreaching bullet."],
+                },
+                {"source_index": 1, "highlights": ["Reconciled accounts."]},
+            ],
+        }
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = [
+            _json_response(tailored),
+            _json_response(
+                {
+                    "unsupported": [
+                        {
+                            "experience_position": 0,
+                            "bullet_index": 1,
+                            "issue": "claims a scope the source never states",
+                        }
+                    ]
+                }
+            ),
+        ]
+        mock_get_client.return_value = mock_client
+
+        out = tailor_resume.build_tailored_resume(COMPARISON, RESUME, JOB)
+
+        self.assertEqual(len(out["flags"]), 1)
+        self.assertNotIn("Overreaching bullet.", out["markdown"])
+        self.assertIn("Kept bullet.", out["markdown"])
 
 
 if __name__ == "__main__":
