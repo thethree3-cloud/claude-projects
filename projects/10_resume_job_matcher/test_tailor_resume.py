@@ -174,6 +174,13 @@ class AssembleTests(unittest.TestCase):
         # every original skill still present
         self.assertEqual(set(out["skills"]), set(RESUME["skills"]))
 
+    def test_duplicate_skills_from_the_model_are_collapsed(self):
+        dupes = {**TAILORED, "skills": ["Python", "Python", "SQL", "Python"]}
+        out = tailor_resume.assemble(dupes, RESUME)
+        self.assertEqual(out["skills"].count("Python"), 1)
+        self.assertEqual(out["skills"][:2], ["Python", "SQL"])  # model order kept
+        self.assertEqual(set(out["skills"]), set(RESUME["skills"]))  # rest appended
+
     def test_out_of_range_and_duplicate_indices_ignored(self):
         messy = {
             **TAILORED,
