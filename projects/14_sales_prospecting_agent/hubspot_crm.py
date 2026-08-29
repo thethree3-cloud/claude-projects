@@ -212,9 +212,62 @@ def upsert_company(lead, is_existing_customer_match):
         return {"company_name": company_name, "hubspot_company_id": None, "action": "error", "error": str(e)}
 
 
+DEAL_ELIGIBLE_BANDS = {"High", "Medium"}
+
+
 def export_leads_to_hubspot(leads, existing_customers):
+    """Upserts a Company for every lead, plus a Deal (associated to that
+    Company) for leads scored High/Medium fit -- a real sales team doesn't
+    open a pipeline deal for a Low/Unknown-fit company -- an Engagement
+    Note on every lead regardless of band (documents that it was checked
+    at all), and a Contact only when a real person was actually grounded
+    in the research text (see extract_contact.py -- expected to be rare).
+    Pipeline/stage/note-association-types are looked up once for the
+    whole batch, not per lead.
+
+    Company/Deal upsert stayed per-record (search-then-create/update),
+    NOT batched -- a real HubSpot constraint found live, not guessed:
+    the Batch Upsert API requires its matching `id_property` to be a
+    unique-constrained property, and Company `name`/Deal `dealname`
+    aren't unique by default (confirmed via a real 400: "Unable to
+    perform update/upsert by non-unique name property"). Batching this
+    was attempted and reverted; see hubspot_deals.find_existing_customer_names
+    for where batching genuinely does apply (it matches by internal
+    HubSpot record ID, not an arbitrary property, so the same constraint
+    doesn't bite there).
+    """
+    import hubspot_contacts
+    import hubspot_deals
+    import hubspot_notes
+
     ensure_custom_properties()
-    return [
-        upsert_company(lead, is_existing_customer(lead["company_name"], existing_customers))
-        for lead in leads
-    ]
+    hubspot_deals.ensure_custom_deal_properties()
+    pipeline = hubspot_deals.get_default_pipeline()
+    stage_id = hubspot_deals.find_initial_stage_id(pipeline)
+    note_association_type_ids = hubspot_notes.get_note_association_type_ids()
+
+    results = []
+    for lead in leads:
+        company_result = upsert_company(lead, is_existing_customer(lead["company_name"], existing_customers))
+        if company_result["action"] == "error":
+            results.append(company_result)
+            continue
+
+        company_id = company_result["hubspot_company_id"]
+        deal_id = None
+        if lead["band"] in DEAL_ELIGIBLE_BANDS:
+            deal_result = hubspot_deals.upsert_deal(lead, company_id, pipeline.id, stage_id)
+            company_result["hubspot_deal_id"] = deal_result["hubspot_deal_id"]
+            company_result["deal_action"] = deal_result["action"]
+            deal_id = deal_result["hubspot_deal_id"]
+
+        note_result = hubspot_notes.create_triage_note(lead, company_id, note_association_type_ids, deal_id=deal_id)
+        company_result["hubspot_note_id"] = note_result["hubspot_note_id"]
+
+        contact_result = hubspot_contacts.upsert_contact(lead["contact"], company_id, deal_id=deal_id)
+        if contact_result:
+            company_result["hubspot_contact_id"] = contact_result["hubspot_contact_id"]
+            company_result["contact_action"] = contact_result["action"]
+
+        results.append(company_result)
+    return results
