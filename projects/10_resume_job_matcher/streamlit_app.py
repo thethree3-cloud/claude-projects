@@ -299,11 +299,11 @@ if mode == "Score one listing":
             "leads with the job-relevant roles and skills, and re-words your "
             "existing bullets in the listing's language. It never adds a "
             "skill, employer, or accomplishment your résumé doesn't already "
-            "show."
+            "show, and a second pass drops any bullet that drifted."
         )
         if st.button("Build tailored résumé", icon=":material/edit_document:"):
             st.session_state.tailored = _run(
-                "Reframing your résumé for this role…",
+                "Reframing your résumé, then checking every bullet…",
                 tailor,
                 st.session_state.resume_text,
                 st.session_state.job_text,
@@ -311,10 +311,36 @@ if mode == "Score one listing":
 
         if "tailored" in st.session_state:
             tailored = st.session_state.tailored
+
+            flags = tailored.get("flags", [])
+            if flags:
+                st.warning(
+                    f"Dropped {len(flags)} bullet(s) that claimed more than your "
+                    "résumé supports:"
+                )
+                for flag in flags:
+                    with st.container(border=True):
+                        st.markdown(f"**{flag['role']}** — {flag['issue']}")
+                        st.caption(f"removed: “{flag['bullet']}”")
+
             if tailored["changes"]:
-                with st.expander("What changed", expanded=True):
+                with st.expander("What changed", expanded=not flags):
                     for change in tailored["changes"]:
                         st.markdown(f"- {change}")
+
+            diff = tailored.get("diff", [])
+            if diff:
+                with st.expander("Before / after, bullet by bullet"):
+                    for role in diff:
+                        st.markdown(f"**{role['title']} — {role['organization']}**")
+                        before_col, after_col = st.columns(2)
+                        before_col.caption("Original")
+                        for bullet in role["original"] or ["—"]:
+                            before_col.markdown(f"- {bullet}")
+                        after_col.caption("Tailored")
+                        for bullet in role["tailored"] or ["—"]:
+                            after_col.markdown(f"- {bullet}")
+
             st.download_button(
                 "Download tailored résumé (Markdown)",
                 tailored["markdown"],

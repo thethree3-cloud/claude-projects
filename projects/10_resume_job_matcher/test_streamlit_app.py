@@ -63,6 +63,15 @@ class StreamlitAppTests(unittest.TestCase):
             "resume": {},
             "markdown": "# Jordan Rivera\n\n## Summary\n\nReframed for the role.\n",
             "changes": ["Rewrote the summary.", "Led with the analyst role."],
+            "flags": [],
+            "diff": [
+                {
+                    "title": "IT Support Analyst",
+                    "organization": "Cascade Precision",
+                    "original": ["Built a Python pipeline."],
+                    "tailored": ["Built a Python + pandas reporting pipeline."],
+                }
+            ],
         }
         at.run()
 
@@ -71,6 +80,27 @@ class StreamlitAppTests(unittest.TestCase):
             any(b.label == "Download tailored résumé (Markdown)" for b in at.download_button)
         )
         self.assertTrue(any("Reframed for the role." in m.value for m in at.markdown))
+
+    def test_tailored_resume_flags_overreaching_bullets(self):
+        at = AppTest.from_file("streamlit_app.py")
+        at.session_state["single"] = {"comparison": COMPARISON, "report": REPORT}
+        at.session_state["tailored"] = {
+            "resume": {},
+            "markdown": "# Jordan Rivera\n",
+            "changes": [],
+            "flags": [
+                {
+                    "role": "IT Support Analyst — Cascade Precision",
+                    "bullet": "Cut cloud spend 40%.",
+                    "issue": "no 40% figure in the source",
+                }
+            ],
+            "diff": [],
+        }
+        at.run()
+
+        self.assertEqual(list(at.exception), [])
+        self.assertTrue(any("Dropped 1 bullet" in w.value for w in at.warning))
 
     def test_resume_file_uploader_is_present(self):
         at = AppTest.from_file("streamlit_app.py").run()

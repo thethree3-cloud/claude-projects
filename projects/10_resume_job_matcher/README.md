@@ -29,14 +29,14 @@ paste; `parse_resume` now also captures contact details and certifications.
 | `match.py` | `match_requirements(resume, job)` → a "comparison" dict: per required/preferred skill `{skill, met, evidence}`, a years check, an education check. One enum-constrained Claude call does skill evidence-detection + the education judgment; the years check is pure Python. |
 | `score.py` | `score_comparison(comparison)` → `{score, band, breakdown}`. Pure arithmetic, no LLM. Weights: required 60 / years 20 / preferred 15 / education 5 (sum 100). Bands: Strong ≥ 75, Possible ≥ 45, Weak below. `breakdown` shows each component's points/max/detail. |
 | `report.py` | `find_gaps(comparison)` (pure) → unmet skills, years shortfall, education. `build_report(comparison, resume, job)` adds the score and one LLM call for suggestions. `format_report(report)` renders it to text (pure). |
-| `pipeline.py` | `evaluate_fit(resume_text, job_text)` — raw text → finished report in one call. `tailor_fit(resume_text, job_text)` — raw text → a résumé reframed for the listing. `rank_fits(reports)` — pure, orders a batch best-first. |
-| `tailor_resume.py` | `build_tailored_resume(comparison, resume, job)` → `{resume, markdown, changes}`. One enum-constrained Claude call rewrites the summary, reorders skills + roles job-relevant-first, and re-words existing bullets. `assemble()` (pure) then locks each role's title/org/dates to the real source role (by index), re-appends any role the model dropped, and filters any skill not in the résumé. `render_markdown()` is pure. |
+| `pipeline.py` | `evaluate_fit(resume_text, job_text)` — raw text → finished report in one call. `tailor_fit(resume_text, job_text)` — raw text → a résumé reframed for the listing (`{resume, markdown, changes, flags, diff}`). `rank_fits(reports)` — pure, orders a batch best-first. |
+| `tailor_resume.py` | `build_tailored_resume(comparison, resume, job)` → `{resume, markdown, changes, flags, diff}`. One enum-constrained Claude call rewrites the summary, reorders skills + roles job-relevant-first, and re-words existing bullets; a second call — `verify_bullets()` — audits each rewritten bullet against its source role and any that overreach are dropped into `flags`. `assemble()` (pure) locks each role's title/org/dates to the real source role (by index), re-appends any dropped role, and filters any skill not in the résumé. `build_diff()` / `render_markdown()` are pure. |
 | `job_sites.py` | The curated list of ~30 job boards `job_search` searches, grouped (aggregators / tech / AI-ML / remote / government / ATS). `FETCHABLE` = the subset that fetches cleanly. `LOCAL_PRESETS` adds region-specific boards + a default location/radius (Salt Lake City ships as one). |
 | `job_search.py` | `search_jobs(keywords, location, radius_miles, count)` → live postings via Claude's `web_search` (restricted to `job_sites`) + `web_fetch` (full posting text). Returns `{title, company, location, url, description, grounding}`; `grounding` is `"full posting"` or `"search snippet"`. `description` is what you feed to `evaluate_fit`. |
 | `run_job_folder.py` | Driver (not tested): runs one résumé against a folder of `.txt` listings, prints a ranked table + each full report. |
 | `run_job_search.py` | Driver (not tested): `search_jobs` for postings near a location (default: the résumé's own), scores each, prints ranked with the posting URL + grounding. |
-| `streamlit_app.py` | UI, two modes. **Score one listing:** upload a résumé (PDF/DOCX/txt) or paste it, + a job listing → score, breakdown, gaps (badges), suggestions (labelled), skill-by-skill evidence, text download — plus a **Build tailored résumé** button → Markdown preview, a "what changed" list, and a `.md` download. **Search live jobs:** résumé + keywords + location (or a "Search area" preset like Salt Lake City) → ranked results table, row-select for the full report + a link to the posting. |
-| `test_*.py` (75 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, the `find_gaps`/`format_report`/`job_sites` tests, `test_tailor_resume.py`'s `assemble`/`render_markdown` tests, `test_resume_source.py`, and `test_streamlit_app.py` (via `AppTest`) are pure; the rest mock the client. |
+| `streamlit_app.py` | UI, two modes. **Score one listing:** upload a résumé (PDF/DOCX/txt) or paste it, + a job listing → score, breakdown, gaps (badges), suggestions (labelled), skill-by-skill evidence, text download — plus a **Build tailored résumé** button → Markdown preview, a "what changed" list, dropped-bullet warnings, a before/after diff, and a `.md` download. **Search live jobs:** résumé + keywords + location (or a "Search area" preset like Salt Lake City) → ranked results table, row-select for the full report + a link to the posting. |
+| `test_*.py` (84 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, the `find_gaps`/`format_report`/`job_sites` tests, `test_tailor_resume.py`'s `assemble`/`_apply_verification`/`build_diff`/`render_markdown` tests, `test_resume_source.py`, and `test_streamlit_app.py` (via `AppTest`) are pure; the rest mock the client. |
 
 **Grounding** (same as every slice and Project 14): `match.py` gives Claude no
 tools — a skill is "met" only if it can be quoted from the résumé.
@@ -83,6 +83,9 @@ out = tailor_fit(Path("data/sample_resume.txt").read_text(),
 print(out["markdown"])          # the reframed résumé
 for change in out["changes"]:   # a plain-language audit list
     print("-", change)
+for flag in out["flags"]:       # bullets the verification pass dropped
+    print("dropped:", flag["bullet"], "—", flag["issue"])
+# out["diff"] — per role, original bullets next to the final ones
 ```
 
 **It reframes, it does not fabricate.** It rewrites the summary, reorders
@@ -98,15 +101,22 @@ bullets in the listing's vocabulary. The LLM/Python split carries the promise:
   not in the résumé is filtered out.
 - *Prompt* — forbids adding a metric or accomplishment not already in the
   bullet text, and asks for every change to be logged in `changes`.
+- *Verification pass* (`verify_bullets`, a second Claude call) — audits every
+  rewritten bullet against its source role's original bullets. A bullet that
+  adds a number, a technology, a scope, or an outcome the source doesn't
+  support is **dropped** (falling back to the untouched source bullets if that
+  empties a role) and reported in `flags`. `build_diff()` gives the UI a
+  before/after view so every surviving edit is visible too.
 
 **Known limitations:**
 
 - The tailored résumé carries only what `parse_resume` extracts. Contact
   details and certifications now survive; anything the parser doesn't model
   (a portfolio blurb, awards) still needs adding back by hand.
-- Re-worded bullet *text* is the model's; the structural guarantees above
-  don't police a bullet that's been over-polished. The `changes` list is there
-  so you can check every edit.
+- The verification pass is itself an LLM call — it catches added numbers /
+  tech / scope well, but a subtle tone inflation inside otherwise-supported
+  wording can still slip through. The before/after diff is there so you can
+  read every edit yourself.
 
 ## Live job search
 
@@ -178,7 +188,7 @@ full descriptions.
 
 ```bash
 python sample_data.py        # writes data/sample_resume.txt, data/sample_job.txt, data/sample_jobs/
-python -m unittest discover   # 75 tests, offline
+python -m unittest discover   # 84 tests, offline
 python run_job_folder.py data/sample_resume.txt data/sample_jobs/   # live CLI, needs API key
 streamlit run streamlit_app.py                                      # live UI, needs API key
 ```
@@ -199,9 +209,10 @@ people, companies, dates).
   on the page (no inferring skills from a job title). Matching only marks a
   skill met if it can quote the résumé. The report never suggests claiming
   something unsupported.
-- **The LLM/Python split:** five Claude calls do judgment (parse résumé, parse
-  job, detect skill evidence, suggest improvements, reframe the résumé).
-  Everything else — required-vs-preferred bucketing, the years comparison, all
-  scoring arithmetic, gap extraction, ranking, and locking the tailored
-  résumé's roles/skills to the source — is pure Python, unit-tested without
-  mocks.
+- **The LLM/Python split:** up to six Claude calls do judgment (parse résumé,
+  parse job, detect skill evidence, suggest improvements, reframe the résumé,
+  verify the reframed bullets). Everything else — required-vs-preferred
+  bucketing, the years comparison, all scoring arithmetic, gap extraction,
+  ranking, locking the tailored résumé's roles/skills to the source, dropping
+  the flagged bullets, and building the diff — is pure Python, unit-tested
+  without mocks.
