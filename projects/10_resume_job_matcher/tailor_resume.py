@@ -157,6 +157,9 @@ Rules:
 - REFRAME, don't invent. Rewrite the summary, reorder skills and roles so the
   job-relevant material leads, and re-word existing bullets in the job's
   vocabulary.
+- Re-word a bullet; do not repurpose it. If a bullet is about account
+  provisioning, the rewrite is still about account provisioning — you may
+  change the words, not the underlying work, the tools named, or the numbers.
 - Never add a skill, employer, title, date, metric, or accomplishment that
   isn't already in the source résumé. If the job wants something the résumé
   doesn't show, leave it out — the fit report already flags those gaps.
