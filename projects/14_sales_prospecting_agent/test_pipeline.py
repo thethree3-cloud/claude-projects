@@ -24,18 +24,23 @@ class EvaluateLeadTests(unittest.TestCase):
     def _fake_location(self, research_text):
         return {"state": None, "country": None, "insufficient_information": True}
 
+    def _fake_contact(self, research_text):
+        return {"name": None, "title": None, "email": None, "insufficient_information": True}
+
     def _fake_routing(self, location, territory_rows):
         return {"salesperson_name": "Needs Review", "email": None, "territory": None, "assignment_reason": "test"}
 
     @patch("pipeline.search")
     @patch("pipeline.route_salesperson")
+    @patch("pipeline.extract_contact")
     @patch("pipeline.extract_location")
     @patch("pipeline.score_fit")
     def test_matched_profile_used_as_research_text_instead_of_search(
-        self, mock_score_fit, mock_extract_location, mock_route_salesperson, mock_search
+        self, mock_score_fit, mock_extract_location, mock_extract_contact, mock_route_salesperson, mock_search
     ):
         mock_score_fit.side_effect = self._fake_fit_result
         mock_extract_location.side_effect = self._fake_location
+        mock_extract_contact.side_effect = self._fake_contact
         mock_route_salesperson.side_effect = self._fake_routing
 
         profiles = [
@@ -64,14 +69,16 @@ class EvaluateLeadTests(unittest.TestCase):
 
     @patch("pipeline.search")
     @patch("pipeline.route_salesperson")
+    @patch("pipeline.extract_contact")
     @patch("pipeline.extract_location")
     @patch("pipeline.score_fit")
     def test_unmatched_company_falls_back_to_web_search(
-        self, mock_score_fit, mock_extract_location, mock_route_salesperson, mock_search
+        self, mock_score_fit, mock_extract_location, mock_extract_contact, mock_route_salesperson, mock_search
     ):
         mock_search.side_effect = ["Identity search text.", "Scoring search text."]
         mock_score_fit.side_effect = self._fake_fit_result
         mock_extract_location.side_effect = self._fake_location
+        mock_extract_contact.side_effect = self._fake_contact
         mock_route_salesperson.side_effect = self._fake_routing
 
         result = evaluate_lead(
@@ -100,14 +107,16 @@ class EvaluateLeadTests(unittest.TestCase):
 
     @patch("pipeline.search")
     @patch("pipeline.route_salesperson")
+    @patch("pipeline.extract_contact")
     @patch("pipeline.extract_location")
     @patch("pipeline.score_fit")
     def test_no_exhibitor_profiles_argument_defaults_to_search(
-        self, mock_score_fit, mock_extract_location, mock_route_salesperson, mock_search
+        self, mock_score_fit, mock_extract_location, mock_extract_contact, mock_route_salesperson, mock_search
     ):
         mock_search.side_effect = ["Identity search text.", "Scoring search text."]
         mock_score_fit.side_effect = self._fake_fit_result
         mock_extract_location.side_effect = self._fake_location
+        mock_extract_contact.side_effect = self._fake_contact
         mock_route_salesperson.side_effect = self._fake_routing
 
         result = evaluate_lead(

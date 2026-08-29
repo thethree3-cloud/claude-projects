@@ -1,4 +1,5 @@
 from client_profile import flatten_signals, load_client_profile
+from extract_contact import extract_contact
 from extract_exhibitor_profiles import normalize_company_name
 from route_salesperson import extract_location
 from score_fit import score_fit
@@ -67,6 +68,7 @@ def evaluate_lead(query, client_profile_path, territory_routing_path, exhibitor_
 
     fit_result = score_fit(query, scoring_text, profile)
     location = extract_location(research_text)
+    contact = extract_contact(research_text)
     routing_result = route_salesperson(location, territory_rows)
 
-    return {**fit_result, "location": location, "source": source, **routing_result}
+    return {**fit_result, "location": location, "contact": contact, "source": source, **routing_result}

@@ -1,14 +1,23 @@
-# Sales Prospecting Agent — Slices 1–6: Agent 1 + Agent 2 (Live HubSpot CRM) + real-PDF grounding
+# Sales Prospecting Agent — Slices 1–11: Agent 1 + Agent 2 (Live HubSpot CRM + Deals + Webhook + Contacts/Notes) + real-PDF grounding
 
-**Status: all six planned slices are done.** Search/extraction, fit
+**Status: all eleven slices to date are done.** Search/extraction, fit
 scoring, salesperson routing (Agent 1), and CRM integration (Agent 2) are
-all built. **Agent 2's primary path is now a live HubSpot API integration,
+all built. **Agent 2's primary path is a live HubSpot API integration,
 not the CSV export** — that reverses the original Slice 4 decision; see
 "Slice 5" below for why. **Slice 6 adds grounding straight from a real
-trade-show program PDF**, not just live web search — see below. See
-"Known limitations" before assuming any of this is bulletproof — live
-tests surfaced real, not-yet-fixed accuracy gaps (entity-name collisions,
-a domain-vs-name dedup weakness), documented below rather than hidden.
+trade-show program PDF**, Slice 7 adds a geo-radius search mode, **Slice 8
+adds HubSpot Deals + Associations and a live (not static-file)
+existing-customer lookup**, **Slice 9 makes the agent event-driven** — it
+reacts to a real HubSpot webhook instead of only running from a driver
+script — **Slice 10 adds Contacts and an Engagement Note on every
+lead**, and **Slice 11 converts the existing-customer lookup's N+1
+API-call loops to HubSpot's Batch APIs** (the same conversion attempted
+for Company/Deal upsert hit a real HubSpot constraint and was reverted —
+see Slice 11 below) — see below. See "Known limitations" before
+assuming any of this is bulletproof — live tests surfaced real,
+not-yet-fixed accuracy
+gaps (entity-name collisions, a domain-vs-name dedup weakness),
+documented below rather than hidden.
 
 Genericized, open-source rebuild of a real sales-prospecting/lead-routing
 agent originally built in Copilot Studio. The real product it supports is
@@ -400,6 +409,329 @@ names (Texas Instruments, TECO Metal Products, DLT Manufacturing, and
 others), each scored, located, and routed correctly through the existing
 pipeline with no changes needed there.
 
+## Slice 8: HubSpot Deals + Associations, and a bidirectional existing-customer lookup
+
+Slice 5's HubSpot integration only ever wrote: it upserted a Company
+record per lead. This slice adds a second object type and, for the first
+time, a read path back out of HubSpot.
+
+`hubspot_deals.py` (new):
+
+- **Deals + Associations API.** `export_leads_to_hubspot()` now creates a
+  HubSpot **Deal** — associated to its Company via the Associations v4
+  API's `create_default` (the "most generic" association between two
+  object types, so no `association_type_id` has to be looked up or
+  guessed) — for every lead scored **High or Medium** fit. Low/Unknown
+  leads still get a Company record, same as before, but no deal: a real
+  sales team doesn't open a pipeline deal for a company that isn't a real
+  prospect. Deal creation reuses the same search-by-name-before-create
+  idempotency pattern as Company upsert (`find_existing_deal_id`, exact
+  `dealname` match), and the pipeline/stage a new deal enters is looked up
+  once per run (`get_default_pipeline`, `find_initial_stage_id`), not once
+  per lead.
+- **Bidirectional read.** `find_existing_customer_names()` replaces the
+  static `existing_customers.csv`/`.xlsx` file as the live source of
+  "is this company already a customer": it searches HubSpot Deals in a
+  **closed-won** pipeline stage (detected from HubSpot's own stage
+  `metadata` — `isClosed == "true"` and `probability == "1.0"`, not a
+  hardcoded stage name, since a real account can rename stages), reads
+  each matching deal's associated Company via the Associations API, and
+  returns their names. Deliberately returns the exact same
+  `{lowercased name}` shape `existing_customers.is_existing_customer()`
+  already expects, so that function needed **zero changes** — only the
+  loader changed, not the matching logic. This is the first place in the
+  project that reads business data back out of HubSpot instead of only
+  writing to it.
+
+All API shapes (`PipelineStage.metadata` as a plain `dict[str, str]`,
+`Filter`'s `values` field for `IN` queries vs. `value` for `EQ`,
+`associations.v4.basic_api.create_default`/`get_page` signatures) were
+confirmed against the actually-installed `hubspot-api-client==12.0.0`
+package via `inspect.signature()`/`openapi_types` before being used, same
+discipline as Slice 5.
+
+`run_hubspot_export.py` is the driver script: runs the same three
+fictional leads used to verify Slice 5 live (Ironclad Avionics Systems,
+Meridian Energy Solutions, Vantage Defense Composites) through the full
+pipeline, looks up existing customers from HubSpot first, then exports.
+Live verification of the read path requires manually marking a deal
+"Closed Won" in the HubSpot UI between two runs — an automated test can't
+reproduce that account-state change, so it's not covered by the mocked
+suite, same caveat as Slice 5's own live confirmation.
+
+```bash
+python run_hubspot_export.py
+```
+
+**Known limitation, stated plainly:** `find_existing_customer_names()` is
+three sequential API round trips deep (search deals → read each deal's
+associations → read each company's name), not a single batched call — the
+Deals Search API has no way to expand associated objects in this SDK
+version. Fine at this project's scale (a handful of leads per run); a
+real production version would use the Associations batch-read endpoint
+instead of one `get_page` call per deal.
+
+**Verified live end to end, and a real bug found in the process:** ran
+`run_hubspot_export.py` against a real HubSpot sandbox — Deals were
+created and correctly associated for High/Medium leads, skipped for
+Low/Unknown. Then manually marked one deal "Closed Won" in the HubSpot UI
+and re-ran: `find_existing_customer_names()` correctly picked it up
+("Found 1 existing customer name(s)"), confirming the read-back path
+actually works, not just runs without erroring. Along the way, the first
+live run surfaced a real bug the mocked test suite missed:
+`find_existing_customer_names()` called
+`client.crm.companies.basic_api.get(...)`, but the real SDK method is
+`get_by_id(...)` — `MagicMock` silently accepts any method name, so a
+wrong name passes a mock test but breaks against the real client. Fixed,
+and the test corrected to mock the right method.
+
+## Slice 9: event-driven agent via a HubSpot webhook
+
+Everything above only runs when Alan kicks off a driver script. This
+slice makes the agent react to HubSpot on its own: when a Company is
+created in HubSpot — by a sales rep adding one by hand, or any other
+integration — a webhook fires and the exact same scoring/routing/export
+chain Slice 8 already built runs automatically, with no script to run.
+
+**A real platform constraint, found via live docs research, not assumed:**
+the `HUBSPOT_ACCESS_TOKEN` used everywhere above is a **Service Key**
+(see Slice 5), and **Service Keys don't support webhooks, UI extensions,
+or app pages** — confirmed against HubSpot's current developer docs.
+Receiving webhooks requires a **Private App** instead. A Private App's
+access token is a drop-in replacement for the Service Key everywhere
+`HubSpot(access_token=...)` is already called — no code changes needed
+for any of the Company/Deal calls above — but webhook *subscriptions* can
+only be configured in the Private App's own UI (Settings → Integrations →
+Private Apps → Webhooks tab), not via the API, and signature verification
+needs a **Client Secret** that only a Private App exposes.
+
+### One-time setup outside this codebase
+
+1. HubSpot → Settings → Integrations → Private Apps → create one with the
+   same scopes the Service Key already has (Companies, Deals,
+   Associations, Properties, read/write).
+2. Auth tab → copy the access token → replace `HUBSPOT_ACCESS_TOKEN` in
+   `.env` with it (one credential for everything, simplest option).
+3. Auth tab → copy the **Client Secret** → add as `HUBSPOT_CLIENT_SECRET`
+   in `.env` (gitignored, same as `HUBSPOT_ACCESS_TOKEN`) — used only to
+   verify incoming webhook signatures, never sent to HubSpot.
+4. Once the server below is running and tunneled, Webhooks tab → Target
+   URL = `https://<tunnel-url>/webhooks/hubspot` → subscribe to
+   **"Company created."**
+
+**Why "Company created," not a property-change event:** keeps the
+payload simple (just a new object ID), and gives a clean story — external
+company creation triggers auto-triage. **Known limitation, not fixed
+here:** this project's own driver scripts also create Companies, so
+running one while the webhook listener is live causes it to redundantly
+re-process those same companies. Harmless (re-scoring is idempotent, same
+as every upsert in this project) but wasteful — a real fix would tag
+pipeline-created companies and have the handler skip them.
+
+### `webhook_server.py`
+
+A small Flask app (new dependency, `flask==3.1.3`) with one route,
+`POST /webhooks/hubspot`:
+
+1. **Verifies the request is really from HubSpot** — HubSpot's v3
+   signature scheme: HMAC-SHA256 over
+   `method + full absolute URL + raw body + timestamp`, keyed with
+   `HUBSPOT_CLIENT_SECRET`, compared against the `X-HubSpot-Signature-v3`
+   header, plus a 5-minute freshness check on `X-HubSpot-Request-Timestamp`
+   (replay protection). **A subtlety caught before it became a live bug:**
+   HubSpot signs the *full absolute URL it actually called* — confirmed
+   from HubSpot's own signature examples — not just the path. Because the
+   request arrives through a tunnel, Flask's own view of the connection
+   is plain HTTP to `localhost`, not the public HTTPS tunnel URL HubSpot
+   signed against, so the route reconstructs it from the preserved `Host`
+   header instead of trusting `request.url` directly.
+2. Parses the event list and, for each `company.*` event, fetches the
+   company's name (`get_by_id`, the same call fixed in Slice 8) and runs
+   it through the identical reusable chain the driver scripts use:
+   ```python
+   existing_customers = find_existing_customer_names()
+   lead = evaluate_lead(company_name, CLIENT_PROFILE_PATH, TERRITORY_ROUTING_PATH)
+   export_leads_to_hubspot([lead], existing_customers)
+   ```
+   This slice adds zero new pipeline logic — the webhook is purely a new
+   *trigger* on top of what Slice 8 already built and tested.
+3. Returns `200` immediately — the real scoring/export work
+   (`process_company_event`) runs on a background thread
+   (`process_company_event_async`), not inline in the request handler.
+
+**Verified live, and a real problem found and fixed in the process:** the
+first live test worked — a manually-created Company in HubSpot came back
+scored and exported with no driver script run by hand — but the terminal
+log showed the *same* `eventId` redelivered six times over about 3.5
+minutes, each with an incrementing `attemptNumber`. Root cause: the first
+version of this handler did all the real work (a live web search plus
+several live HubSpot calls) *before* responding, which was slow enough
+that HubSpot's own retry policy kicked in and resent the event, each
+retry redoing all that live work from scratch. Nothing was actually
+broken by this — Slice 8's idempotent upsert meant every retry landed as
+an `updated`, never a duplicate `created` — but it silently burned six
+live Claude searches and a dozen-plus HubSpot API calls for one company.
+Fixed by acking immediately and moving the real work to a background
+thread; this is the live-only class of bug this project keeps finding —
+nothing in the mocked test suite exercises real request latency, so nothing
+there could have caught it. A new test
+(`test_runs_process_company_event_on_a_background_thread_not_inline`)
+asserts the wrapper returns near-instantly even when the underlying work
+is slow, so this can't silently regress back to blocking.
+
+### Exposing it: `cloudflared`
+
+No account/signup needed for a quick tunnel (unlike ngrok):
+
+```bash
+# one-time install (WSL/Ubuntu)
+curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared.deb
+
+# each time: two terminals
+python webhook_server.py
+cloudflared tunnel --url http://localhost:5000   # prints the public https:// URL
+```
+
+The printed URL + `/webhooks/hubspot` goes into the Private App's Target
+URL field. **Known limitation:** quick-tunnel URLs are ephemeral — a new
+one is issued every time `cloudflared` restarts, so the Target URL needs
+updating each session. A paid/authenticated tunnel would give a stable
+hostname; not needed for this project's practice scope.
+
+## Slice 10: Contacts, and an Engagement Note on every lead
+
+Everything so far only ever wrote a Company (and a Deal, for High/Medium
+leads). A real sales tool needs a person to call, and a rep needs to see
+*why* a record was scored the way it was without leaving HubSpot — this
+slice adds both, reusing the same evidence-detection and
+association-linking patterns already established in earlier slices.
+
+### Contact extraction — grounding, not invention
+
+This project's core rule since Slice 1 is "never invent a fact without a
+cited source." New file `extract_contact.py` follows the exact same shape
+as `route_salesperson.extract_location()`: one Claude call, no tool
+access, reads only the research text already gathered, returns
+`{name, title, email, insufficient_information}`. Wired into
+`pipeline.evaluate_lead()` alongside the existing location-extraction
+call, reusing the same text — no new search.
+
+**Expect this to return "Not Found" for most leads, honestly** — most
+PDF-profile and web-search text describes a *company*, not a named
+person, so a low hit rate here is the grounding rule working correctly,
+not a bug to chase.
+
+### `hubspot_contacts.py`
+
+`upsert_contact(contact, company_id, deal_id=None)` — **skipped entirely
+when no email was grounded**, matching `existing_customers.py`'s
+"no fuzzy matching, under-flag rather than risk a wrong match"
+precedent. When an email *is* grounded, dedup is by `email` — HubSpot's
+actual canonical Contact dedup key, a stronger guarantee than Company
+ever had (Company's `name`-based search is a documented weaker
+substitute, see Slice 5). On create, associates to the Company via
+`associations.v4.create_default`, and to the Deal too if one exists —
+same pattern as Slice 8's Deal-to-Company association.
+
+### `hubspot_notes.py`
+
+`create_triage_note(lead, company_id, association_type_ids, deal_id=None)`
+logs one Note (`hs_note_body`, `hs_timestamp` — both confirmed live
+against Alan's actual account's Notes property schema this session) on
+every lead **regardless of fit band** — unlike a Deal, a note documenting
+"we checked this company, here's what we found" is useful even on a
+Low/Unknown record, so a reviewer never wonders whether it was actually
+evaluated.
+
+**A real API-surface gap found and worked around:** unlike Deal-Company
+associations, Notes attach their associations at *create* time, and there
+is no `create_default` for this path — the actual numeric association
+type ID has to be known. Rather than guess or hardcode one from memory,
+`get_note_association_type_ids()` looks it up live via the Associations
+**Schema Definitions API**
+(`associations.v4.schema.definitions_api.get_all()`) — confirmed against
+Alan's real account this session: Note→Company is type `190`, Note→Deal
+is `214`, both `HUBSPOT_DEFINED`. Looked up once per run (same "resolve
+once, not per lead" pattern as pipeline/stage lookup in `hubspot_deals.py`),
+not hardcoded, so it can't silently go stale if a portal's association
+types ever change.
+
+### Wiring
+
+`hubspot_crm.export_leads_to_hubspot()` gains both steps after the
+existing Company/Deal upsert. `webhook_server.py` needed **no changes at
+all** — it already calls `export_leads_to_hubspot`, so both land on the
+webhook-triggered path automatically.
+
+## Slice 11: converting the N+1 loops to HubSpot's Batch APIs — partially reverted after a real live failure
+
+Slice 8's README documented a real limitation: `find_existing_customer_names()`
+and the per-lead Company/Deal upsert loops were N+1 API-call patterns —
+one round trip per record instead of one for the whole batch. This slice
+set out to fix both with HubSpot's Batch APIs. **One half worked; the
+other half hit a real HubSpot platform constraint and was reverted.**
+
+**What stuck — `find_existing_customer_names()`**: the per-deal
+association read and per-company name read are now one batch call each,
+live-verified. **A real API-surface inconsistency found and worked
+around, not assumed:** the Associations **v4** Batch API
+(`associations.v4.BatchApi`, used elsewhere in this project for
+single-record association creation) has **no batch read at all** — only
+`get_page`/`create_default`/`archive`. The batch read that does exist
+lives on the older **v3** `associations.BatchApi.read()` instead.
+Confirmed live via `inspect.signature()`/`openapi_types` against the real
+SDK before writing this.
+
+**What got reverted — Company/Deal upsert**: batching these with
+`batch_api.upsert(id_property="name"/"dealname", ...)` seemed to work
+against the mocked tests, but the first live run returned a real 400:
+
+```
+"Unable to perform update/upsert by non-unique name property in portal ID ..."
+```
+
+HubSpot's Batch Upsert endpoint requires its matching `id_property` to be
+a **unique-constrained** property, and Company `name`/Deal `dealname`
+aren't unique by default — the same underlying gap Slice 5 already
+documented for Company (`name` is a weaker dedup key than `domain`), just
+surfaced here as a hard blocker instead of a soft weakness. Reverted
+`export_leads_to_hubspot`/`upsert_deal` back to the original per-record
+search-then-create/update pattern from Slices 8–9, which doesn't have
+this requirement (`SearchApi.do_search` isn't restricted to unique
+properties the way batch upsert-by-property-value is). `batch_upsert_companies`/
+`batch_upsert_deals` and their tests were removed entirely rather than
+left in as dead, broken code.
+
+**Two things worth remembering from this slice, both caught before they
+became silent long-term problems:**
+
+1. **A correctness gap caught while writing the (later-reverted) batch
+   code, not from a live test:** batch upsert has no equivalent to the
+   old per-record `create_default` association call — a batch-created
+   Deal wouldn't have been associated to its Company by the batch call
+   alone. Would have needed a per-record association step regardless of
+   whether the batch-upsert approach had survived.
+2. **A real test-isolation incident, disclosed rather than glossed over:**
+   partway through the batch conversion, running the "mocked" test suite
+   actually made live calls to Alan's real HubSpot account — the tests
+   for `export_leads_to_hubspot` still mocked the old per-lead functions,
+   which the refactored code no longer called, so nothing stood between
+   the test run and the real `get_hubspot_client()`/batch API calls once
+   `HUBSPOT_ACCESS_TOKEN` had a real value in `.env` (added for Slice 9).
+   Caught by the suite's runtime jumping from ~0.4s to multiple seconds.
+   Worth remembering generally for this codebase's test style: patching
+   the wrong target doesn't fail loudly — it silently falls through to
+   whatever real client is configured, so a sudden change in test runtime
+   after a refactor is worth investigating, not ignoring.
+
+**Verified live end to end** (`run_hubspot_export.py`, same three
+fictional leads as before): all three Companies updated cleanly (no more
+"non-unique property" error), the High-fit lead's Deal updated correctly,
+and — closing the loop on Slice 10 — every lead got a Note, none grounded
+a real Contact (expected, and itself a small confirmation that the
+grounding rule is being honestly enforced rather than silently skipped).
+
 ## Setup
 
 ```bash
@@ -435,17 +767,31 @@ python -m unittest discover -p "test_*.py" -v
 ```
 
 None of these hit a live API — every test that would otherwise need Claude
-mocks `client.messages.create`, `test_hubspot_crm.py` mocks the HubSpot
-client entirely, and everything else (CSV/YAML/PDF parsing, routing, CRM
-row building) is pure-function or real-fictional-data testing with no
-network access. To confirm search/scoring/routing works end to end against
-real API calls, run the Slice 3 command with a real Anthropic API key.
+mocks `client.messages.create`, `test_hubspot_crm.py`/`test_hubspot_deals.py`
+mock the HubSpot client entirely, `test_webhook_server.py` uses Flask's own
+test client plus a real hand-computed HMAC (so the signature algorithm
+itself is genuinely exercised, not mocked away), and everything else
+(CSV/YAML/PDF parsing, routing, CRM row building) is pure-function or
+real-fictional-data testing with no network access. To confirm
+search/scoring/routing works end to end against real API calls, run the
+Slice 3 command with a real Anthropic API key.
 
-The HubSpot integration has now been verified live end to end against a
-real (free) HubSpot account — see the confirmation note under Slice 5
-above. That verification required Alan's own account/Service Key, which
-this repo's automated tests deliberately can't reproduce or fake; the
-mocked `test_hubspot_crm.py` suite is what runs in CI/without credentials.
+The HubSpot integration (Company/Deal upsert, the bidirectional
+existing-customer lookup) has been verified live end to end against a
+real (free) HubSpot account — see the confirmation notes under Slices 5
+and 8 above, including a real bug the mocked suite missed and the live
+run caught. The Slice 9 webhook path additionally can't be proven by any
+automated test at all — it depends on a real HubSpot Private App, a real
+tunnel, and a real Company being created in the HubSpot UI while
+`webhook_server.py` is running; see Slice 9's setup steps for exactly how
+to trigger and observe it live. **Slices 10 and 11 have also now been
+verified live** (132/132 tests passing) via `run_hubspot_export.py`:
+every lead got a Note, the High-fit lead's Deal updated correctly, and
+the Batch-API-converted `find_existing_customer_names()` correctly found
+an existing customer from a prior run's closed-won deal — this live run
+is also what caught Slice 11's Company/Deal batch-upsert failure
+(HubSpot's "non-unique property" constraint) and confirmed the fix after
+reverting that part.
 
 ## Known limitations
 
