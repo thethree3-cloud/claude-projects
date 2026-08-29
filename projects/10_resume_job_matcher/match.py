@@ -46,6 +46,12 @@ def build_resume_text(resume):
             lines.append(
                 f"{entry['credential']}, {entry['institution']} ({entry['year']})"
             )
+    if resume["certifications"]:
+        lines.append("")
+        lines.append(
+            "Certifications: "
+            + ", ".join(cert["name"] for cert in resume["certifications"])
+        )
     return "\n".join(lines)
 
 

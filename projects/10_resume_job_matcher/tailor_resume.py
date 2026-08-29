@@ -16,8 +16,9 @@ that in two places:
   and skills are enum-constrained to the résumé's own list;
 - `assemble()` (pure Python): title/organization/dates are copied from the
   source role so the model can't drift them, any role the model dropped is
-  re-appended untouched, and any skill the model somehow returned that isn't
-  in the résumé is filtered out.
+  re-appended untouched, any skill the model somehow returned that isn't in
+  the résumé is filtered out, and contact details / certifications pass
+  straight through (the model never sees them as editable).
 
 The prompt carries the rest of the promise (don't invent accomplishments in
 the bullet text).
@@ -36,6 +37,11 @@ def _numbered_resume(resume):
         lines.append(resume["name"])
     if resume["location"]:
         lines.append(resume["location"])
+    contact = " | ".join(
+        p for p in [resume["email"], resume["phone"], *resume["links"]] if p
+    )
+    if contact:
+        lines.append(contact)
     if resume["summary"]:
         lines += ["", resume["summary"]]
     if resume["skills"]:
@@ -55,6 +61,15 @@ def _numbered_resume(resume):
             lines.append(
                 f"{entry['credential']}, {entry['institution']} ({entry['year']})"
             )
+    if resume["certifications"]:
+        lines += ["", "Certifications:"]
+        for cert in resume["certifications"]:
+            text = cert["name"]
+            if cert["issuer"]:
+                text += f" — {cert['issuer']}"
+            if cert["year"]:
+                text += f" ({cert['year']})"
+            lines.append(text)
     return "\n".join(lines)
 
 
@@ -206,10 +221,14 @@ def assemble(tailored, resume):
     return {
         "name": resume["name"],
         "location": resume["location"],
+        "email": resume["email"],
+        "phone": resume["phone"],
+        "links": resume["links"],
         "summary": tailored["summary"] or resume["summary"],
         "skills": skills,
         "experience": experience,
         "education": resume["education"],
+        "certifications": resume["certifications"],
     }
 
 
@@ -220,6 +239,11 @@ def render_markdown(resume):
         lines.append(f"# {resume['name']}")
     if resume["location"]:
         lines.append(resume["location"])
+    contact = " · ".join(
+        p for p in [resume["email"], resume["phone"], *resume["links"]] if p
+    )
+    if contact:
+        lines.append(contact)
     lines.append("")
     if resume["summary"]:
         lines += ["## Summary", "", resume["summary"], ""]
@@ -238,6 +262,12 @@ def render_markdown(resume):
         for entry in resume["education"]:
             year = f" ({entry['year']})" if entry["year"] else ""
             lines.append(f"- {entry['credential']}, {entry['institution']}{year}")
+        lines.append("")
+    if resume["certifications"]:
+        lines += ["## Certifications", ""]
+        for cert in resume["certifications"]:
+            extra = ", ".join(p for p in [cert["issuer"], cert["year"]] if p)
+            lines.append(f"- {cert['name']}" + (f" ({extra})" if extra else ""))
         lines.append("")
     return "\n".join(lines).strip() + "\n"
 

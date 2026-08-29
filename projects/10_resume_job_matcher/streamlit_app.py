@@ -21,6 +21,7 @@ from match import match_requirements
 from parse_job import parse_job
 from parse_resume import parse_resume
 from report import build_report, format_report
+from resume_source import extract_text
 from tailor_resume import build_tailored_resume
 
 st.set_page_config(
@@ -216,19 +217,33 @@ st.caption(
 samples_exist = (DATA_DIR / "sample_resume.txt").exists()
 
 st.markdown("**Résumé**")
-if st.button(
-    "Load sample résumé", icon=":material/description:", disabled=not samples_exist
+upload_col, sample_col = st.columns([3, 1])
+upload = upload_col.file_uploader(
+    "Upload a résumé file",
+    type=["pdf", "docx", "txt", "md"],
+    help="PDF, Word (.docx), or plain text. The extracted text lands in the box below — edit it there.",
+)
+if upload is not None and upload.file_id != st.session_state.get("resume_file_id"):
+    try:
+        st.session_state.resume_text = extract_text(upload.getvalue(), upload.name)
+        st.session_state.resume_file_id = upload.file_id
+        st.session_state.pop("single", None)
+        st.session_state.pop("tailored", None)
+    except (ValueError, RuntimeError) as exc:
+        st.error(str(exc))
+if sample_col.button(
+    "Load sample", icon=":material/description:", disabled=not samples_exist
 ):
     st.session_state.resume_text = _sample("sample_resume.txt")
 st.text_area(
     "Résumé",
     key="resume_text",
     height=260,
-    placeholder="Paste the full résumé text…",
+    placeholder="Paste the full résumé text, or upload a file above…",
     label_visibility="collapsed",
 )
 if not samples_exist:
-    st.caption("Run `python sample_data.py` to enable the sample buttons.")
+    st.caption("Run `python sample_data.py` to enable the sample button.")
 
 mode = st.segmented_control(
     "Mode",
