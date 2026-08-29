@@ -21,6 +21,7 @@ from match import match_requirements
 from parse_job import parse_job
 from parse_resume import parse_resume
 from report import build_report, format_report
+from tailor_resume import build_tailored_resume
 
 st.set_page_config(
     page_title="Résumé & job matcher",
@@ -45,9 +46,24 @@ def evaluate(resume_text: str, job_text: str) -> dict:
     job = parse_job(job_text)
     comparison = match_requirements(resume, job)
     return {
+        "resume": resume,
+        "job": job,
         "comparison": comparison,
         "report": build_report(comparison, resume, job),
     }
+
+
+@st.cache_data(show_spinner=False, ttl="1h", max_entries=20)
+def tailor(resume_text: str, job_text: str) -> dict:
+    """Reframe the résumé for one listing. Cached on the input text.
+
+    Re-parses rather than leaning on `evaluate`'s cache so the two features
+    stay independent; the parse calls are cheap.
+    """
+    resume = parse_resume(resume_text)
+    job = parse_job(job_text)
+    comparison = match_requirements(resume, job)
+    return build_tailored_resume(comparison, resume, job)
 
 
 @st.cache_data(show_spinner=False, ttl="1h", max_entries=10)
@@ -249,6 +265,7 @@ if mode == "Score one listing":
             st.session_state.resume_text,
             st.session_state.job_text,
         )
+        st.session_state.pop("tailored", None)  # stale for the new listing
 
     if "single" in st.session_state:
         result = st.session_state.single
@@ -259,6 +276,39 @@ if mode == "Score one listing":
             file_name="fit_report.txt",
             icon=":material/download:",
         )
+
+        st.divider()
+        st.markdown("### Tailored résumé")
+        st.caption(
+            "Reframes your résumé for this listing — rewrites the summary, "
+            "leads with the job-relevant roles and skills, and re-words your "
+            "existing bullets in the listing's language. It never adds a "
+            "skill, employer, or accomplishment your résumé doesn't already "
+            "show."
+        )
+        if st.button("Build tailored résumé", icon=":material/edit_document:"):
+            st.session_state.tailored = _run(
+                "Reframing your résumé for this role…",
+                tailor,
+                st.session_state.resume_text,
+                st.session_state.job_text,
+            )
+
+        if "tailored" in st.session_state:
+            tailored = st.session_state.tailored
+            if tailored["changes"]:
+                with st.expander("What changed", expanded=True):
+                    for change in tailored["changes"]:
+                        st.markdown(f"- {change}")
+            st.download_button(
+                "Download tailored résumé (Markdown)",
+                tailored["markdown"],
+                file_name="tailored_resume.md",
+                icon=":material/download:",
+                type="primary",
+            )
+            with st.container(border=True):
+                st.markdown(tailored["markdown"])
 
 # --------------------------------------------------------------- search jobs
 else:

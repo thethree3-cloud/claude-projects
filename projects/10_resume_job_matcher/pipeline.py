@@ -1,6 +1,6 @@
 """The one call that runs the whole project.
 
-Slice 4 (final) of Project 10. `evaluate_fit()` takes raw résumé text and raw
+Slice 4 of Project 10. `evaluate_fit()` takes raw résumé text and raw
 job-listing text and returns a finished report:
 
     parse_resume ─┐
@@ -18,6 +18,7 @@ from match import match_requirements
 from parse_job import parse_job
 from parse_resume import parse_resume
 from report import build_report
+from tailor_resume import build_tailored_resume
 
 
 def evaluate_fit(resume_text, job_text):
@@ -26,6 +27,16 @@ def evaluate_fit(resume_text, job_text):
     job = parse_job(job_text)
     comparison = match_requirements(resume, job)
     return build_report(comparison, resume, job)
+
+
+def tailor_fit(resume_text, job_text):
+    """Raw résumé text + raw job-listing text -> a résumé reframed for that
+    role: {"resume", "markdown", "changes"}. Four Claude calls (résumé parse,
+    job parse, skill evidence-detection, the reframe itself)."""
+    resume = parse_resume(resume_text)
+    job = parse_job(job_text)
+    comparison = match_requirements(resume, job)
+    return build_tailored_resume(comparison, resume, job)
 
 
 def rank_fits(reports):
