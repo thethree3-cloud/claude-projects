@@ -21,6 +21,7 @@ from match import match_requirements
 from parse_job import parse_job
 from parse_resume import parse_resume
 from report import build_report, format_report
+from resume_export import to_docx, to_pdf
 from resume_source import extract_text
 from tailor_resume import build_tailored_resume
 
@@ -341,12 +342,33 @@ if mode == "Score one listing":
                         for bullet in role["tailored"] or ["—"]:
                             after_col.markdown(f"- {bullet}")
 
-            st.download_button(
-                "Download tailored résumé (Markdown)",
+            st.markdown("**Download**")
+            pdf_col, docx_col, md_col = st.columns(3)
+            resume_dict = tailored.get("resume") or {}
+            if resume_dict:
+                pdf_col.download_button(
+                    "PDF",
+                    to_pdf(resume_dict),
+                    file_name="tailored_resume.pdf",
+                    mime="application/pdf",
+                    icon=":material/picture_as_pdf:",
+                    type="primary",
+                    use_container_width=True,
+                )
+                docx_col.download_button(
+                    "Word",
+                    to_docx(resume_dict),
+                    file_name="tailored_resume.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    icon=":material/description:",
+                    use_container_width=True,
+                )
+            md_col.download_button(
+                "Markdown",
                 tailored["markdown"],
                 file_name="tailored_resume.md",
-                icon=":material/download:",
-                type="primary",
+                icon=":material/code:",
+                use_container_width=True,
             )
             with st.container(border=True):
                 st.markdown(tailored["markdown"])

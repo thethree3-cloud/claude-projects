@@ -21,11 +21,13 @@ Slice 5 reuses that chain: `pipeline.tailor_fit(resume_text, job_text)` →
 
 Résumé input is a file upload (PDF / DOCX / txt, via `resume_source.py`) or a
 paste; `parse_resume` now also captures contact details and certifications.
+The tailored résumé downloads as Markdown, **PDF, or Word** (`resume_export.py`).
 
 | File | What it does |
 | --- | --- |
 | `parse_resume.py` / `parse_job.py` | Free text → structured dict, JSON-schema-constrained Claude call. `parse_resume` captures contact (email/phone/links) and certifications alongside skills/experience/education. `parse_job` splits `required_skills` vs `preferred_skills` by framing language. |
 | `resume_source.py` | `extract_text(data, filename)` — résumé file → plain text for `parse_resume`. PDF via PyMuPDF; `.docx` via python-docx when installed, else a small built-in `word/document.xml` reader (no extra dependency); `.txt`/`.md` decoded. |
+| `resume_export.py` | `to_pdf(resume)` / `to_docx(resume)` — an assembled résumé dict → downloadable bytes. PDF via fpdf2 (Latin-1, punctuation sanitised); DOCX written directly as WordprocessingML in a zip (no python-docx). Both are ATS-plain: one column, standard fonts, real headings, no tables. |
 | `match.py` | `match_requirements(resume, job)` → a "comparison" dict: per required/preferred skill `{skill, met, evidence}`, a years check, an education check. One enum-constrained Claude call does skill evidence-detection + the education judgment; the years check is pure Python. |
 | `score.py` | `score_comparison(comparison)` → `{score, band, breakdown}`. Pure arithmetic, no LLM. Weights: required 60 / years 20 / preferred 15 / education 5 (sum 100). Bands: Strong ≥ 75, Possible ≥ 45, Weak below. `breakdown` shows each component's points/max/detail. |
 | `report.py` | `find_gaps(comparison)` (pure) → unmet skills, years shortfall, education. `build_report(comparison, resume, job)` adds the score and one LLM call for suggestions. `format_report(report)` renders it to text (pure). |
@@ -36,8 +38,8 @@ paste; `parse_resume` now also captures contact details and certifications.
 | `run_job_folder.py` | Driver (not tested): runs one résumé against a folder of `.txt` listings, prints a ranked table + each full report. |
 | `run_job_search.py` | Driver (not tested): `search_jobs` for postings near a location (default: the résumé's own), scores each, prints ranked with the posting URL + grounding. |
 | `eval_cases.py` / `run_evals.py` | Live eval harness — fictional `(résumé, job)` cases with **tolerant** expectations (score ranges, band sets, "a genuine_gap suggestion", "flagged bullets never survive"). `run_evals.py` runs the real chain and exits non-zero on a miss. `test_evals.py` checks the fixtures are well-formed, offline. |
-| `streamlit_app.py` | UI, two modes. **Score one listing:** upload a résumé (PDF/DOCX/txt) or paste it, + a job listing → score, breakdown, gaps (badges), suggestions (labelled), skill-by-skill evidence, text download — plus a **Build tailored résumé** button → Markdown preview, a "what changed" list, dropped-bullet warnings, a before/after diff, and a `.md` download. **Search live jobs:** résumé + keywords + location (or a "Search area" preset like Salt Lake City) → ranked results table, row-select for the full report + a link to the posting. |
-| `test_*.py` (91 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, the `find_gaps`/`format_report`/`job_sites` tests, `test_tailor_resume.py`'s `assemble`/`_apply_verification`/`build_diff`/`render_markdown` tests, `test_resume_source.py`, `test_evals.py`, and `test_streamlit_app.py` (via `AppTest`) are pure; the rest mock the client. `run_evals.py` is the separate *live* harness. |
+| `streamlit_app.py` | UI, two modes. **Score one listing:** upload a résumé (PDF/DOCX/txt) or paste it, + a job listing → score, breakdown, gaps (badges), suggestions (labelled), skill-by-skill evidence, text download — plus a **Build tailored résumé** button → Markdown preview, a "what changed" list, dropped-bullet warnings, a before/after diff, and Markdown / PDF / Word downloads. **Search live jobs:** résumé + keywords + location (or a "Search area" preset like Salt Lake City) → ranked results table, row-select for the full report + a link to the posting. |
+| `test_*.py` (100 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, the `find_gaps`/`format_report`/`job_sites` tests, `test_tailor_resume.py`'s `assemble`/`_apply_verification`/`build_diff`/`render_markdown` tests, `test_resume_source.py`, `test_resume_export.py`, `test_evals.py`, and `test_streamlit_app.py` (via `AppTest`) are pure; the rest mock the client. `run_evals.py` is the separate *live* harness. |
 
 **Grounding** (same as every slice and Project 14): `match.py` gives Claude no
 tools — a skill is "met" only if it can be quoted from the résumé.
@@ -87,6 +89,10 @@ for change in out["changes"]:   # a plain-language audit list
 for flag in out["flags"]:       # bullets the verification pass dropped
     print("dropped:", flag["bullet"], "—", flag["issue"])
 # out["diff"] — per role, original bullets next to the final ones
+
+from resume_export import to_pdf, to_docx
+Path("tailored.pdf").write_bytes(to_pdf(out["resume"]))
+Path("tailored.docx").write_bytes(to_docx(out["resume"]))
 ```
 
 **It reframes, it does not fabricate.** It rewrites the summary, reorders
@@ -118,6 +124,10 @@ bullets in the listing's vocabulary. The LLM/Python split carries the promise:
   tech / scope well, but a subtle tone inflation inside otherwise-supported
   wording can still slip through. The before/after diff is there so you can
   read every edit yourself.
+- The PDF export (`resume_export.to_pdf`) uses fpdf2's Latin-1 core fonts —
+  common punctuation is mapped (`—`→`-`, curly quotes→straight) and anything
+  else outside Latin-1 (e.g. a CJK name) degrades to `?`. The Word export has
+  no such limit; use it if the PDF mangles a character.
 
 ## Live job search
 
@@ -189,7 +199,7 @@ full descriptions.
 
 ```bash
 python sample_data.py        # writes data/sample_resume.txt, data/sample_job.txt, data/sample_jobs/
-python -m unittest discover   # 91 tests, offline
+python -m unittest discover   # 100 tests, offline
 python run_evals.py           # live eval harness — run after touching a prompt/schema
 python run_job_folder.py data/sample_resume.txt data/sample_jobs/   # live CLI, needs API key
 streamlit run streamlit_app.py                                      # live UI, needs API key
@@ -243,5 +253,5 @@ people, companies, dates).
   verify the reframed bullets). Everything else — required-vs-preferred
   bucketing, the years comparison, all scoring arithmetic, gap extraction,
   ranking, locking the tailored résumé's roles/skills to the source, dropping
-  the flagged bullets, and building the diff — is pure Python, unit-tested
-  without mocks.
+  the flagged bullets, building the diff, and the PDF/Word export — is pure
+  Python, unit-tested without mocks.
