@@ -95,7 +95,7 @@ def _tailor_schema(resume):
                 "description": (
                     "The résumé's own skills, reordered so the ones this job "
                     "asks for come first. Keep them all unless one is truly "
-                    "irrelevant to this application."
+                    "irrelevant to this application. List each skill once."
                 ),
             },
             "experience": {
@@ -220,9 +220,13 @@ def assemble(tailored, resume):
         if idx not in seen:
             experience.append(dict(source))
 
+    # The model's order first, then any source skill it left out — filtered to
+    # the résumé's own skills and de-duplicated (the enum lets it repeat one).
     known = set(resume["skills"])
-    skills = [s for s in tailored["skills"] if s in known]
-    skills += [s for s in resume["skills"] if s not in skills]
+    skills = []
+    for skill in [*tailored["skills"], *resume["skills"]]:
+        if skill in known and skill not in skills:
+            skills.append(skill)
 
     return {
         "name": resume["name"],
