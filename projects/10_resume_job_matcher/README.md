@@ -35,8 +35,9 @@ paste; `parse_resume` now also captures contact details and certifications.
 | `job_search.py` | `search_jobs(keywords, location, radius_miles, count)` → live postings via Claude's `web_search` (restricted to `job_sites`) + `web_fetch` (full posting text). Returns `{title, company, location, url, description, grounding}`; `grounding` is `"full posting"` or `"search snippet"`. `description` is what you feed to `evaluate_fit`. |
 | `run_job_folder.py` | Driver (not tested): runs one résumé against a folder of `.txt` listings, prints a ranked table + each full report. |
 | `run_job_search.py` | Driver (not tested): `search_jobs` for postings near a location (default: the résumé's own), scores each, prints ranked with the posting URL + grounding. |
+| `eval_cases.py` / `run_evals.py` | Live eval harness — fictional `(résumé, job)` cases with **tolerant** expectations (score ranges, band sets, "a genuine_gap suggestion", "flagged bullets never survive"). `run_evals.py` runs the real chain and exits non-zero on a miss. `test_evals.py` checks the fixtures are well-formed, offline. |
 | `streamlit_app.py` | UI, two modes. **Score one listing:** upload a résumé (PDF/DOCX/txt) or paste it, + a job listing → score, breakdown, gaps (badges), suggestions (labelled), skill-by-skill evidence, text download — plus a **Build tailored résumé** button → Markdown preview, a "what changed" list, dropped-bullet warnings, a before/after diff, and a `.md` download. **Search live jobs:** résumé + keywords + location (or a "Search area" preset like Salt Lake City) → ranked results table, row-select for the full report + a link to the posting. |
-| `test_*.py` (84 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, the `find_gaps`/`format_report`/`job_sites` tests, `test_tailor_resume.py`'s `assemble`/`_apply_verification`/`build_diff`/`render_markdown` tests, `test_resume_source.py`, and `test_streamlit_app.py` (via `AppTest`) are pure; the rest mock the client. |
+| `test_*.py` (91 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, the `find_gaps`/`format_report`/`job_sites` tests, `test_tailor_resume.py`'s `assemble`/`_apply_verification`/`build_diff`/`render_markdown` tests, `test_resume_source.py`, `test_evals.py`, and `test_streamlit_app.py` (via `AppTest`) are pure; the rest mock the client. `run_evals.py` is the separate *live* harness. |
 
 **Grounding** (same as every slice and Project 14): `match.py` gives Claude no
 tools — a skill is "met" only if it can be quoted from the résumé.
@@ -188,10 +189,38 @@ full descriptions.
 
 ```bash
 python sample_data.py        # writes data/sample_resume.txt, data/sample_job.txt, data/sample_jobs/
-python -m unittest discover   # 84 tests, offline
+python -m unittest discover   # 91 tests, offline
+python run_evals.py           # live eval harness — run after touching a prompt/schema
 python run_job_folder.py data/sample_resume.txt data/sample_jobs/   # live CLI, needs API key
 streamlit run streamlit_app.py                                      # live UI, needs API key
 ```
+
+## Evals
+
+`python -m unittest discover` proves the plumbing offline; `run_evals.py` is
+the other half — it runs the real chain against a real model and checks the
+*judgement* still lands. Run it after any prompt, schema, or rubric change.
+
+```
+$ python run_evals.py
+PASS  [fit] career-changer vs junior AI engineer
+      ok  band in ('Strong',)
+      ok  score in [72, 100]
+      ok  <= 1 unmet required skill(s)
+...
+PASS  [tailor] reframe for data analyst
+      ok  every role kept
+      ok  no invented skills
+      ok  flagged bullets never survive into the résumé
+6/6 cases passed, 22/22 checks
+```
+
+Checks are tolerant — score *ranges*, band *sets*, directional properties —
+because the model moves between runs. A failure is "go look", not "the build
+is red". `--case <substr>` filters, `--list` lists, `-v` prints each full
+report. The suite already paid for itself once: it caught the reframe prompt
+*repurposing* bullets (a PowerShell account-provisioning line rewritten as
+"data integration"), which led to the "re-word, don't repurpose" rule.
 
 Model: `claude-haiku-4-5-20251001`, matching the rest of the portfolio.
 Needs `ANTHROPIC_API_KEY` in the repo-root `.env`.
