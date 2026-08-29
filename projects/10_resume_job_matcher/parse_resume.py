@@ -21,6 +21,22 @@ RESUME_SCHEMA = {
             "type": "string",
             "description": "The candidate's location as written — city/state, or city/state/ZIP. Empty string if the résumé doesn't give one.",
         },
+        "email": {
+            "type": "string",
+            "description": "Email address from the header, or empty string if absent.",
+        },
+        "phone": {
+            "type": "string",
+            "description": "Phone number as written, or empty string if absent.",
+        },
+        "links": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": (
+                "Profile / portfolio URLs (LinkedIn, GitHub, personal site), "
+                "as written. Empty list if none."
+            ),
+        },
         "skills": {
             "type": "array",
             "items": {"type": "string"},
@@ -60,6 +76,26 @@ RESUME_SCHEMA = {
                 "additionalProperties": False,
             },
         },
+        "certifications": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "issuer": {
+                        "type": "string",
+                        "description": "Issuing body, or empty string if not stated.",
+                    },
+                    "year": {
+                        "type": "string",
+                        "description": "Year earned as written, or empty string.",
+                    },
+                },
+                "required": ["name", "issuer", "year"],
+                "additionalProperties": False,
+            },
+            "description": "Professional certifications / licenses. Empty list if none.",
+        },
         "total_years_experience": {
             "type": "number",
             "description": (
@@ -73,9 +109,13 @@ RESUME_SCHEMA = {
         "name",
         "summary",
         "location",
+        "email",
+        "phone",
+        "links",
         "skills",
         "experience",
         "education",
+        "certifications",
         "total_years_experience",
     ],
     "additionalProperties": False,
@@ -89,6 +129,9 @@ Rules:
   skills, titles, or dates that aren't written down.
 - For skills, list the specific tools/technologies/methods named -- not broad
   categories you assume from a job title.
+- Pull contact details (email, phone, profile/portfolio links) from the header.
+- List certifications and licenses with their issuer and year where the résumé
+  gives them.
 - If a field has no supporting content, use an empty string, an empty list, or
   0 as the schema requires.
 

@@ -9,6 +9,9 @@ FAKE_PARSED = {
     "name": "Jordan Rivera",
     "summary": "IT support moving into automation.",
     "location": "Portland, OR",
+    "email": "jordan.rivera@example.com",
+    "phone": "503-555-0100",
+    "links": ["linkedin.com/in/jrivera", "github.com/jrivera-example"],
     "skills": ["Python", "SQL", "pandas"],
     "experience": [
         {
@@ -24,6 +27,9 @@ FAKE_PARSED = {
             "institution": "Portland Community College",
             "year": "2019",
         }
+    ],
+    "certifications": [
+        {"name": "CompTIA A+", "issuer": "CompTIA", "year": "2019"},
     ],
     "total_years_experience": 5,
 }

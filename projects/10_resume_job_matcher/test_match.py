@@ -8,6 +8,10 @@ import match
 RESUME = {
     "name": "Jordan Rivera",
     "summary": "IT support moving into automation.",
+    "location": "Portland, OR",
+    "email": "jordan@example.com",
+    "phone": "",
+    "links": [],
     "skills": ["Python", "SQL", "pandas"],
     "experience": [
         {
@@ -19,6 +23,9 @@ RESUME = {
     ],
     "education": [
         {"credential": "AAS Network Admin", "institution": "PCC", "year": "2019"}
+    ],
+    "certifications": [
+        {"name": "AWS Certified Cloud Practitioner", "issuer": "AWS", "year": "2023"}
     ],
     "total_years_experience": 5,
 }
@@ -44,6 +51,12 @@ class BuildResumeTextTests(unittest.TestCase):
         self.assertIn("Skills: Python, SQL, pandas", text)
         self.assertIn("- Built a Python + pandas reporting pipeline.", text)
         self.assertIn("IT Support Analyst — Cascade Precision (2021 - Present)", text)
+
+    def test_certifications_are_included_as_evidence(self):
+        # a cert names a technology the bullets never mention -> it should still
+        # reach the evidence-detection prompt
+        text = match.build_resume_text(RESUME)
+        self.assertIn("Certifications: AWS Certified Cloud Practitioner", text)
 
 
 class MatchRequirementsTests(unittest.TestCase):

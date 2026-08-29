@@ -8,6 +8,10 @@ import pipeline
 RESUME_JSON = {
     "name": "Jordan Rivera",
     "summary": "IT support moving into automation.",
+    "location": "Portland, OR",
+    "email": "jordan@example.com",
+    "phone": "",
+    "links": ["github.com/jrivera"],
     "skills": ["Python", "SQL"],
     "experience": [
         {
@@ -18,6 +22,7 @@ RESUME_JSON = {
         }
     ],
     "education": [{"credential": "AAS", "institution": "PCC", "year": "2019"}],
+    "certifications": [{"name": "CompTIA A+", "issuer": "CompTIA", "year": "2019"}],
     "total_years_experience": 5,
 }
 

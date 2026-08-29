@@ -8,6 +8,10 @@ import report
 RESUME = {
     "name": "Jordan Rivera",
     "summary": "IT support moving into automation.",
+    "location": "Portland, OR",
+    "email": "jordan@example.com",
+    "phone": "",
+    "links": [],
     "skills": ["Python", "SQL"],
     "experience": [
         {
@@ -18,6 +22,7 @@ RESUME = {
         }
     ],
     "education": [{"credential": "AAS", "institution": "PCC", "year": "2019"}],
+    "certifications": [],
     "total_years_experience": 3,
 }
 

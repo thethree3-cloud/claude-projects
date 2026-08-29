@@ -72,6 +72,11 @@ class StreamlitAppTests(unittest.TestCase):
         )
         self.assertTrue(any("Reframed for the role." in m.value for m in at.markdown))
 
+    def test_resume_file_uploader_is_present(self):
+        at = AppTest.from_file("streamlit_app.py").run()
+        self.assertEqual(list(at.exception), [])
+        self.assertEqual(len(at.get("file_uploader")), 1)
+
     def test_missing_inputs_warn_on_submit(self):
         at = AppTest.from_file("streamlit_app.py").run()
         submit = next(b for b in at.button if b.label == "Evaluate fit")

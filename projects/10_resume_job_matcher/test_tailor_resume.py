@@ -9,6 +9,9 @@ RESUME = {
     "name": "Jordan Rivera",
     "summary": "IT support moving into automation.",
     "location": "Portland, OR",
+    "email": "jordan.rivera@example.com",
+    "phone": "503-555-0100",
+    "links": ["github.com/jrivera-example"],
     "skills": ["Python", "SQL", "pandas", "Excel"],
     "experience": [
         {
@@ -26,6 +29,10 @@ RESUME = {
     ],
     "education": [
         {"credential": "AAS, Network Administration", "institution": "PCC", "year": "2019"}
+    ],
+    "certifications": [
+        {"name": "CompTIA A+", "issuer": "CompTIA", "year": "2019"},
+        {"name": "Azure Fundamentals", "issuer": "Microsoft", "year": "2022"},
     ],
     "total_years_experience": 5,
 }
@@ -82,6 +89,10 @@ class TailorResumeCallTests(unittest.TestCase):
         self.assertIn("[1] Bookkeeper — Rose City Coffee", prompt)
         # the evidence quote for a met skill is handed to the model
         self.assertIn('Python: "Built a pandas reporting pipeline."', prompt)
+        # contact + certs are visible to the model (it won't change them, but
+        # it shouldn't drop them either)
+        self.assertIn("jordan.rivera@example.com", prompt)
+        self.assertIn("CompTIA A+ — CompTIA (2019)", prompt)
 
         schema = kwargs["output_config"]["format"]["schema"]
         self.assertEqual(
@@ -180,6 +191,13 @@ class AssembleTests(unittest.TestCase):
         out = tailor_resume.assemble({**TAILORED, "summary": ""}, RESUME)
         self.assertEqual(out["summary"], RESUME["summary"])
 
+    def test_contact_and_certifications_pass_through_untouched(self):
+        out = tailor_resume.assemble(TAILORED, RESUME)
+        self.assertEqual(out["email"], RESUME["email"])
+        self.assertEqual(out["phone"], RESUME["phone"])
+        self.assertEqual(out["links"], RESUME["links"])
+        self.assertEqual(out["certifications"], RESUME["certifications"])
+
     def test_empty_highlights_fall_back_to_source_bullets(self):
         out = tailor_resume.assemble(
             {**TAILORED, "experience": [{"source_index": 0, "highlights": []}]},
@@ -195,6 +213,9 @@ class RenderMarkdownTests(unittest.TestCase):
     def test_renders_every_section(self):
         md = tailor_resume.render_markdown(tailor_resume.assemble(TAILORED, RESUME))
         self.assertIn("# Jordan Rivera", md)
+        self.assertIn(
+            "jordan.rivera@example.com · 503-555-0100 · github.com/jrivera-example", md
+        )
         self.assertIn("## Summary", md)
         self.assertIn("Analyst who builds Python reporting pipelines.", md)
         self.assertIn("## Skills", md)
@@ -203,17 +224,23 @@ class RenderMarkdownTests(unittest.TestCase):
         self.assertIn("- Built Python/pandas reporting pipelines.", md)
         self.assertIn("## Education", md)
         self.assertIn("- AAS, Network Administration, PCC (2019)", md)
+        self.assertIn("## Certifications", md)
+        self.assertIn("- CompTIA A+ (CompTIA, 2019)", md)
 
     def test_role_without_dates_omits_the_italic_line(self):
         resume = {
             "name": "A",
             "location": "",
+            "email": "",
+            "phone": "",
+            "links": [],
             "summary": "",
             "skills": [],
             "experience": [
                 {"title": "T", "organization": "O", "dates": "", "highlights": ["h"]}
             ],
             "education": [],
+            "certifications": [],
         }
         md = tailor_resume.render_markdown(resume)
         self.assertNotIn("**", md)
