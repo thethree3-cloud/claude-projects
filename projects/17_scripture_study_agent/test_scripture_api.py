@@ -137,6 +137,89 @@ class FindReferencesTests(unittest.TestCase):
         self.assertEqual(kwargs["json"], {"text": "See Alma 32:21."})
 
 
+class FootnoteTests(unittest.TestCase):
+    CHAPTER = {"chapter": {"verses": [
+        {"text": "born goodly parents",
+         "footNotes": [
+             {"start": 0, "end": 4, "text": "TG Birthright."},
+             {"start": 5, "end": 11, "text": "Prov. 22:1."},
+             {"start": 12, "end": 19, "text": "Mosiah 1:2. TG Honoring Father and Mother."},
+         ]},
+    ]}}
+
+    def test_markers_and_anchors(self):
+        ctx, _ = stub_get(self.CHAPTER)
+        with ctx:
+            notes = s.get_footnotes("1nephi", 1, 1)
+        self.assertEqual([n["marker"] for n in notes], ["a", "b", "c"])
+        self.assertEqual(notes[0]["anchor"], "born")
+        self.assertEqual(notes[1]["anchor"], "goodly")
+        self.assertEqual(notes[2]["anchor"], "parents")
+        self.assertEqual(notes[2]["text"], "Mosiah 1:2. TG Honoring Father and Mother.")
+
+    def test_verse_out_of_range_raises(self):
+        ctx, _ = stub_get(self.CHAPTER)
+        with ctx:
+            with self.assertRaises(s.ScriptureAPIError):
+                s.get_footnotes("1nephi", 1, 99)
+
+    def test_no_footnotes_returns_empty(self):
+        ctx, _ = stub_get({"chapter": {"verses": [{"text": "x", "footNotes": []}]}})
+        with ctx:
+            self.assertEqual(s.get_footnotes("isaiah", 1, 1), [])
+
+
+class StudyHelpSlugTests(unittest.TestCase):
+    def test_slug_cases(self):
+        self.assertEqual(s.study_help_slug("Faith"), "faith")
+        self.assertEqual(s.study_help_slug("Honoring Father and Mother"),
+                         "honoring-father-and-mother")
+        self.assertEqual(s.study_help_slug("Israel, Judah, People of"),
+                         "israel-judah-people-of")
+        self.assertEqual(s.study_help_slug("God, Gifts of"), "god-gifts-of")
+        self.assertEqual(s.study_help_slug("  Grace  "), "grace")
+
+    def test_get_topical_guide_builds_entry_id(self):
+        ctx, mock = stub_get({"_id": "tg-faith"})
+        with ctx:
+            s.get_topical_guide("Faith")
+        self.assertEqual(mock.call_args[0][0], f"{s.STUDY_HELPS_BASE}/entry/tg-faith")
+
+    def test_get_bible_dictionary_builds_entry_id(self):
+        ctx, mock = stub_get({"_id": "bd-aaron"})
+        with ctx:
+            s.get_bible_dictionary("Aaron")
+        self.assertEqual(mock.call_args[0][0], f"{s.STUDY_HELPS_BASE}/entry/bd-aaron")
+
+
+class ByLetterTests(unittest.TestCase):
+    def _pages(self, *pages):
+        """Return a side_effect that yields successive {'entries': [...]} dicts."""
+        payloads = [FakeResponse({"entries": p}) for p in pages]
+        return MagicMock(side_effect=payloads)
+
+    def test_filters_by_first_letter_and_stops_early(self):
+        page = [{"title": "Aaron"}, {"title": "Abase"}, {"title": "Baal"},
+                {"title": "Cain"}]
+        with patch.object(s._session, "get", self._pages(page)):
+            out = s.study_help_entries_by_letter("tg", "A", page_size=500)
+        self.assertEqual([e["title"] for e in out], ["Aaron", "Abase"])
+
+    def test_paginates_until_short_page(self):
+        with patch.object(s._session, "get", self._pages(
+            [{"title": "Adam"}, {"title": "Alma"}],   # full page (size 2)
+            [{"title": "Amos"}],                        # short page -> stop
+        )):
+            out = s.study_help_entries_by_letter("tg", "A", page_size=2)
+        self.assertEqual([e["title"] for e in out], ["Adam", "Alma", "Amos"])
+
+    def test_case_insensitive_letter(self):
+        page = [{"title": "Zion"}, {"title": "Zoram"}]
+        with patch.object(s._session, "get", self._pages(page)):
+            out = s.study_help_entries_by_letter("tg", "z", page_size=500)
+        self.assertEqual(len(out), 2)
+
+
 class SectionHeadingTests(unittest.TestCase):
     def test_extracts_introduction_augmentation(self):
         payload = {"chapter": {"chapterAugmentations": [

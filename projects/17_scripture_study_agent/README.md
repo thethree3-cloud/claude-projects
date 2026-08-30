@@ -35,6 +35,11 @@ reference that did not come back from an actual tool call.
     of free text (used at corpus-build time to tag pages with the verses
     they discuss)
   - `get_chapter`, `get_verse`, `get_cross_references`, `search_scripture`
+  - `get_footnotes` — a verse's footnotes **as printed**: letter marker →
+    the word/phrase it anchors to → the raw footnote text. This is the
+    complete list; `get_cross_references` (the parsed/resolved view) can
+    silently drop a footnote — see the caveat below. A full study view
+    shows both.
   - `section_heading` — pulls the "introduction" augmentation off a
     chapter; for D&C sections this is the paragraph naming the **date and
     place** the revelation was received (the match key for Joseph Smith
@@ -42,6 +47,13 @@ reference that did not come back from an actual tool call.
   - `list_study_help_types`, `list_study_help_entries`,
     `get_study_help_entry` — Topical Guide, Bible Dictionary, Triple
     Combination Index, JST
+  - `get_topical_guide` / `get_bible_dictionary` / `get_study_help_by_subject`
+    — fetch an entry by **subject name** rather than id
+    (`"Honoring Father and Mother"` → `tg-honoring-father-and-mother`), via
+    `study_help_slug`
+  - `study_help_entries_by_letter` — every entry of a type whose title
+    starts with a given letter (pages the list and filters client-side; the
+    API's `q` is a substring match, not a prefix)
   - `list_conferences`, `get_latest_conference`, `get_conference`,
     `get_talk` — General Conference, 1971–present. **The client wraps these
     for completeness, but the agent does not use them: General Conference
@@ -54,9 +66,10 @@ reference that did not come back from an actual tool call.
   *is* Claude (Claude Code now, the Claude app via a tunnel later); the
   Python client above is for build-time scripts and any future
   Python-driven agent loop.
-- **`test_scripture_api.py`** — 17 offline tests (the `requests` session is
-  stubbed): URL construction, parameter passing, and the error-handling
-  contract. No network needed.
+- **`test_scripture_api.py`** — 26 offline tests (the `requests` session is
+  stubbed): URL construction, parameter passing, the error-handling
+  contract, footnote marker/anchor extraction, slug building, and the
+  by-letter pagination/early-stop. No network needed.
 
 Live smoke check:
 
@@ -75,15 +88,24 @@ python scripture_api.py "Isaiah 1:1"
 - Wrapping the local corpus as an MCP server + `cloudflared` tunnel for
   iPad use.
 
-## Known grounding caveat (Open Scripture API parser)
+## Known grounding caveats (Open Scripture API)
 
-`resolve_reference` uses a forgiving trie matcher. It is good at typos
+**1. `resolve_reference` is a forgiving trie matcher.** Good at typos
 (`Isiah 1:1` → `Isaiah 1:1`) but it will also **silently mis-resolve**
 non-scripture input: `The Silmarillion 1:1` comes back `valid: true` as
-`Revelation 1:1`. So the agent must not blindly trust the parser — it
-should check that the returned `prettyString` matches what the user
-actually asked for, and confirm with the user when the input was ambiguous.
-Genuine garbage (`xyzzy 99:99`, empty string) does raise an error.
+`Revelation 1:1`. The agent must not blindly trust it — check that the
+returned `prettyString` matches what the user asked for, and confirm when
+the input was ambiguous. Genuine garbage (`xyzzy 99:99`, empty string)
+does raise an error.
+
+**2. `get_cross_references` can drop a footnote.** The parsed
+`crossReferences` view omits footnotes its parser doesn't recognise —
+confirmed on **Alma 32:21**, whose footnote *a* (`John 20:29; Heb. 11:1
+(1–40)`) is missing from `crossReferences` but present in `get_footnotes`.
+Treat the printed footnote list (`get_footnotes` / `get_chapter`) as
+authoritative; use `get_cross_references` to enrich it with resolved
+target text, and re-resolve any missing footnote from its own text with
+`resolve_reference` / `find_references_in_text`.
 
 ## Setup
 
