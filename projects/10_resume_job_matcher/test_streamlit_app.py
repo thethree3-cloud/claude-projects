@@ -138,6 +138,24 @@ class StreamlitAppTests(unittest.TestCase):
         self.assertEqual(list(at.exception), [])
         self.assertTrue(any("Dropped 1 bullet" in w.value for w in at.warning))
 
+    def test_renders_cover_letter_with_flags_from_session_state(self):
+        at = AppTest.from_file("streamlit_app.py")
+        at.session_state["single"] = {"comparison": COMPARISON, "report": REPORT}
+        at.session_state["cover"] = {
+            "text": "Jordan Rivera\n\nDear Hiring Manager,\n\nBody.\n\nSincerely,\nJordan Rivera\n",
+            "paragraphs": ["Body."],
+            "greeting": "Dear Hiring Manager,",
+            "claims": [{"claim": "Built a pipeline", "evidence": "Built a Python pipeline."}],
+            "flags": [{"claim": "Ten years of leadership", "issue": "résumé shows no leadership role"}],
+        }
+        at.run()
+
+        self.assertEqual(list(at.exception), [])
+        self.assertTrue(any("1 claim" in w.value for w in at.warning))
+        self.assertTrue(
+            any(b.label == "Download cover letter" for b in at.download_button)
+        )
+
     def test_resume_file_uploader_is_present(self):
         at = AppTest.from_file("streamlit_app.py").run()
         self.assertEqual(list(at.exception), [])

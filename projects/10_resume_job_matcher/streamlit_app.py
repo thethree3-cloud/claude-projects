@@ -20,6 +20,7 @@ from job_search import search_jobs
 from match import match_requirements
 from parse_job import parse_job
 from parse_resume import parse_resume
+from cover_letter import build_cover_letter
 from report import build_report, format_report
 from resume_export import to_docx, to_pdf
 from resume_source import extract_text
@@ -66,6 +67,15 @@ def tailor(resume_text: str, job_text: str) -> dict:
     job = parse_job(job_text)
     comparison = match_requirements(resume, job)
     return build_tailored_resume(comparison, resume, job)
+
+
+@st.cache_data(show_spinner=False, ttl="1h", max_entries=20)
+def cover_letter(resume_text: str, job_text: str) -> dict:
+    """Draft a grounded cover letter for one listing. Cached on input text."""
+    resume = parse_resume(resume_text)
+    job = parse_job(job_text)
+    comparison = match_requirements(resume, job)
+    return build_cover_letter(comparison, resume, job)
 
 
 @st.cache_data(show_spinner=False, ttl="1h", max_entries=10)
@@ -228,8 +238,8 @@ if upload is not None and upload.file_id != st.session_state.get("resume_file_id
     try:
         st.session_state.resume_text = extract_text(upload.getvalue(), upload.name)
         st.session_state.resume_file_id = upload.file_id
-        st.session_state.pop("single", None)
-        st.session_state.pop("tailored", None)
+        for stale in ("single", "tailored", "cover"):
+            st.session_state.pop(stale, None)
     except (ValueError, RuntimeError) as exc:
         st.error(str(exc))
 if sample_col.button(
@@ -281,7 +291,8 @@ if mode == "Score one listing":
             st.session_state.resume_text,
             st.session_state.job_text,
         )
-        st.session_state.pop("tailored", None)  # stale for the new listing
+        for stale in ("tailored", "cover"):  # stale for the new listing
+            st.session_state.pop(stale, None)
 
     if "single" in st.session_state:
         result = st.session_state.single
@@ -372,6 +383,47 @@ if mode == "Score one listing":
             )
             with st.container(border=True):
                 st.markdown(tailored["markdown"])
+
+        st.divider()
+        st.markdown("### Cover letter")
+        st.caption(
+            "Three short paragraphs, first person, grounded the same way — it "
+            "leans on the skills your résumé evidences, is told not to claim "
+            "the gaps, and a second pass flags any sentence the résumé "
+            "doesn't back up (prose isn't auto-edited — you fix or cut it)."
+        )
+        if st.button("Write cover letter", icon=":material/mail:"):
+            st.session_state.cover = _run(
+                "Drafting the letter, then checking every claim…",
+                cover_letter,
+                st.session_state.resume_text,
+                st.session_state.job_text,
+            )
+
+        if "cover" in st.session_state:
+            cover = st.session_state.cover
+            if cover["flags"]:
+                st.warning(
+                    f"{len(cover['flags'])} claim(s) the résumé doesn't clearly "
+                    "support — edit or cut these before sending:"
+                )
+                for flag in cover["flags"]:
+                    with st.container(border=True):
+                        st.markdown(f"**{flag['claim']}**")
+                        st.caption(flag["issue"])
+            st.download_button(
+                "Download cover letter",
+                cover["text"],
+                file_name="cover_letter.txt",
+                icon=":material/download:",
+                type="primary",
+            )
+            with st.container(border=True):
+                st.text(cover["text"])
+            with st.expander("Every claim, and the résumé line behind it"):
+                for claim in cover["claims"]:
+                    st.markdown(f"- {claim['claim']}")
+                    st.caption(f"“{claim['evidence']}”")
 
 # --------------------------------------------------------------- search jobs
 else:

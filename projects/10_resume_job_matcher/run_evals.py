@@ -19,9 +19,9 @@ Needs ANTHROPIC_API_KEY, same as every other live entry point.
 import argparse
 import sys
 
-from eval_cases import FIT_CASES, TAILOR_CASES
+from eval_cases import COVER_LETTER_CASES, FIT_CASES, TAILOR_CASES
 from parse_resume import parse_resume
-from pipeline import evaluate_fit, tailor_fit
+from pipeline import cover_letter_fit, evaluate_fit, tailor_fit
 from report import format_report
 
 
@@ -120,6 +120,39 @@ def run_tailor_case(case, verbose):
     return result
 
 
+def run_cover_letter_case(case, verbose):
+    result = Result(f"[cover] {case.name}")
+    try:
+        out = cover_letter_fit(case.resume, case.job)
+    except Exception as exc:  # noqa: BLE001
+        result.error = f"{type(exc).__name__}: {exc}"
+        return result
+
+    result.check(
+        f"<= {case.max_flags} unsupported claim(s)",
+        len(out["flags"]) <= case.max_flags,
+        f"flagged: {[f['claim'] for f in out['flags']]}",
+    )
+    result.check(
+        "3–4 paragraphs",
+        3 <= len(out["paragraphs"]) <= 4,
+        f"got {len(out['paragraphs'])}",
+    )
+    result.check("greeting present", bool(out["greeting"].strip()))
+    lowered = out["text"].lower()
+    hits = [w for w in case.forbid_in_letter if w.lower() in lowered]
+    result.check("no clichés", not hits, f"found: {hits}")
+    result.check(
+        "every claim carries a résumé quote",
+        all(c["evidence"].strip() for c in out["claims"]),
+    )
+
+    if verbose:
+        print(out["text"])
+        print()
+    return result
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", help="only run cases whose name contains this")
@@ -127,16 +160,22 @@ def main(argv=None):
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args(argv)
 
-    jobs = [(run_fit_case, c) for c in FIT_CASES] + [
-        (run_tailor_case, c) for c in TAILOR_CASES
-    ]
+    jobs = (
+        [(run_fit_case, c) for c in FIT_CASES]
+        + [(run_tailor_case, c) for c in TAILOR_CASES]
+        + [(run_cover_letter_case, c) for c in COVER_LETTER_CASES]
+    )
     if args.case:
         jobs = [(fn, c) for fn, c in jobs if args.case.lower() in c.name.lower()]
 
+    _kind = {
+        run_fit_case: "fit",
+        run_tailor_case: "tailor",
+        run_cover_letter_case: "cover",
+    }
     if args.list:
         for fn, case in jobs:
-            kind = "fit" if fn is run_fit_case else "tailor"
-            print(f"  [{kind}] {case.name}")
+            print(f"  [{_kind[fn]}] {case.name}")
         return 0
     if not jobs:
         print("no cases matched")
