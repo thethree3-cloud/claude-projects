@@ -24,7 +24,7 @@ import streamlit as st
 import applications
 import job_sites
 from cover_letter import build_cover_letter
-from job_search import search_jobs
+from job_search import fetch_posting, search_jobs
 from match import match_requirements
 from parse_job import parse_job
 from parse_resume import parse_resume
@@ -125,6 +125,24 @@ def search_and_score(
         )
     results.sort(key=lambda r: r["report"]["score"], reverse=True)
     return results
+
+
+@st.cache_data(show_spinner=False, ttl="1h", max_entries=20)
+def refetch(resume_text: str, url: str) -> dict | None:
+    """Fetch one posting URL and re-score the résumé against its full text.
+    Returns {report, comparison, job} or None if the URL isn't a real posting.
+    """
+    job_text = fetch_posting(url)
+    if not job_text.strip():
+        return None
+    resume = parse_resume(resume_text)
+    job = parse_job(job_text)
+    comparison = match_requirements(resume, job)
+    return {
+        "report": build_report(comparison, resume, job),
+        "comparison": comparison,
+        "job": job,
+    }
 
 
 def _sample(name: str) -> str:
@@ -574,8 +592,49 @@ elif mode == "Search live jobs":
                     if chosen["grounding"] == "search snippet":
                         st.warning(
                             "Scored from a short search snippet, not the full "
-                            "posting — treat this as directional."
+                            "posting — re-fetch below with the real link."
                         )
+
+                    with st.expander(
+                        "Wrong link? Re-fetch & re-score",
+                        expanded=chosen["grounding"] == "search snippet",
+                    ):
+                        st.caption(
+                            "Search sometimes returns an aggregator's results "
+                            "page. Paste the posting's own URL to fetch its full "
+                            "text and re-score."
+                        )
+                        real_url = st.text_input(
+                            "Posting URL",
+                            value=chosen["url"],
+                            key="refetch_url",
+                            label_visibility="collapsed",
+                        )
+                        if st.button(
+                            "Fetch & re-score", icon=":material/refresh:", key="refetch_go"
+                        ):
+                            fetched = _run(
+                                "Fetching the posting…",
+                                refetch,
+                                st.session_state.resume_text,
+                                real_url.strip(),
+                            )
+                            if fetched is None:
+                                st.error(
+                                    "That URL didn't look like a single job "
+                                    "posting — check the link and try again."
+                                )
+                            else:
+                                chosen.update(
+                                    report=fetched["report"],
+                                    comparison=fetched["comparison"],
+                                    job=fetched["job"],
+                                    url=real_url.strip(),
+                                    grounding="manual fetch",
+                                )
+                                st.session_state.pop("search_output", None)
+                                st.rerun()
+
                     if chosen.get("resume") and chosen.get("job"):
                         tailor_col, cover_col = st.columns(2)
                         if tailor_col.button(

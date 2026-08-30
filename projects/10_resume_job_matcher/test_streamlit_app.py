@@ -236,6 +236,27 @@ class StreamlitAppTests(unittest.TestCase):
         )
         self.assertTrue(any("Reframed for Northwind." in m.value for m in at.markdown))
 
+    def test_selecting_a_snippet_row_offers_a_refetch(self):
+        at = AppTest.from_file("streamlit_app.py")
+        at.session_state["mode"] = "Search live jobs"
+        at.session_state["search"] = [
+            {
+                "report": REPORT,
+                "comparison": COMPARISON,
+                "resume": {},
+                "job": {},
+                "url": "https://indeed.com/jobs?q=analyst",
+                "grounding": "search snippet",
+            }
+        ]
+        at.session_state["search_table"] = {"selection": {"rows": [0], "columns": []}}
+        at.run()
+
+        self.assertEqual(list(at.exception), [])
+        self.assertTrue(
+            any("Paste the posting's own URL" in c.value for c in at.caption)
+        )
+
     def test_salt_lake_city_preset_shows_local_boards_note(self):
         at = AppTest.from_file("streamlit_app.py")
         at.session_state["mode"] = "Search live jobs"
