@@ -35,6 +35,11 @@ REPORT = {
         "years_short": None,
         "education_unmet": False,
     },
+    "projection": {
+        "current": 74,
+        "if_all_closed": 88,
+        "per_gap": [{"gap": "Kubernetes", "score": 88, "delta": 14}],
+    },
     "suggestions": [
         {
             "gap": "Kubernetes",
@@ -59,6 +64,11 @@ class StreamlitAppTests(unittest.TestCase):
         self.assertEqual(list(at.exception), [])
         self.assertIn("74 / 100", [m.value for m in at.metric])
         self.assertTrue(any("cloud-native" in info.value for info in at.info))
+        # the projected-score section renders the "close every gap" line
+        self.assertTrue(
+            any("Close every gap" in m.value for m in at.markdown)
+            or any("Close every gap" in c.value for c in at.caption)
+        )
 
     _RESUME_DICT = {
         "name": "Jordan Rivera",

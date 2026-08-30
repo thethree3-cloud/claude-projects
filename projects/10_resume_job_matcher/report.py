@@ -16,7 +16,7 @@ Slice 3 of Project 10. Same split as the rest of the project:
 
 from match import build_resume_text
 from llm_client import extract_json
-from score import score_comparison
+from score import projected, score_comparison
 
 _GENUINE_GAP = "genuine_gap"
 _SURFACE_BETTER = "surface_it_better"
@@ -124,7 +124,8 @@ def suggest_improvements(resume, job, gaps):
 
 def build_report(comparison, resume, job):
     """The single entry point: comparison + parsed résumé + parsed job -> a
-    full report dict (score, band, breakdown, gaps, suggestions, overall)."""
+    full report dict (score, band, breakdown, gaps, projection, suggestions,
+    overall)."""
     scored = score_comparison(comparison)
     gaps = find_gaps(comparison)
 
@@ -143,6 +144,7 @@ def build_report(comparison, resume, job):
         "band": scored["band"],
         "breakdown": scored["breakdown"],
         "gaps": gaps,
+        "projection": projected(comparison),
         "suggestions": advice["suggestions"],
         "overall": advice["overall"],
     }
@@ -185,6 +187,19 @@ def format_report(report):
         lines.append("  Education requirement not met")
     if not gap_labels(gaps):
         lines.append("  (none)")
+
+    projection = report.get("projection")
+    if projection and projection["per_gap"]:
+        lines.append("")
+        lines.append(f"Projected score (now {projection['current']}/100):")
+        for entry in projection["per_gap"]:
+            lines.append(
+                f"  close {entry['gap']:<24} → {entry['score']:>3}/100  "
+                f"(+{entry['delta']})"
+            )
+        lines.append(
+            f"  {'close all of the above':<30} → {projection['if_all_closed']:>3}/100"
+        )
 
     if report["suggestions"]:
         lines.append("")
