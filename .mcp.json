@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "open-scripture-api": {
+      "type": "http",
+      "url": "https://openscriptureapi.org/api/mcp"
+    }
+  }
+}
