@@ -111,6 +111,9 @@ def chapter_target(pretty: str) -> str:
     return pretty.rsplit(":", 1)[0]
 
 
+_HELP_PREFIX = {"tg": "TG", "bd": "BD", "index": "Index"}
+
+
 def render_study_help_body(entry: dict) -> None:
     for block in entry.get("content", []):
         st.markdown(block.get("text", ""))
@@ -120,6 +123,26 @@ def render_study_help_body(entry: dict) -> None:
             if label and label not in cites:
                 cites.append(label)
         link_row(cites, prefix="→ &nbsp;")
+
+
+def render_study_help_entry(entry_id: str, note: str | None = None) -> None:
+    """Fetch and render a study-help entry (raises ScriptureAPIError first if
+    there is no such entry, before anything is written)."""
+    entry = study_help(entry_id)
+    if note:
+        st.caption(note)
+    st.subheader(entry.get("title", entry_id), anchor=False)
+    render_study_help_body(entry)
+    see_also = entry.get("seeAlso") or []
+    if see_also:
+        prefix = _HELP_PREFIX.get(entry.get("type", ""), "TG")
+        st.markdown(
+            "**See also:** "
+            + " &nbsp;·&nbsp; ".join(
+                ref_link(sa["title"], f"{prefix} {sa['title']}") for sa in see_also
+            )
+        )
+    st.caption(f"Source: Open Scripture API ({entry_id})")
 
 
 def render_verse_view(book: str, ch: int, v: int, pretty: str) -> None:
@@ -223,8 +246,26 @@ if mode == "Study a reference":
 
     try:
         parsed = resolve(active)
-    except api.ScriptureAPIError as e:
-        st.error(f"Couldn't parse “{active}”. ({e})")
+    except api.ScriptureAPIError:
+        parsed = None
+
+    if parsed is None:
+        # Not a scripture reference. It may be a study-help subject typed
+        # without the "TG "/"BD " prefix (e.g. "Jesus Christ", "Passover").
+        slug = api.study_help_slug(active)
+        for help_type, name in (("tg", "Topical Guide"), ("bd", "Bible Dictionary")):
+            try:
+                render_study_help_entry(
+                    f"{help_type}-{slug}",
+                    note=f"Not a scripture reference — showing the {name} entry.",
+                )
+            except api.ScriptureAPIError:
+                continue
+            st.stop()
+        st.error(
+            f"Couldn't find “{active}” as a scripture reference or a "
+            "Topical Guide / Bible Dictionary subject."
+        )
         st.stop()
 
     pretty = parsed.get("prettyString", active)
@@ -233,10 +274,7 @@ if mode == "Study a reference":
 
     book, ch, span = first_target(parsed)
     if book == "__studyhelp__":
-        entry = study_help(ch)
-        st.subheader(entry.get("_id", pretty), anchor=False)
-        render_study_help_body(entry)
-        st.caption(f"Source: Open Scripture API ({entry.get('_id', '')})")
+        render_study_help_entry(ch)
     elif book and span and span[0] == span[1]:
         render_verse_view(book, ch, span[0], pretty)
     elif book:
@@ -260,21 +298,19 @@ else:
         if go and subject.strip():
             entry_id = f"{help_type}-{api.study_help_slug(subject)}"
             try:
-                entry = study_help(entry_id)
+                render_study_help_entry(entry_id)
             except api.ScriptureAPIError:
                 st.error(f"No entry for “{subject.strip()}”. Try the by-letter list.")
-            else:
-                st.subheader(entry_id, anchor=False)
-                render_study_help_body(entry)
-                st.caption(f"Source: Open Scripture API ({entry_id})")
 
     with tab_letter:
         letter = st.select_slider(
             "Letter", options=[chr(c) for c in range(ord("A"), ord("Z") + 1)], value="A"
         )
         matches = entries_by_letter(help_type, letter)
-        st.caption(f"{len(matches)} entries starting with {letter}")
+        st.caption(f"{len(matches)} entries starting with {letter} — open one to load it")
         for entry in matches:
-            with st.expander(entry["title"]):
-                render_study_help_body(study_help(entry["_id"]))
-                st.caption(f"Source: Open Scripture API ({entry['_id']})")
+            exp = st.expander(entry["title"], on_change="rerun")
+            if exp.open:
+                with exp:
+                    render_study_help_body(study_help(entry["_id"]))
+                    st.caption(f"Source: Open Scripture API ({entry['_id']})")

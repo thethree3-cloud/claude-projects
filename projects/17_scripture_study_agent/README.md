@@ -97,6 +97,18 @@ Browser view:
 streamlit run streamlit_app.py
 ```
 
+### Source documents
+
+Put originals under `data/` — this whole tree is gitignored
+(`projects/*/data/` in the root `.gitignore`), so nothing here is ever
+committed:
+
+- `data/pdf/` — study PDFs (books, notes) for the general corpus
+- `data/epub/` — Joseph Smith Papers volumes (DRM-free EPUB) and other
+  EPUB books
+
+From Windows: `\\wsl.localhost\Ubuntu\home\t9\claude-projects\projects\17_scripture_study_agent\data`
+
 ### Not yet built
 
 - Corpus conversion pipeline (PDF via PyMuPDF; JSP EPUBs via `ebooklib`,
