@@ -1,10 +1,13 @@
 """Resume text -> structured resume data.
 
-Slice 1 of Project 10. This module only *parses*; matching a resume against a
-job listing and scoring the fit are later slices (see README).
+Slice 1 of Project 10. This module *parses* (one LLM call) and then does one
+deterministic touch-up: `total_years_experience` is recomputed from the
+extracted date ranges (`tenure.py`). Matching a resume against a job listing
+and scoring the fit are later slices (see README).
 """
 
 from llm_client import extract_json
+from tenure import total_years
 
 RESUME_SCHEMA = {
     "type": "object",
@@ -101,7 +104,9 @@ RESUME_SCHEMA = {
             "description": (
                 "Best estimate of total years of professional experience, derived "
                 "from the date ranges in the Experience section. Use 0 if the "
-                "dates don't allow an estimate -- do not guess from seniority."
+                "dates don't allow an estimate -- do not guess from seniority. "
+                "(Used only as a fallback -- parse_resume recomputes this from "
+                "the extracted date ranges when they parse.)"
             ),
         },
     },
@@ -148,5 +153,14 @@ def parse_resume(resume_text):
     Returns a plain dict. Extraction is grounded: the prompt tells Claude to
     pull only what's on the page, so a downstream matcher isn't scoring
     against skills the candidate never claimed.
+
+    `total_years_experience` is then recomputed in Python from the extracted
+    per-role date ranges (`tenure.total_years`) — merging overlaps so
+    concurrent roles aren't double-counted. The model's own estimate stays
+    only when too few of the ranges parse.
     """
-    return extract_json(_PROMPT.format(resume_text=resume_text), RESUME_SCHEMA)
+    result = extract_json(_PROMPT.format(resume_text=resume_text), RESUME_SCHEMA)
+    computed = total_years(result["experience"])
+    if computed is not None:
+        result["total_years_experience"] = computed
+    return result
