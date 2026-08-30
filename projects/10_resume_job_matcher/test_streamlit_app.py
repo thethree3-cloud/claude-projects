@@ -1,6 +1,10 @@
+import os
+import tempfile
 import unittest
 
 from streamlit.testing.v1 import AppTest
+
+import applications
 
 COMPARISON = {
     "required_skills": [
@@ -197,6 +201,42 @@ class StreamlitAppTests(unittest.TestCase):
         at.selectbox[0].set_value("Salt Lake City").run()
         self.assertEqual(list(at.exception), [])
         self.assertTrue(any("Utah/SLC" in c.value for c in at.caption))
+
+
+class ApplicationsModeTests(unittest.TestCase):
+    def setUp(self):
+        fd, self.db = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        os.environ["APPLICATIONS_DB"] = self.db
+
+    def tearDown(self):
+        os.environ.pop("APPLICATIONS_DB", None)
+        try:
+            os.unlink(self.db)
+        except OSError:
+            pass
+
+    def test_empty_tracker_renders(self):
+        at = AppTest.from_file("streamlit_app.py")
+        at.session_state["mode"] = "Applications"
+        at.run()
+        self.assertEqual(list(at.exception), [])
+        self.assertTrue(any("No applications logged yet" in i.value for i in at.info))
+
+    def test_agenda_surfaces_a_due_follow_up(self):
+        conn = applications.connect(self.db)
+        applications.add_application(
+            conn, company="Northwind", role="Data Analyst",
+            next_action="follow up", next_action_on="2020-01-01",  # long overdue
+        )
+        conn.close()
+
+        at = AppTest.from_file("streamlit_app.py")
+        at.session_state["mode"] = "Applications"
+        at.run()
+
+        self.assertEqual(list(at.exception), [])
+        self.assertTrue(any("Northwind" in m.value for m in at.markdown))
 
 
 if __name__ == "__main__":
