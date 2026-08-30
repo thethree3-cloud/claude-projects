@@ -1,6 +1,6 @@
 import unittest
 
-from score import band_for, score_comparison
+from score import band_for, projected, score_comparison
 
 
 def _comparison(required, preferred, years_met=True, edu_met=True):
@@ -71,6 +71,42 @@ class ScoreComparisonTests(unittest.TestCase):
         met = score_comparison(_comparison([True], [True]))["score"]
         no_years = score_comparison(_comparison([True], [True], years_met=False))["score"]
         self.assertEqual(met - no_years, 20)
+
+
+class ProjectedTests(unittest.TestCase):
+    def test_no_gaps_gives_an_empty_projection(self):
+        result = projected(_comparison([True, True], [True]))
+        self.assertEqual(result["per_gap"], [])
+        self.assertEqual(result["current"], result["if_all_closed"])
+
+    def test_per_gap_and_all_closed(self):
+        # 1 of 2 required met, years short, education met:
+        #   current = 30 + 0 + 15 + 5 = 50
+        comparison = _comparison([True, False], [True], years_met=False)
+        result = projected(comparison)
+        self.assertEqual(result["current"], 50)
+
+        by_gap = {e["gap"]: e for e in result["per_gap"]}
+        self.assertEqual(set(by_gap), {"r1", "years of experience"})
+        # closing the one unmet required skill -> +30
+        self.assertEqual(by_gap["r1"], {"gap": "r1", "score": 80, "delta": 30})
+        # closing the years gap -> +20
+        self.assertEqual(by_gap["years of experience"]["delta"], 20)
+        # everything closed -> 100
+        self.assertEqual(result["if_all_closed"], 100)
+
+    def test_education_gap_is_projected(self):
+        result = projected(_comparison([True], [True], edu_met=False))
+        self.assertEqual(
+            [e["gap"] for e in result["per_gap"]], ["education"]
+        )
+        self.assertEqual(result["per_gap"][0]["delta"], 5)
+
+    def test_projection_does_not_mutate_the_input(self):
+        comparison = _comparison([False], [False], years_met=False, edu_met=False)
+        projected(comparison)
+        self.assertFalse(comparison["required_skills"][0]["met"])
+        self.assertFalse(comparison["years"]["met"])
 
 
 if __name__ == "__main__":

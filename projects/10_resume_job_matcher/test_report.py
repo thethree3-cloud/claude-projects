@@ -112,6 +112,14 @@ class BuildReportTests(unittest.TestCase):
         self.assertEqual(result["gaps"]["unmet_required_skills"], ["Kubernetes"])
         self.assertEqual(len(result["suggestions"]), 1)
         self.assertEqual(result["overall"], "Close on fundamentals, short on the cloud-native pieces.")
+        # projection lines the four gaps up with a "close this" score
+        gaps_projected = {e["gap"] for e in result["projection"]["per_gap"]}
+        self.assertEqual(
+            gaps_projected, {"Kubernetes", "MCP", "years of experience", "education"}
+        )
+        self.assertGreater(
+            result["projection"]["if_all_closed"], result["projection"]["current"]
+        )
 
     @patch("llm_client.get_client")
     def test_enum_is_the_gap_labels(self, mock_get_client):
@@ -151,6 +159,11 @@ class FormatReportTests(unittest.TestCase):
                 {"component": "Required skills", "points": 30.0, "max_points": 60, "detail": "1 of 2 met"},
             ],
             "gaps": report.find_gaps(COMPARISON_WITH_GAPS),
+            "projection": {
+                "current": 55,
+                "if_all_closed": 100,
+                "per_gap": [{"gap": "Kubernetes", "score": 85, "delta": 30}],
+            },
             "suggestions": [
                 {"gap": "Kubernetes", "assessment": "genuine_gap", "suggestion": "Build a home lab."}
             ],
@@ -164,6 +177,8 @@ class FormatReportTests(unittest.TestCase):
         self.assertIn("Preferred, not shown: MCP", text)
         self.assertIn("Years: 3 vs 5 required", text)
         self.assertIn("Education requirement not met", text)
+        self.assertIn("Projected score (now 55/100):", text)
+        self.assertIn("close all of the above", text)
         self.assertIn("[genuine_gap] Kubernetes", text)
         self.assertIn("Overall: Close, but short on cloud-native experience.", text)
 

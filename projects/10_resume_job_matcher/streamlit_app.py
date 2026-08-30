@@ -197,12 +197,31 @@ def _render_report(comparison: dict, report: dict) -> None:
             if gaps["education_unmet"]:
                 st.markdown(":orange-badge[Education requirement not met]")
 
+    projection = report.get("projection") or {}
+    gain_by_gap = {e["gap"]: e for e in projection.get("per_gap", [])}
+    if gain_by_gap:
+        st.markdown("### Projected score")
+        with st.container(border=True):
+            for entry in projection["per_gap"]:
+                st.markdown(
+                    f"Close **{entry['gap']}** → **{entry['score']}** / 100 "
+                    f":green[(+{entry['delta']})]"
+                )
+            st.caption(
+                f"Close every gap → **{projection['if_all_closed']} / 100** "
+                f"(now {projection['current']})"
+            )
+
     if report["suggestions"]:
         st.markdown("### Suggestions")
         for item in report["suggestions"]:
             color, label = ASSESSMENT.get(item["assessment"], ("gray", item["assessment"]))
+            gain = gain_by_gap.get(item["gap"])
+            headline = f":{color}-badge[{label}] &nbsp; **{item['gap']}**"
+            if gain:
+                headline += f" &nbsp; :green[→ {gain['score']} (+{gain['delta']})]"
             with st.container(border=True):
-                st.markdown(f":{color}-badge[{label}] &nbsp; **{item['gap']}**")
+                st.markdown(headline)
                 st.write(item["suggestion"])
 
     st.markdown("### Overall")

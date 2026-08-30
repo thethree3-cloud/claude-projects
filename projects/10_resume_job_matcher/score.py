@@ -82,3 +82,74 @@ def score_comparison(comparison):
 
     score = round(sum(component["points"] for component in breakdown))
     return {"score": score, "band": band_for(score), "breakdown": breakdown}
+
+
+def _rescored(comparison, *, skills=(), years=False, education=False):
+    """The score for a hypothetical comparison where the named skills are now
+    met (and optionally the years / education checks). Pure."""
+    names = set(skills)
+
+    def flip(rows):
+        return [{**row, "met": row["met"] or row["skill"] in names} for row in rows]
+
+    hypothetical = {
+        "required_skills": flip(comparison["required_skills"]),
+        "preferred_skills": flip(comparison["preferred_skills"]),
+        "years": {
+            **comparison["years"],
+            "met": comparison["years"]["met"] or years,
+        },
+        "education": {
+            **comparison["education"],
+            "met": comparison["education"]["met"] or education,
+        },
+    }
+    return score_comparison(hypothetical)["score"]
+
+
+def projected(comparison):
+    """Pure. What the score would become if the gaps were closed — each one on
+    its own, and all together.
+
+        {
+          "current": int,
+          "if_all_closed": int,
+          "per_gap": [{"gap": <label>, "score": int, "delta": int}, ...],
+        }
+
+    `gap` labels match `report.gap_labels` (skill names, plus "years of
+    experience" / "education"), so the UI can line them up with the
+    suggestions.
+    """
+    current = score_comparison(comparison)["score"]
+
+    unmet_required = [r["skill"] for r in comparison["required_skills"] if not r["met"]]
+    unmet_preferred = [r["skill"] for r in comparison["preferred_skills"] if not r["met"]]
+    years_short = not comparison["years"]["met"]
+    education_short = not comparison["education"]["met"]
+
+    per_gap = [
+        {"gap": skill, "score": _rescored(comparison, skills=[skill])}
+        for skill in unmet_required + unmet_preferred
+    ]
+    if years_short:
+        per_gap.append(
+            {"gap": "years of experience", "score": _rescored(comparison, years=True)}
+        )
+    if education_short:
+        per_gap.append(
+            {"gap": "education", "score": _rescored(comparison, education=True)}
+        )
+    for entry in per_gap:
+        entry["delta"] = entry["score"] - current
+
+    return {
+        "current": current,
+        "if_all_closed": _rescored(
+            comparison,
+            skills=unmet_required + unmet_preferred,
+            years=years_short,
+            education=education_short,
+        ),
+        "per_gap": per_gap,
+    }
