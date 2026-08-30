@@ -155,5 +155,44 @@ class SearchJobsTests(unittest.TestCase):
         )
 
 
+class FetchPostingTests(unittest.TestCase):
+    @patch("job_search.get_client")
+    def test_forces_web_fetch_and_returns_text(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _text(
+            "Data Analyst — Cedar Ridge — Portland, OR\nRequirements: SQL, Excel, pandas."
+        )
+        mock_get_client.return_value = mock_client
+
+        text = job_search.fetch_posting("https://boards.greenhouse.io/x/jobs/1")
+
+        _, kwargs = mock_client.messages.create.call_args
+        self.assertEqual(kwargs["tool_choice"], {"type": "tool", "name": "web_fetch"})
+        self.assertEqual(kwargs["tools"][0]["type"], "web_fetch_20250910")
+        self.assertIn("https://boards.greenhouse.io/x/jobs/1", kwargs["messages"][0]["content"])
+        self.assertIn("SQL, Excel, pandas", text)
+
+    @patch("job_search.get_client")
+    def test_resends_while_the_fetch_runs(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = [
+            _resp([SimpleNamespace(type="server_tool_use", id="x")], stop_reason="pause_turn"),
+            _text("Data Analyst posting text."),
+        ]
+        mock_get_client.return_value = mock_client
+
+        text = job_search.fetch_posting("https://x/1")
+        self.assertEqual(mock_client.messages.create.call_count, 2)
+        self.assertIn("Data Analyst", text)
+
+    @patch("job_search.get_client")
+    def test_not_a_posting_returns_empty(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _text("NOT A POSTING")
+        mock_get_client.return_value = mock_client
+
+        self.assertEqual(job_search.fetch_posting("https://indeed.com/jobs?q=analyst"), "")
+
+
 if __name__ == "__main__":
     unittest.main()

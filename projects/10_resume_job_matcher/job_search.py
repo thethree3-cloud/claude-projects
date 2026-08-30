@@ -12,6 +12,11 @@
    grounding}. `grounding` is "full posting" or "search snippet".
 
 The `description` is what you feed to `pipeline.evaluate_fit` as the job text.
+
+`fetch_posting(url)` is the manual escape hatch: when search returns an
+aggregator's results page instead of the posting permalink, paste the real
+URL and it web_fetches that one page.
+
 Needs ANTHROPIC_API_KEY in the repo-root .env.
 """
 
@@ -103,6 +108,17 @@ Notes:
 ---
 """
 
+_FETCH_ONE_PROMPT = """\
+Fetch this page and report the job posting on it: {url}
+
+Write out the job title, the company, the location, and the full requirements
+and responsibilities (skip company boilerplate and benefits). If the page is
+NOT a single job posting — a search-results page, an expired or removed
+listing, a login wall — reply with exactly: NOT A POSTING
+
+Never invent content; only report what the page actually says.
+"""
+
 
 def _tools(sites):
     return [
@@ -167,6 +183,37 @@ def _structure(client, findings):
     )
     text = _text(response)
     return json.loads(text)["jobs"] if text else []
+
+
+def fetch_posting(url):
+    """Fetch one posting URL with `web_fetch` and return its text (title,
+    company, location, requirements). Returns "" when the page isn't a usable
+    single posting — an aggregator's results page, an expired listing, a login
+    wall. One Claude call (plus resends while the fetch runs).
+
+    Use this when live search handed back a search-results link instead of the
+    posting's permalink: paste the real URL and re-score against its full text.
+    """
+    client = get_client()
+    tools = [WEB_FETCH_TOOL]
+    messages = [{"role": "user", "content": _FETCH_ONE_PROMPT.format(url=url)}]
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=4000,
+        tools=tools,
+        tool_choice={"type": "tool", "name": "web_fetch"},
+        messages=messages,
+    )
+    rounds = 0
+    while response.stop_reason == "pause_turn" and rounds < MAX_TOOL_ROUNDS:
+        messages.append({"role": "assistant", "content": response.content})
+        response = client.messages.create(
+            model=MODEL, max_tokens=4000, tools=tools, messages=messages
+        )
+        rounds += 1
+
+    text = _text(response)
+    return "" if "NOT A POSTING" in text else text
 
 
 def search_jobs(keywords, location, radius_miles=25, count=10, sites=None):
