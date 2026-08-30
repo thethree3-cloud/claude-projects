@@ -66,6 +66,20 @@ reference that did not come back from an actual tool call.
   *is* Claude (Claude Code now, the Claude app via a tunnel later); the
   Python client above is for build-time scripts and any future
   Python-driven agent loop.
+- **`streamlit_app.py`** — a browser view of the fan-out, straight from the
+  API (no local corpus, no LLM). Two modes:
+  - **Study a reference** — a verse (`Isaiah 1:1`), a range
+    (`Isaiah 1:1-5`), or a whole chapter (`D&C 21`). A verse shows text →
+    printed footnotes → **the passages those footnotes reference, as
+    links** → study-help entries → JST → D&C section heading, and an
+    "Open all of <chapter>" link. Ranges and chapters list the verses with
+    each number linking to its full study view.
+  - **Browse the Topical Guide / Bible Dictionary** — by subject name or
+    first letter; entry references render as links too.
+
+  The active reference lives in the URL (`?ref=Isaiah 1:1`), so every
+  reference is an ordinary link and the browser back button walks history.
+  All API calls are `st.cache_data`-wrapped.
 - **`test_scripture_api.py`** — 26 offline tests (the `requests` session is
   stubbed): URL construction, parameter passing, the error-handling
   contract, footnote marker/anchor extraction, slug building, and the
@@ -75,6 +89,12 @@ Live smoke check:
 
 ```bash
 python scripture_api.py "Isaiah 1:1"
+```
+
+Browser view:
+
+```bash
+streamlit run streamlit_app.py
 ```
 
 ### Not yet built
