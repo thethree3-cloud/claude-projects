@@ -17,7 +17,8 @@ FAKE_PARSED = {
         {
             "title": "IT Support Analyst",
             "organization": "Cascade Precision Manufacturing",
-            "dates": "Feb 2021 - Present",
+            # fixed end date so the recomputed total is deterministic in tests
+            "dates": "Feb 2021 - Feb 2024",
             "highlights": ["Built a pandas reporting pipeline."],
         }
     ],
@@ -31,7 +32,9 @@ FAKE_PARSED = {
     "certifications": [
         {"name": "CompTIA A+", "issuer": "CompTIA", "year": "2019"},
     ],
-    "total_years_experience": 5,
+    # parse_resume recomputes this from the date ranges above (Feb 2021 → Feb
+    # 2024 = 36 months = 3.0); the model's own number here is just a fallback.
+    "total_years_experience": 3.0,
 }
 
 
@@ -64,6 +67,30 @@ class ParseResumeTests(unittest.TestCase):
         self.assertIn("UNIQUE-RESUME-MARKER-123", sent_prompt)
         schema = kwargs["output_config"]["format"]["schema"]
         self.assertIs(schema, parse_resume.RESUME_SCHEMA)
+
+    @patch("llm_client.get_client")
+    def test_total_years_is_recomputed_from_date_ranges(self, mock_get_client):
+        payload = {**FAKE_PARSED, "total_years_experience": 99}  # model overshoots
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _json_response(payload)
+        mock_get_client.return_value = mock_client
+
+        result = parse_resume.parse_resume("x")
+        self.assertEqual(result["total_years_experience"], 3.0)  # from the dates
+
+    @patch("llm_client.get_client")
+    def test_model_estimate_kept_when_dates_do_not_parse(self, mock_get_client):
+        payload = {
+            **FAKE_PARSED,
+            "total_years_experience": 7,
+            "experience": [{**FAKE_PARSED["experience"][0], "dates": ""}],
+        }
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _json_response(payload)
+        mock_get_client.return_value = mock_client
+
+        result = parse_resume.parse_resume("x")
+        self.assertEqual(result["total_years_experience"], 7)
 
     def test_schema_requires_every_top_level_field(self):
         # additionalProperties:False + a full required list is what makes the

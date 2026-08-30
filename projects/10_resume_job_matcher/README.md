@@ -27,7 +27,8 @@ The tailored résumé downloads as Markdown, **PDF, or Word** (`resume_export.py
 
 | File | What it does |
 | --- | --- |
-| `parse_resume.py` / `parse_job.py` | Free text → structured dict, JSON-schema-constrained Claude call. `parse_resume` captures contact (email/phone/links) and certifications alongside skills/experience/education. `parse_job` splits `required_skills` vs `preferred_skills` by framing language. |
+| `parse_resume.py` / `parse_job.py` | Free text → structured dict, JSON-schema-constrained Claude call. `parse_resume` captures contact (email/phone/links) and certifications alongside skills/experience/education, then **recomputes `total_years_experience` in Python** (`tenure.py`) from the extracted date ranges. `parse_job` splits `required_skills` vs `preferred_skills` by framing language. |
+| `tenure.py` | `total_years(experience)` (pure) — parses each role's `dates` string ("Feb 2021 - Present", "2019 – 2021", "03/2020 - 06/2020", …) and sums the ranges, merging overlaps so concurrent roles aren't double-counted. Returns `None` when too few ranges parse, and `parse_resume` keeps the model's estimate. |
 | `resume_source.py` | `extract_text(data, filename)` — résumé file → plain text for `parse_resume`. PDF via PyMuPDF; `.docx` via python-docx when installed, else a small built-in `word/document.xml` reader (no extra dependency); `.txt`/`.md` decoded. |
 | `resume_export.py` | `to_pdf(resume)` / `to_docx(resume)` — an assembled résumé dict → downloadable bytes. PDF via fpdf2 (Latin-1, punctuation sanitised); DOCX written directly as WordprocessingML in a zip (no python-docx). Both are ATS-plain: one column, standard fonts, real headings, no tables. |
 | `match.py` | `match_requirements(resume, job)` → a "comparison" dict: per required/preferred skill `{skill, met, evidence}`, a years check, an education check. One enum-constrained Claude call does skill evidence-detection + the education judgment; the years check is pure Python. |
@@ -43,7 +44,7 @@ The tailored résumé downloads as Markdown, **PDF, or Word** (`resume_export.py
 | `eval_cases.py` / `run_evals.py` | Live eval harness — fictional `(résumé, job)` cases (fit / tailor / cover) with **tolerant** expectations (score ranges, band sets, "a genuine_gap suggestion", "flagged bullets never survive", "no clichés"). `run_evals.py` runs the real chain and exits non-zero on a miss. `test_evals.py` checks the fixtures are well-formed, offline. |
 | `applications.py` | A local SQLite log of applications (`data/applications.db`, gitignored). `add_/update_/delete_/list_applications`, and `agenda()` — open applications with a next-action date, grouped Overdue / This week / Later. No LLM; the whole module is pure data. |
 | `streamlit_app.py` | UI, three modes. **Score one listing:** upload a résumé (PDF/DOCX/txt) or paste it, + a job listing → score, breakdown, gaps, suggestions, skill-by-skill evidence, text download; a **Build tailored résumé** button → Markdown preview, "what changed", dropped-bullet warnings, before/after diff, Markdown / PDF / Word downloads; a **Write cover letter** button → the letter, flagged claims, a "every claim + its résumé line" expander, text download. **Search live jobs:** résumé + keywords + location (or a preset) → ranked results table, row-select for the full report + a link to the posting. **Applications:** an agenda of what's due, a table of everything logged (row-select to update status / next action / notes), an add form, and one-click "Log this application" from the listing you just scored. |
-| `test_*.py` (124 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, the `find_gaps`/`format_report`/`job_sites` tests, `test_tailor_resume.py`'s `assemble`/`_apply_verification`/`build_diff`/`render_markdown` tests, `test_cover_letter.py`'s `render_text`/`_flag_unsupported` tests, `test_applications.py`, `test_resume_source.py`, `test_resume_export.py`, `test_evals.py`, and `test_streamlit_app.py` (via `AppTest`) are pure; the rest mock the client. `run_evals.py` is the separate *live* harness. |
+| `test_*.py` (139 total) | `test_score.py`, `test_pipeline.py`'s `rank_fits` tests, the `find_gaps`/`format_report`/`job_sites` tests, `test_tailor_resume.py`'s `assemble`/`_apply_verification`/`build_diff`/`render_markdown` tests, `test_cover_letter.py`'s `render_text`/`_flag_unsupported` tests, `test_tenure.py`, `test_applications.py`, `test_resume_source.py`, `test_resume_export.py`, `test_evals.py`, and `test_streamlit_app.py` (via `AppTest`) are pure; the rest mock the client. `run_evals.py` is the separate *live* harness. |
 
 **Grounding** (same as every slice and Project 14): `match.py` gives Claude no
 tools — a skill is "met" only if it can be quoted from the résumé.
@@ -248,7 +249,7 @@ full descriptions.
 
 ```bash
 python sample_data.py        # writes data/sample_resume.txt, data/sample_job.txt, data/sample_jobs/
-python -m unittest discover   # 124 tests, offline
+python -m unittest discover   # 139 tests, offline
 python run_evals.py           # live eval harness — run after touching a prompt/schema
 python run_job_folder.py data/sample_resume.txt data/sample_jobs/   # live CLI, needs API key
 streamlit run streamlit_app.py                                      # live UI, needs API key
@@ -300,8 +301,9 @@ people, companies, dates).
 - **The LLM/Python split:** the judgment calls are all Claude (parse résumé,
   parse job, detect skill evidence, suggest improvements, reframe the résumé +
   verify its bullets, write the cover letter + verify its claims). Everything
-  else — required-vs-preferred bucketing, the years comparison, all scoring
-  arithmetic, gap extraction, ranking, locking the tailored résumé's
-  roles/skills to the source, dropping the flagged bullets, building the diff,
-  the cover-letter assembly, the PDF/Word export, and the whole application
-  tracker — is pure Python, unit-tested without mocks.
+  else — required-vs-preferred bucketing, **total-years-of-experience computed
+  from the date ranges**, all scoring arithmetic, gap extraction, ranking,
+  locking the tailored résumé's roles/skills to the source, dropping the
+  flagged bullets, building the diff, the cover-letter assembly, the PDF/Word
+  export, and the whole application tracker — is pure Python, unit-tested
+  without mocks.
