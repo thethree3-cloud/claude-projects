@@ -194,6 +194,38 @@ class StreamlitAppTests(unittest.TestCase):
         self.assertEqual(list(at.exception), [])
         self.assertTrue(any("2 postings" in c.value for c in at.caption))
 
+    def test_search_mode_renders_a_tailored_resume_built_from_a_posting(self):
+        at = AppTest.from_file("streamlit_app.py")
+        at.session_state["mode"] = "Search live jobs"
+        at.session_state["search"] = [
+            {
+                "report": REPORT,
+                "comparison": COMPARISON,
+                "url": "https://jobs.lever.co/x/1",
+                "grounding": "full posting",
+            }
+        ]
+        at.session_state["search_table"] = {"selection": {"rows": [0], "columns": []}}
+        at.session_state["search_output"] = {
+            "kind": "tailored",
+            "label": "Junior AI Engineer · Northwind",
+            "row": 0,
+            "data": {
+                "resume": {},
+                "markdown": "# Jordan Rivera\n\nReframed for Northwind.\n",
+                "changes": [],
+                "flags": [],
+                "diff": [],
+            },
+        }
+        at.run()
+
+        self.assertEqual(list(at.exception), [])
+        self.assertTrue(
+            any("Tailored résumé — Junior AI Engineer" in m.value for m in at.markdown)
+        )
+        self.assertTrue(any("Reframed for Northwind." in m.value for m in at.markdown))
+
     def test_salt_lake_city_preset_shows_local_boards_note(self):
         at = AppTest.from_file("streamlit_app.py")
         at.session_state["mode"] = "Search live jobs"
