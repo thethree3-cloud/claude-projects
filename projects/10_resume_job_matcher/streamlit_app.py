@@ -11,16 +11,19 @@ repo-root .env, same as every other entry point in this project.
     streamlit run streamlit_app.py
 """
 
+import datetime
+import os
 from pathlib import Path
 
 import streamlit as st
 
+import applications
 import job_sites
+from cover_letter import build_cover_letter
 from job_search import search_jobs
 from match import match_requirements
 from parse_job import parse_job
 from parse_resume import parse_resume
-from cover_letter import build_cover_letter
 from report import build_report, format_report
 from resume_export import to_docx, to_pdf
 from resume_source import extract_text
@@ -33,6 +36,7 @@ st.set_page_config(
 )
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
+APPLICATIONS_DB = Path(os.environ.get("APPLICATIONS_DB", DATA_DIR / "applications.db"))
 
 BAND_COLOR = {"Strong": "green", "Possible": "orange", "Weak": "red"}
 ASSESSMENT = {
@@ -258,7 +262,7 @@ if not samples_exist:
 
 mode = st.segmented_control(
     "Mode",
-    ["Score one listing", "Search live jobs"],
+    ["Score one listing", "Search live jobs", "Applications"],
     default="Score one listing",
     key="mode",
     label_visibility="collapsed",
@@ -426,7 +430,7 @@ if mode == "Score one listing":
                     st.caption(f"“{claim['evidence']}”")
 
 # --------------------------------------------------------------- search jobs
-else:
+elif mode == "Search live jobs":
     area = st.selectbox("Search area", ["Custom", *job_sites.LOCAL_PRESETS])
     preset = job_sites.LOCAL_PRESETS.get(area)
     if preset:
@@ -514,3 +518,146 @@ else:
                     _render_report(chosen["comparison"], chosen["report"])
 
                 _detail()
+
+# -------------------------------------------------------------- applications
+else:
+    conn = applications.connect(APPLICATIONS_DB)
+
+    single = st.session_state.get("single")
+    if single:
+        rpt = single["report"]
+        listing = rpt["job_title"] + (
+            f" · {rpt['company']}" if rpt.get("company") else ""
+        )
+        variant = "tailored" if "tailored" in st.session_state else "base"
+        st.caption(f"Last scored: **{listing}**")
+        if st.button(
+            f"Log this application ({variant} résumé)", icon=":material/add:"
+        ):
+            applications.add_application(
+                conn,
+                company=rpt.get("company") or "—",
+                role=rpt["job_title"] or "—",
+                resume_variant=variant,
+            )
+            st.toast("Logged with today's date.")
+            st.rerun()
+
+    buckets = applications.agenda(conn)
+    st.markdown("### Coming up")
+    if not any(buckets.values()):
+        st.caption("Nothing scheduled — add a next-action date to see it here.")
+    for key, heading in (
+        ("overdue", ":red[Overdue]"),
+        ("this_week", ":orange[This week]"),
+        ("later", "Later"),
+    ):
+        if not buckets[key]:
+            continue
+        st.markdown(f"**{heading}**")
+        for row in buckets[key]:
+            st.markdown(
+                f"- `{row['next_action_on']}` &nbsp; **{row['company']}** — "
+                f"{row['role']} &nbsp;·&nbsp; {row['next_action'] or 'follow up'}"
+            )
+
+    st.divider()
+
+    with st.expander("Add an application", icon=":material/note_add:"):
+        with st.form("add_application", clear_on_submit=True):
+            name_col, role_col = st.columns(2)
+            new_company = name_col.text_input("Company")
+            new_role = role_col.text_input("Role")
+            date_col, var_col = st.columns(2)
+            new_applied = date_col.date_input("Applied on", value="today")
+            new_variant = var_col.text_input(
+                "Résumé used", placeholder="tailored / base / v2"
+            )
+            status_col, next_col = st.columns(2)
+            new_status = status_col.selectbox("Status", applications.STATUSES)
+            new_next_on = next_col.date_input("Next action on", value=None)
+            new_next = st.text_input(
+                "Next action", placeholder="follow up, thank-you note…"
+            )
+            new_link = st.text_input("Link")
+            new_notes = st.text_area("Notes")
+            if st.form_submit_button("Add", type="primary"):
+                if not new_company.strip() or not new_role.strip():
+                    st.warning("Company and role are required.")
+                else:
+                    applications.add_application(
+                        conn,
+                        company=new_company.strip(),
+                        role=new_role.strip(),
+                        applied_on=new_applied.isoformat(),
+                        resume_variant=new_variant.strip(),
+                        status=new_status,
+                        next_action=new_next.strip(),
+                        next_action_on=(
+                            new_next_on.isoformat() if new_next_on else None
+                        ),
+                        link=new_link.strip(),
+                        notes=new_notes.strip(),
+                    )
+                    st.rerun()
+
+    apps = applications.list_applications(conn)
+    if not apps:
+        st.info("No applications logged yet.")
+    else:
+        st.caption(f"{len(apps)} logged — select a row to update it.")
+        event = st.dataframe(
+            [
+                {
+                    "Company": a["company"],
+                    "Role": a["role"],
+                    "Applied": a["applied_on"],
+                    "Résumé": a["resume_variant"],
+                    "Status": a["status"],
+                    "Next": a["next_action_on"] or "",
+                }
+                for a in apps
+            ],
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="single-row",
+            key="apps_table",
+        )
+        if event.selection.rows:
+            app = apps[event.selection.rows[0]]
+
+            @st.dialog(f"{app['company']} — {app['role']}")
+            def _edit_application():
+                status = st.selectbox(
+                    "Status",
+                    applications.STATUSES,
+                    index=applications.STATUSES.index(app["status"]),
+                )
+                action = st.text_input("Next action", app["next_action"])
+                current = (
+                    datetime.date.fromisoformat(app["next_action_on"])
+                    if app["next_action_on"]
+                    else None
+                )
+                action_on = st.date_input("Next action on", value=current)
+                notes = st.text_area("Notes", app["notes"])
+                if app["link"]:
+                    st.link_button("Open posting", app["link"])
+                save_col, delete_col = st.columns(2)
+                if save_col.button("Save", type="primary"):
+                    applications.update_application(
+                        conn,
+                        app["id"],
+                        status=status,
+                        next_action=action.strip(),
+                        next_action_on=(
+                            action_on.isoformat() if action_on else None
+                        ),
+                        notes=notes.strip(),
+                    )
+                    st.rerun()
+                if delete_col.button("Delete"):
+                    applications.delete_application(conn, app["id"])
+                    st.rerun()
+
+            _edit_application()
