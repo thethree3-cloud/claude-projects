@@ -14,6 +14,7 @@ pure and just orders a batch of reports best-first, for the folder driver
 (`run_job_folder.py`).
 """
 
+from cover_letter import build_cover_letter
 from match import match_requirements
 from parse_job import parse_job
 from parse_resume import parse_resume
@@ -38,6 +39,17 @@ def tailor_fit(resume_text, job_text, verify=True):
     job = parse_job(job_text)
     comparison = match_requirements(resume, job)
     return build_tailored_resume(comparison, resume, job, verify=verify)
+
+
+def cover_letter_fit(resume_text, job_text, verify=True):
+    """Raw résumé text + raw job-listing text -> a grounded cover letter:
+    {"text", "paragraphs", "greeting", "claims", "flags"}. Five Claude calls
+    (résumé parse, job parse, skill evidence-detection, the letter, and the
+    claim-verification pass — four when `verify` is False)."""
+    resume = parse_resume(resume_text)
+    job = parse_job(job_text)
+    comparison = match_requirements(resume, job)
+    return build_cover_letter(comparison, resume, job, verify=verify)
 
 
 def rank_fits(reports):

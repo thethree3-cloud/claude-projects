@@ -4,16 +4,17 @@
 import unittest
 
 import run_evals
-from eval_cases import FIT_CASES, TAILOR_CASES, VALID_BANDS
+from eval_cases import COVER_LETTER_CASES, FIT_CASES, TAILOR_CASES, VALID_BANDS
 
 
 class EvalCasesTests(unittest.TestCase):
     def test_there_are_cases(self):
         self.assertTrue(FIT_CASES)
         self.assertTrue(TAILOR_CASES)
+        self.assertTrue(COVER_LETTER_CASES)
 
     def test_case_names_are_unique(self):
-        names = [c.name for c in (*FIT_CASES, *TAILOR_CASES)]
+        names = [c.name for c in (*FIT_CASES, *TAILOR_CASES, *COVER_LETTER_CASES)]
         self.assertEqual(len(names), len(set(names)))
 
     def test_fit_cases_are_coherent(self):
@@ -28,8 +29,8 @@ class EvalCasesTests(unittest.TestCase):
                 self.assertLess(lo, hi)
                 self.assertLessEqual(hi, 100)
 
-    def test_tailor_cases_are_coherent(self):
-        for case in TAILOR_CASES:
+    def test_tailor_and_cover_cases_are_coherent(self):
+        for case in (*TAILOR_CASES, *COVER_LETTER_CASES):
             with self.subTest(case=case.name):
                 self.assertTrue(case.resume.strip())
                 self.assertTrue(case.job.strip())
