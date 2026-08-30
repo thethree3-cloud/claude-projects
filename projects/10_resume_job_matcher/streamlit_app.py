@@ -1,9 +1,13 @@
-"""Résumé & job matcher UI. Two modes:
+"""Résumé & job matcher UI. Three modes:
 
 - Score one listing: paste a résumé + a job listing -> evidence-backed fit
-  score, gaps, and honest suggestions.
+  score, gaps, honest suggestions, and (on demand) a tailored résumé + a
+  grounded cover letter.
 - Search live jobs: paste a résumé, give keywords + a location -> live job
-  search (job_search.py) with every posting scored and ranked.
+  search (job_search.py) with every posting scored and ranked; select a
+  posting to tailor a résumé or write a cover letter for it.
+- Applications: a local SQLite log of what you sent where, with a what's-due
+  agenda.
 
 Thin UI over the same functions the CLI uses. Needs ANTHROPIC_API_KEY in the
 repo-root .env, same as every other entry point in this project.
@@ -113,6 +117,8 @@ def search_and_score(
             {
                 "report": build_report(comparison, resume, parsed_job),
                 "comparison": comparison,
+                "resume": resume,
+                "job": parsed_job,
                 "url": job["url"],
                 "grounding": job["grounding"],
             }
@@ -204,6 +210,102 @@ def _render_report(comparison: dict, report: dict) -> None:
 
     with st.expander("Skill-by-skill evidence"):
         _render_skill_evidence(comparison)
+
+
+def _render_tailored(tailored: dict, *, key: str) -> None:
+    """Render a build_tailored_resume() result: dropped-bullet warnings, the
+    what-changed list, the before/after diff, downloads, and the preview.
+    `key` namespaces the download-button widgets so it can appear twice."""
+    flags = tailored.get("flags", [])
+    if flags:
+        st.warning(
+            f"Dropped {len(flags)} bullet(s) that claimed more than your "
+            "résumé supports:"
+        )
+        for flag in flags:
+            with st.container(border=True):
+                st.markdown(f"**{flag['role']}** — {flag['issue']}")
+                st.caption(f"removed: “{flag['bullet']}”")
+
+    if tailored["changes"]:
+        with st.expander("What changed", expanded=not flags):
+            for change in tailored["changes"]:
+                st.markdown(f"- {change}")
+
+    diff = tailored.get("diff", [])
+    if diff:
+        with st.expander("Before / after, bullet by bullet"):
+            for role in diff:
+                st.markdown(f"**{role['title']} — {role['organization']}**")
+                before_col, after_col = st.columns(2)
+                before_col.caption("Original")
+                for bullet in role["original"] or ["—"]:
+                    before_col.markdown(f"- {bullet}")
+                after_col.caption("Tailored")
+                for bullet in role["tailored"] or ["—"]:
+                    after_col.markdown(f"- {bullet}")
+
+    st.markdown("**Download**")
+    pdf_col, docx_col, md_col = st.columns(3)
+    resume_dict = tailored.get("resume") or {}
+    if resume_dict:
+        pdf_col.download_button(
+            "PDF",
+            to_pdf(resume_dict),
+            file_name="tailored_resume.pdf",
+            mime="application/pdf",
+            icon=":material/picture_as_pdf:",
+            type="primary",
+            use_container_width=True,
+            key=f"{key}_pdf",
+        )
+        docx_col.download_button(
+            "Word",
+            to_docx(resume_dict),
+            file_name="tailored_resume.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            icon=":material/description:",
+            use_container_width=True,
+            key=f"{key}_docx",
+        )
+    md_col.download_button(
+        "Markdown",
+        tailored["markdown"],
+        file_name="tailored_resume.md",
+        icon=":material/code:",
+        use_container_width=True,
+        key=f"{key}_md",
+    )
+    with st.container(border=True):
+        st.markdown(tailored["markdown"])
+
+
+def _render_cover(cover: dict, *, key: str) -> None:
+    """Render a build_cover_letter() result: flagged claims, the download, the
+    letter, and the every-claim expander."""
+    if cover["flags"]:
+        st.warning(
+            f"{len(cover['flags'])} claim(s) the résumé doesn't clearly "
+            "support — edit or cut these before sending:"
+        )
+        for flag in cover["flags"]:
+            with st.container(border=True):
+                st.markdown(f"**{flag['claim']}**")
+                st.caption(flag["issue"])
+    st.download_button(
+        "Download cover letter",
+        cover["text"],
+        file_name="cover_letter.txt",
+        icon=":material/download:",
+        type="primary",
+        key=f"{key}_dl",
+    )
+    with st.container(border=True):
+        st.text(cover["text"])
+    with st.expander("Every claim, and the résumé line behind it"):
+        for claim in cover["claims"]:
+            st.markdown(f"- {claim['claim']}")
+            st.caption(f"“{claim['evidence']}”")
 
 
 def _run(spinner_text, fn, *args):
@@ -326,67 +428,7 @@ if mode == "Score one listing":
             )
 
         if "tailored" in st.session_state:
-            tailored = st.session_state.tailored
-
-            flags = tailored.get("flags", [])
-            if flags:
-                st.warning(
-                    f"Dropped {len(flags)} bullet(s) that claimed more than your "
-                    "résumé supports:"
-                )
-                for flag in flags:
-                    with st.container(border=True):
-                        st.markdown(f"**{flag['role']}** — {flag['issue']}")
-                        st.caption(f"removed: “{flag['bullet']}”")
-
-            if tailored["changes"]:
-                with st.expander("What changed", expanded=not flags):
-                    for change in tailored["changes"]:
-                        st.markdown(f"- {change}")
-
-            diff = tailored.get("diff", [])
-            if diff:
-                with st.expander("Before / after, bullet by bullet"):
-                    for role in diff:
-                        st.markdown(f"**{role['title']} — {role['organization']}**")
-                        before_col, after_col = st.columns(2)
-                        before_col.caption("Original")
-                        for bullet in role["original"] or ["—"]:
-                            before_col.markdown(f"- {bullet}")
-                        after_col.caption("Tailored")
-                        for bullet in role["tailored"] or ["—"]:
-                            after_col.markdown(f"- {bullet}")
-
-            st.markdown("**Download**")
-            pdf_col, docx_col, md_col = st.columns(3)
-            resume_dict = tailored.get("resume") or {}
-            if resume_dict:
-                pdf_col.download_button(
-                    "PDF",
-                    to_pdf(resume_dict),
-                    file_name="tailored_resume.pdf",
-                    mime="application/pdf",
-                    icon=":material/picture_as_pdf:",
-                    type="primary",
-                    use_container_width=True,
-                )
-                docx_col.download_button(
-                    "Word",
-                    to_docx(resume_dict),
-                    file_name="tailored_resume.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    icon=":material/description:",
-                    use_container_width=True,
-                )
-            md_col.download_button(
-                "Markdown",
-                tailored["markdown"],
-                file_name="tailored_resume.md",
-                icon=":material/code:",
-                use_container_width=True,
-            )
-            with st.container(border=True):
-                st.markdown(tailored["markdown"])
+            _render_tailored(st.session_state.tailored, key="single_tailored")
 
         st.divider()
         st.markdown("### Cover letter")
@@ -405,29 +447,7 @@ if mode == "Score one listing":
             )
 
         if "cover" in st.session_state:
-            cover = st.session_state.cover
-            if cover["flags"]:
-                st.warning(
-                    f"{len(cover['flags'])} claim(s) the résumé doesn't clearly "
-                    "support — edit or cut these before sending:"
-                )
-                for flag in cover["flags"]:
-                    with st.container(border=True):
-                        st.markdown(f"**{flag['claim']}**")
-                        st.caption(flag["issue"])
-            st.download_button(
-                "Download cover letter",
-                cover["text"],
-                file_name="cover_letter.txt",
-                icon=":material/download:",
-                type="primary",
-            )
-            with st.container(border=True):
-                st.text(cover["text"])
-            with st.expander("Every claim, and the résumé line behind it"):
-                for claim in cover["claims"]:
-                    st.markdown(f"- {claim['claim']}")
-                    st.caption(f"“{claim['evidence']}”")
+            _render_cover(st.session_state.cover, key="single_cover")
 
 # --------------------------------------------------------------- search jobs
 elif mode == "Search live jobs":
@@ -475,6 +495,7 @@ elif mode == "Search live jobs":
             int(count),
             sites,
         )
+        st.session_state.pop("search_output", None)  # stale for the new search
 
     if "search" in st.session_state:
         results = st.session_state.search
@@ -499,13 +520,34 @@ elif mode == "Search live jobs":
                 selection_mode="single-row",
                 key="search_table",
             )
-            if event.selection.rows:
-                chosen = results[event.selection.rows[0]]
+            selected = event.selection.rows[0] if event.selection.rows else None
+            output = st.session_state.get("search_output")
+            if output and output.get("row") != selected:
+                st.session_state.pop("search_output", None)  # row changed
+                output = None
 
-                @st.dialog(
-                    f"{chosen['report']['job_title']} · {chosen['report']['company']}",
-                    width="large",
+            if selected is not None and not output:
+                chosen = results[selected]
+                label = (
+                    f"{chosen['report']['job_title']} · {chosen['report']['company']}"
                 )
+
+                def _build(kind, spinner, fn):
+                    st.session_state.search_output = {
+                        "kind": kind,
+                        "label": label,
+                        "row": selected,
+                        "data": _run(
+                            spinner,
+                            fn,
+                            chosen["comparison"],
+                            chosen["resume"],
+                            chosen["job"],
+                        ),
+                    }
+                    st.rerun()
+
+                @st.dialog(label, width="large")
                 def _detail():
                     st.link_button(
                         "Open posting", chosen["url"], icon=":material/open_in_new:"
@@ -515,9 +557,44 @@ elif mode == "Search live jobs":
                             "Scored from a short search snippet, not the full "
                             "posting — treat this as directional."
                         )
+                    if chosen.get("resume") and chosen.get("job"):
+                        tailor_col, cover_col = st.columns(2)
+                        if tailor_col.button(
+                            "Tailor résumé for this",
+                            icon=":material/edit_document:",
+                            use_container_width=True,
+                            key="search_do_tailor",
+                        ):
+                            _build(
+                                "tailored",
+                                "Reframing your résumé for this posting…",
+                                build_tailored_resume,
+                            )
+                        if cover_col.button(
+                            "Write cover letter",
+                            icon=":material/mail:",
+                            use_container_width=True,
+                            key="search_do_cover",
+                        ):
+                            _build(
+                                "cover",
+                                "Drafting the letter for this posting…",
+                                build_cover_letter,
+                            )
                     _render_report(chosen["comparison"], chosen["report"])
 
                 _detail()
+
+            if output:
+                st.divider()
+                kind = (
+                    "Tailored résumé" if output["kind"] == "tailored" else "Cover letter"
+                )
+                st.markdown(f"### {kind} — {output['label']}")
+                if output["kind"] == "tailored":
+                    _render_tailored(output["data"], key="search_out_tailored")
+                else:
+                    _render_cover(output["data"], key="search_out_cover")
 
 # -------------------------------------------------------------- applications
 else:
