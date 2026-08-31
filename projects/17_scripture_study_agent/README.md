@@ -79,7 +79,9 @@ reference that did not come back from an actual tool call.
     entries → JST → D&C section heading. Ranges/chapters list the verses
     with each number linking to its full study view.
   - **Browse the Topical Guide / Bible Dictionary** — by subject name or
-    first letter; entry references and "see also" render as links.
+    first letter; entry references, "see also", and sub-topics (e.g. the
+    57 `Jesus Christ, <aspect>` entries under `Jesus Christ`) render as
+    links.
   - **Come, Follow Me** — this week's lesson (or any week of the year):
     title, date range, the **scripture block as links**, and the full
     lesson text.

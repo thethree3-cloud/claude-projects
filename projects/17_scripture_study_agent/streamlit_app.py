@@ -61,6 +61,21 @@ def entries_by_letter(help_type: str, letter: str) -> list[dict]:
     return api.study_help_entries_by_letter(help_type, letter)
 
 
+@st.cache_data(ttl=_TTL, max_entries=256, show_spinner=False)
+def sub_entries(help_type: str, title: str) -> list[dict]:
+    """Entries titled '<title>, ...' — e.g. 'Jesus Christ, Advocate'."""
+    if not title:
+        return []
+    try:
+        page = api.list_study_help_entries(help_type, q=title, limit=500)
+    except api.ScriptureAPIError:
+        return []
+    return [
+        e for e in page.get("entries", [])
+        if e.get("title", "").startswith(f"{title}, ")
+    ]
+
+
 @st.cache_data(ttl="12h", max_entries=4, show_spinner=False)
 def cfm_lessons(year: int) -> list[dict]:
     return api.list_come_follow_me_lessons(year=year).get("lessons", [])
@@ -159,13 +174,28 @@ def render_study_help_entry(entry_id: str, note: str | None = None) -> None:
     """Fetch and render a study-help entry (raises ScriptureAPIError first if
     there is no such entry, before anything is written)."""
     entry = study_help(entry_id)
+    title = entry.get("title", entry_id)
+    help_type = entry.get("type", "tg")
+    prefix = _HELP_PREFIX.get(help_type, "TG")
     if note:
         st.caption(note)
-    st.subheader(entry.get("title", entry_id), anchor=False)
+    st.subheader(title, anchor=False)
+
+    # Sub-headings: "Jesus Christ" has 57 entries titled "Jesus Christ, <aspect>".
+    subs = sub_entries(help_type, title)
+    if subs:
+        st.markdown(
+            f"**{len(subs)} sub-topics under {title}** &nbsp; "
+            + " &nbsp;·&nbsp; ".join(
+                ref_link(e["title"].split(", ", 1)[-1], f"{prefix} {e['title']}")
+                for e in subs
+            )
+        )
+
     render_study_help_body(entry)
+
     see_also = entry.get("seeAlso") or []
     if see_also:
-        prefix = _HELP_PREFIX.get(entry.get("type", ""), "TG")
         st.markdown(
             "**See also:** "
             + " &nbsp;·&nbsp; ".join(
