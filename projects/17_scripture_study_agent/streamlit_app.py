@@ -99,13 +99,16 @@ def refs_in_text(text: str) -> list[str]:
 
 # --- helpers ------------------------------------------------------------
 
-def ref_link(label: str, target: str | None = None) -> str:
-    """A markdown link that opens the reference view for <target>.
-
-    The parser rejects en dashes in ranges, so normalise them to hyphens.
+def normalize_ref(text: str) -> str:
+    """The parser rejects en/em dashes in ranges (``Psalm 110:1–4``); it
+    only accepts the ASCII hyphen. Also trims surrounding whitespace.
     """
-    tgt = (target or label).replace("–", "-").replace("—", "-")
-    return f"[{label}](?view=reference&ref={quote(tgt)})"
+    return text.strip().replace("–", "-").replace("—", "-").replace("‑", "-")
+
+
+def ref_link(label: str, target: str | None = None) -> str:
+    """A markdown link that opens the reference view for <target>."""
+    return f"[{label}](?view=reference&ref={quote(normalize_ref(target or label))})"
 
 
 def link_row(refs: list[str], prefix: str = "") -> None:
@@ -278,7 +281,7 @@ if view != requested_view:
     st.query_params["view"] = view
 
 if view == "reference":
-    active = st.query_params.get("ref", DEFAULT_REF)
+    active = normalize_ref(st.query_params.get("ref", DEFAULT_REF))
 
     with st.form("ref", border=False):
         raw = st.text_input(
@@ -288,8 +291,8 @@ if view == "reference":
         )
         submitted = st.form_submit_button("Look up", icon=":material/search:")
     if submitted and raw.strip():
-        st.query_params["ref"] = raw.strip()
-        active = raw.strip()
+        active = normalize_ref(raw)
+        st.query_params["ref"] = active
 
     try:
         parsed = resolve(active)
