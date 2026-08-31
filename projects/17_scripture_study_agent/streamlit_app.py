@@ -11,6 +11,7 @@ study-help references render as ordinary links: click one to bring it up, and
 the browser back button walks your history.
 """
 
+from datetime import date
 from urllib.parse import quote
 
 import streamlit as st
@@ -60,6 +61,27 @@ def entries_by_letter(help_type: str, letter: str) -> list[dict]:
     return api.study_help_entries_by_letter(help_type, letter)
 
 
+@st.cache_data(ttl="12h", max_entries=4, show_spinner=False)
+def cfm_lessons(year: int) -> list[dict]:
+    return api.list_come_follow_me_lessons(year=year).get("lessons", [])
+
+
+@st.cache_data(ttl="6h", max_entries=64, show_spinner=False)
+def cfm_lesson(lesson_id: str) -> dict:
+    return api.get_come_follow_me_lesson(lesson_id)
+
+
+@st.cache_data(ttl=_TTL, max_entries=512, show_spinner=False)
+def reference_is_valid(reference: str) -> bool:
+    """True if the string parses to a real scripture reference (en dashes
+    normalised, since the parser rejects them)."""
+    normalised = reference.replace("–", "-").replace("—", "-")
+    try:
+        return bool(api.resolve_reference(normalised).get("valid"))
+    except api.ScriptureAPIError:
+        return False
+
+
 @st.cache_data(ttl=_TTL, max_entries=512, show_spinner=False)
 def refs_in_text(text: str) -> list[str]:
     """Unique pretty reference strings the API finds in a block of text."""
@@ -78,8 +100,12 @@ def refs_in_text(text: str) -> list[str]:
 # --- helpers ------------------------------------------------------------
 
 def ref_link(label: str, target: str | None = None) -> str:
-    """A markdown link that reloads the page with ?ref=<target>."""
-    return f"[{label}](?ref={quote(target or label)})"
+    """A markdown link that opens the reference view for <target>.
+
+    The parser rejects en dashes in ranges, so normalise them to hyphens.
+    """
+    tgt = (target or label).replace("–", "-").replace("—", "-")
+    return f"[{label}](?view=reference&ref={quote(tgt)})"
 
 
 def link_row(refs: list[str], prefix: str = "") -> None:
@@ -88,22 +114,23 @@ def link_row(refs: list[str], prefix: str = "") -> None:
 
 
 def first_target(parsed: dict):
-    """(book_id, chapter, (v_start, v_end) | None) from a resolve payload.
+    """(book_id, chapter_start, chapter_end, (v_start, v_end) | None).
 
-    A ``None`` verse span means the whole chapter was requested. A study-help
-    reference comes back as ("__studyhelp__", entry_id, None).
+    A ``None`` verse span means whole chapter(s). ``chapter_end`` > ``chapter_start``
+    for a multi-chapter reference. A study-help reference comes back as
+    ("__studyhelp__", entry_id, None, None).
     """
     for ref in parsed.get("references") or []:
         if ref.get("type") == "studyHelp":
-            return ("__studyhelp__", ref.get("entryId"), None)
+            return ("__studyhelp__", ref.get("entryId"), None, None)
         chapters = ref.get("chapters") or []
         if not chapters:
             continue
         ch = chapters[0]
         verses = ch.get("verses") or []
         span = (verses[0]["start"], verses[0]["end"]) if verses else None
-        return (ref["book"], ch["start"], span)
-    return (None, None, None)
+        return (ref["book"], ch["start"], ch.get("end", ch["start"]), span)
+    return (None, None, None, None)
 
 
 def chapter_target(pretty: str) -> str:
@@ -194,28 +221,37 @@ def render_verse_view(book: str, ch: int, v: int, pretty: str) -> None:
     st.markdown(ref_link(f"Open all of {chapter_target(pretty)}", chapter_target(pretty)))
 
 
-def render_multi_verse(book: str, ch: int, span, pretty: str) -> None:
-    """A verse range (span = (start, end)) or a whole chapter (span = None)."""
-    data = chapter(book, ch).get("chapter", {})
-    book_title = data.get("bookTitle", chapter_target(pretty))
-    st.subheader(pretty if span else f"{book_title} {ch}", anchor=False)
-    if data.get("summary"):
-        st.caption(data["summary"])
-    section = heading(book, ch)
-    if section:
-        st.info(section)
+_MAX_CHAPTERS = 6
 
-    base = chapter_target(pretty)  # "Isaiah 1"
-    lo, hi = span if span else (1, len(data.get("verses", [])))
-    for i, vs in enumerate(data.get("verses", []), start=1):
-        if lo <= i <= hi:
-            marker = ref_link(f"**{i}**", f"{base}:{i}")
-            st.markdown(f"{marker}&nbsp; {vs['text']}")
+
+def render_passage(book: str, ch_start: int, ch_end: int, span, pretty: str) -> None:
+    """A verse range, a whole chapter, or a span of chapters.
+
+    ``span`` (a verse range) only applies when it's a single chapter.
+    Verse numbers link to the single-verse study view.
+    """
+    st.subheader(pretty, anchor=False)
+    multi = ch_end > ch_start
+    last = min(ch_end, ch_start + _MAX_CHAPTERS - 1)
+    if ch_end > last:
+        st.caption(f"Showing chapters {ch_start}–{last} of {ch_start}–{ch_end}.")
+
+    for cn in range(ch_start, last + 1):
+        data = chapter(book, cn).get("chapter", {})
+        if multi:
+            st.markdown(f"#### {data.get('bookTitle', book.title())} {cn}")
+        if data.get("summary"):
+            st.caption(data["summary"])
+        section = heading(book, cn)
+        if section:
+            st.info(section)
+        lo, hi = span if (span and not multi) else (1, len(data.get("verses", [])))
+        for i, vs in enumerate(data.get("verses", []), start=1):
+            if lo <= i <= hi:
+                marker = ref_link(f"**{i}**", f"{book} {cn}:{i}")
+                st.markdown(f"{marker}&nbsp; {vs['text']}")
+
     st.caption("Source: Open Scripture API — verse numbers link to the full study view")
-
-    if span:
-        st.divider()
-        st.markdown(ref_link(f"Open all of {base}", base))
 
 
 # --- page --------------------------------------------------------------
@@ -223,14 +259,25 @@ def render_multi_verse(book: str, ch: int, span, pretty: str) -> None:
 st.title("Scripture study")
 st.caption("Grounded study helps from the Open Scripture API. Nothing here is generated.")
 
-mode = st.segmented_control(
+VIEW_LABELS = {
+    "reference": "Study a reference",
+    "browse": "Browse the Topical Guide",
+    "cfm": "Come, Follow Me",
+}
+_LABEL_TO_VIEW = {label: key for key, label in VIEW_LABELS.items()}
+
+requested_view = st.query_params.get("view", "reference")
+picked = st.segmented_control(
     "Mode",
-    ["Study a reference", "Browse the Topical Guide"],
-    default="Study a reference",
+    list(VIEW_LABELS.values()),
+    default=VIEW_LABELS.get(requested_view, VIEW_LABELS["reference"]),
     label_visibility="collapsed",
 )
+view = _LABEL_TO_VIEW.get(picked, "reference")
+if view != requested_view:
+    st.query_params["view"] = view
 
-if mode == "Study a reference":
+if view == "reference":
     active = st.query_params.get("ref", DEFAULT_REF)
 
     with st.form("ref", border=False):
@@ -272,17 +319,17 @@ if mode == "Study a reference":
     if pretty.lower() != active.lower():
         st.warning(f"Read as **{pretty}**. If that's not what you meant, rephrase.")
 
-    book, ch, span = first_target(parsed)
+    book, ch, ch_end, span = first_target(parsed)
     if book == "__studyhelp__":
         render_study_help_entry(ch)
-    elif book and span and span[0] == span[1]:
+    elif book and span and span[0] == span[1] and ch == ch_end:
         render_verse_view(book, ch, span[0], pretty)
     elif book:
-        render_multi_verse(book, ch, span, pretty)
+        render_passage(book, ch, ch_end, span, pretty)
     else:
         st.error("That reference didn't resolve to a passage.")
 
-else:
+elif view == "browse":
     help_type = st.segmented_control(
         "Study help",
         options=["tg", "bd"],
@@ -314,3 +361,39 @@ else:
                 with exp:
                     render_study_help_body(study_help(entry["_id"]))
                     st.caption(f"Source: Open Scripture API ({entry['_id']})")
+
+elif view == "cfm":
+    lessons = cfm_lessons(date.today().year)
+    labels = ["This week"] + [
+        f"{lsn['dateRange']['display']} — {lsn['title']}" for lsn in lessons
+    ]
+    choice = st.selectbox("Week", labels, label_visibility="collapsed")
+    lesson_id = "current" if choice == "This week" else lessons[labels.index(choice) - 1]["_id"]
+    lesson = cfm_lesson(lesson_id)
+
+    st.subheader(lesson.get("title", "Come, Follow Me"), anchor=False)
+    manual = (
+        lesson.get("manualId", "")
+        .replace("come-follow-me-for-home-and-church-", "")
+        .replace("-", " ")
+        .strip()
+        .title()
+    )
+    st.caption(" · ".join(p for p in (lesson.get("dateRange", {}).get("display"), manual) if p))
+
+    refs = lesson.get("scriptureReferences", [])
+    linkable = [r for r in refs if reference_is_valid(r)]
+    if linkable:
+        st.markdown(
+            "**Scripture block** &nbsp; "
+            + " &nbsp;·&nbsp; ".join(ref_link(r) for r in linkable)
+        )
+    other = [r for r in refs if r not in linkable]
+    if other:
+        st.caption("Also covered: " + "; ".join(other))
+
+    text = lesson.get("content", {}).get("text", "")
+    if text:
+        with st.container(border=True):
+            st.markdown(text)
+    st.caption("Source: Open Scripture API")

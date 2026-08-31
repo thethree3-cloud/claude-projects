@@ -35,6 +35,7 @@ import requests
 SCRIPTURES_BASE = "https://openscriptureapi.org/api/scriptures/v1/lds/en"
 STUDY_HELPS_BASE = "https://openscriptureapi.org/api/study-helps/v1/lds/en"
 CONFERENCE_BASE = "https://openscriptureapi.org/api/conference/v1/lds/en"
+COME_FOLLOW_ME_BASE = "https://openscriptureapi.org/api/manuals/v1/lds/en"
 
 DEFAULT_TIMEOUT = 20  # seconds
 
@@ -320,6 +321,32 @@ def get_talk(talk_id: str, paragraph: int | None = None) -> dict:
     """
     params = {"paragraph": paragraph} if paragraph is not None else None
     return _get(f"{CONFERENCE_BASE}/talk/{talk_id}", params)
+
+
+# --------------------------------------------------------------------------
+# Come, Follow Me (weekly home-and-church study curriculum)
+# --------------------------------------------------------------------------
+
+def list_come_follow_me_lessons(year: int | None = None,
+                                limit: int = 60, offset: int = 0) -> dict:
+    """List weekly lessons, earliest to latest. Full lesson text is omitted
+    from the listing -- fetch a lesson for that. ``year`` filters to one
+    manual year.
+    """
+    params: dict = {"limit": limit, "offset": offset}
+    if year is not None:
+        params["year"] = year
+    return _get(f"{COME_FOLLOW_ME_BASE}/come-follow-me", params)
+
+
+def get_come_follow_me_lesson(lesson_id: str = "current") -> dict:
+    """One weekly lesson. ``lesson_id`` is the week's start date
+    (``"2026-01-05"``) or ``"current"`` for the week containing today.
+
+    Returns ``{"_id", "title", "year", "manualId", "dateRange",
+    "scriptureReferences", "content": {"text": ...}}``.
+    """
+    return _get(f"{COME_FOLLOW_ME_BASE}/come-follow-me/{lesson_id}")
 
 
 if __name__ == "__main__":  # pragma: no cover - manual smoke check

@@ -54,6 +54,9 @@ reference that did not come back from an actual tool call.
   - `study_help_entries_by_letter` — every entry of a type whose title
     starts with a given letter (pages the list and filters client-side; the
     API's `q` is a substring match, not a prefix)
+  - `list_come_follow_me_lessons`, `get_come_follow_me_lesson` — the weekly
+    home-and-church curriculum (`"current"` or a week's start date); each
+    lesson carries its `scriptureReferences` and full text
   - `list_conferences`, `get_latest_conference`, `get_conference`,
     `get_talk` — General Conference, 1971–present. **The client wraps these
     for completeness, but the agent does not use them: General Conference
@@ -67,23 +70,30 @@ reference that did not come back from an actual tool call.
   Python client above is for build-time scripts and any future
   Python-driven agent loop.
 - **`streamlit_app.py`** — a browser view of the fan-out, straight from the
-  API (no local corpus, no LLM). Two modes:
+  API (no local corpus, no LLM). Three modes:
   - **Study a reference** — a verse (`Isaiah 1:1`), a range
-    (`Isaiah 1:1-5`), or a whole chapter (`D&C 21`). A verse shows text →
-    printed footnotes → **the passages those footnotes reference, as
-    links** → study-help entries → JST → D&C section heading, and an
-    "Open all of <chapter>" link. Ranges and chapters list the verses with
-    each number linking to its full study view.
+    (`Isaiah 1:1-5`), a whole chapter (`D&C 21`), a span of chapters
+    (`Psalms 146-150`), or a Topical Guide / Bible Dictionary subject
+    typed plain (`Jesus Christ`). A verse shows text → printed footnotes →
+    **the passages those footnotes reference, as links** → study-help
+    entries → JST → D&C section heading. Ranges/chapters list the verses
+    with each number linking to its full study view.
   - **Browse the Topical Guide / Bible Dictionary** — by subject name or
-    first letter; entry references render as links too.
+    first letter; entry references and "see also" render as links.
+  - **Come, Follow Me** — this week's lesson (or any week of the year):
+    title, date range, the **scripture block as links**, and the full
+    lesson text.
 
-  The active reference lives in the URL (`?ref=Isaiah 1:1`), so every
-  reference is an ordinary link and the browser back button walks history.
-  All API calls are `st.cache_data`-wrapped.
-- **`test_scripture_api.py`** — 26 offline tests (the `requests` session is
+  Both the mode and the active reference live in the URL
+  (`?view=reference&ref=Isaiah 1:1`), so every reference — including the
+  Come, Follow Me scripture block — is an ordinary link that jumps to the
+  study view, and the browser back button walks history. All API calls are
+  `st.cache_data`-wrapped.
+- **`test_scripture_api.py`** — 30 offline tests (the `requests` session is
   stubbed): URL construction, parameter passing, the error-handling
-  contract, footnote marker/anchor extraction, slug building, and the
-  by-letter pagination/early-stop. No network needed.
+  contract, footnote marker/anchor extraction, slug building, the
+  by-letter pagination/early-stop, and the Come, Follow Me endpoints. No
+  network needed.
 
 Live smoke check:
 

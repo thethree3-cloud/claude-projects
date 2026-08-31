@@ -220,6 +220,37 @@ class ByLetterTests(unittest.TestCase):
         self.assertEqual(len(out), 2)
 
 
+class ComeFollowMeTests(unittest.TestCase):
+    def test_lesson_url_current(self):
+        ctx, mock = stub_get({"_id": "2026-08-24"})
+        with ctx:
+            s.get_come_follow_me_lesson()
+        self.assertEqual(
+            mock.call_args[0][0], f"{s.COME_FOLLOW_ME_BASE}/come-follow-me/current"
+        )
+
+    def test_lesson_url_by_id(self):
+        ctx, mock = stub_get({"_id": "2026-01-05"})
+        with ctx:
+            s.get_come_follow_me_lesson("2026-01-05")
+        self.assertEqual(
+            mock.call_args[0][0], f"{s.COME_FOLLOW_ME_BASE}/come-follow-me/2026-01-05"
+        )
+
+    def test_list_url_and_year_param(self):
+        ctx, mock = stub_get({"lessons": []})
+        with ctx:
+            s.list_come_follow_me_lessons(year=2026)
+        self.assertEqual(mock.call_args[0][0], f"{s.COME_FOLLOW_ME_BASE}/come-follow-me")
+        self.assertEqual(mock.call_args[1]["params"]["year"], 2026)
+
+    def test_list_omits_year_when_none(self):
+        ctx, mock = stub_get({"lessons": []})
+        with ctx:
+            s.list_come_follow_me_lessons()
+        self.assertNotIn("year", mock.call_args[1]["params"])
+
+
 class SectionHeadingTests(unittest.TestCase):
     def test_extracts_introduction_augmentation(self):
         payload = {"chapter": {"chapterAugmentations": [
