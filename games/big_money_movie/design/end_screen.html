@@ -118,15 +118,17 @@
   .recap-layer{
     position:absolute; inset:0;
     z-index:6;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    background:linear-gradient(180deg, rgba(11,8,16,.88), rgba(11,8,16,.94));
-    animation:recapHold 3.6s ease forwards;
+    overflow:hidden;
+    background:linear-gradient(180deg, rgba(20,15,28,.94), rgba(14,10,20,.97));
+    animation:recapHold 4.6s ease forwards;
   }
   @keyframes recapHold{
-    0%, 68%{ opacity:1; visibility:visible; }
+    0%, 71%{ opacity:1; visibility:visible; }
     100%{ opacity:0; visibility:hidden; }
   }
   .recap-label{
+    position:absolute; top:6%; left:0; right:0;
+    text-align:center;
     font-family:'Oswald',sans-serif;
     font-weight:600;
     font-size:11px;
@@ -135,57 +137,74 @@
     opacity:0;
     animation:labelIn .5s ease forwards;
     animation-delay:.1s;
-  }
-  @keyframes labelIn{ to{ opacity:.9; } }
-  .card-field{
-    position:relative;
-    width:100%; height:230px;
-    margin-top:18px;
-  }
-  .g-card{
-    position:absolute;
-    width:82px; height:118px;
-    border-radius:6px;
-    box-shadow:0 10px 20px rgba(0,0,0,.5);
-    opacity:0;
-    animation:cardIn .5s ease forwards;
-  }
-  @keyframes cardIn{
-    from{ opacity:0; transform:translateY(16px) rotate(var(--rot)) scale(.88); }
-    to{ opacity:1; transform:translateY(0) rotate(var(--rot)) scale(1); }
-  }
-  .g-card.wrong{
-    background:linear-gradient(165deg,#2E1E48,#170F28);
-    border:1px solid rgba(255,255,255,.12);
-    filter:grayscale(.35) brightness(.85);
-  }
-  .g-card.correct{
-    background:linear-gradient(165deg,#FFE29A,var(--gold-deep));
-    border:2px solid var(--cream);
-    box-shadow:0 12px 26px rgba(0,0,0,.55), 0 0 18px rgba(255,201,77,.5);
     z-index:2;
   }
+  @keyframes labelIn{ to{ opacity:.9; } }
+
+  /* Big posters, tilted, leaning left/right, overlapping enough to fill
+     the whole screen -- cropped by the phone screen's own rounded edge
+     where they spill past it. */
+  .card-field{ position:absolute; inset:0; }
+  .g-card{
+    position:absolute;
+    width:198px; height:296px;
+    border-radius:9px;
+    box-shadow:0 20px 40px rgba(0,0,0,.5);
+    opacity:0;
+    display:flex; flex-direction:column; justify-content:flex-end;
+    overflow:hidden;
+    animation:cardIn .65s cubic-bezier(.2,.8,.25,1) forwards;
+  }
+  @keyframes cardIn{
+    0%{ opacity:0; transform:translateY(26px) scale(.8) rotate(var(--rot)); }
+    100%{ opacity:1; transform:translateY(0) scale(1) rotate(var(--rot)); }
+  }
+  .g-card-field{ flex:1; display:flex; align-items:center; justify-content:center; }
+  .g-card-field::after{
+    content:"";
+    width:34%; height:34%;
+    border-radius:50%;
+    border:2px solid rgba(58,35,6,.25);
+  }
+  .g-card-title-band{
+    padding:12px 12px 14px;
+    background:rgba(20,12,28,.4);
+  }
   .g-card-title{
-    position:absolute; left:0; right:0; bottom:8px;
-    text-align:center;
+    display:block;
     font-family:'Oswald',sans-serif;
     font-weight:700;
-    font-size:9px;
-    letter-spacing:.5px;
+    font-size:16px;
+    letter-spacing:.3px;
+    color:var(--cream);
+    text-align:center;
     line-height:1.15;
-    padding:0 6px;
   }
-  .g-card.wrong .g-card-title{ color:rgba(251,239,221,.75); }
-  .g-card.correct .g-card-title{ color:#3A2306; }
+  .g-card.pastel-1{ background:linear-gradient(165deg,#E4D6F7,#CDB8EC); } /* lavender */
+  .g-card.pastel-2{ background:linear-gradient(165deg,#CFF2E4,#AEE3CE); } /* mint */
+  .g-card.pastel-3{ background:linear-gradient(165deg,#FBDCC2,#F5C29E); } /* peach */
+  .g-card.pastel-4{ background:linear-gradient(165deg,#FCE0E6,#F7BFCB); } /* rose */
+  .g-card.pastel-5{ background:linear-gradient(165deg,#D6E8FA,#B9D8F2); } /* sky */
+  .g-card.pastel-6{ background:linear-gradient(165deg,#FBF2C4,#F3E29B); } /* butter */
+  .g-card.correct{
+    width:228px; height:340px;
+    background:linear-gradient(165deg,#FCEBBE,#F7D480);
+    border:3px solid var(--gold-deep);
+    box-shadow:0 26px 52px rgba(0,0,0,.55), 0 0 30px rgba(255,201,77,.55);
+    z-index:2;
+  }
+  .g-card.correct .g-card-title-band{ background:rgba(58,35,6,.28); }
+  .g-card.correct .g-card-title{ color:#3A2306; font-weight:800; }
   .g-card-badge{
-    position:absolute; top:-8px; right:-8px;
-    width:22px; height:22px;
+    position:absolute; top:-10px; right:-10px;
+    width:30px; height:30px;
     border-radius:50%;
     background:var(--gold);
-    border:2px solid var(--cream);
+    border:2.5px solid var(--cream);
     display:flex; align-items:center; justify-content:center;
-    font-size:11px;
+    font-size:15px;
     color:#3A2306;
+    z-index:3;
   }
 
   /* ---------- UI overlay ---------- */
@@ -531,15 +550,34 @@
     <div class="recap-layer" aria-hidden="true">
       <span class="recap-label">YOUR GUESSES</span>
       <div class="card-field">
-        <div class="g-card wrong" style="--rot:-9deg; left:14%; top:8%;">
-          <span class="g-card-title">Serpico</span>
+        <div class="g-card wrong pastel-1" style="--rot:-14deg; left:-16%; top:1%; animation-delay:0s">
+          <div class="g-card-field"></div>
+          <div class="g-card-title-band"><span class="g-card-title">Serpico</span></div>
         </div>
-        <div class="g-card wrong" style="--rot:7deg; left:54%; top:2%; animation-delay:.32s;">
-          <span class="g-card-title">The Godfather</span>
+        <div class="g-card wrong pastel-2" style="--rot:12deg; right:-18%; top:-1%; animation-delay:.1s">
+          <div class="g-card-field"></div>
+          <div class="g-card-title-band"><span class="g-card-title">The Godfather</span></div>
         </div>
-        <div class="g-card correct" style="--rot:-3deg; left:33%; top:34%; animation-delay:.58s;">
+        <div class="g-card wrong pastel-3" style="--rot:9deg; left:-10%; top:29%; animation-delay:.2s">
+          <div class="g-card-field"></div>
+          <div class="g-card-title-band"><span class="g-card-title">Magnum Force</span></div>
+        </div>
+        <div class="g-card wrong pastel-4" style="--rot:-8deg; right:-12%; top:33%; animation-delay:.3s">
+          <div class="g-card-field"></div>
+          <div class="g-card-title-band"><span class="g-card-title">Chinatown</span></div>
+        </div>
+        <div class="g-card wrong pastel-5" style="--rot:-16deg; left:0%; top:58%; animation-delay:.4s">
+          <div class="g-card-field"></div>
+          <div class="g-card-title-band"><span class="g-card-title">Taxi Driver</span></div>
+        </div>
+        <div class="g-card wrong pastel-6" style="--rot:14deg; right:-2%; top:55%; animation-delay:.5s">
+          <div class="g-card-field"></div>
+          <div class="g-card-title-band"><span class="g-card-title">The Enforcer</span></div>
+        </div>
+        <div class="g-card correct" style="--rot:-3deg; left:14%; top:38%; animation-delay:.62s">
           <span class="g-card-badge">&#9733;</span>
-          <span class="g-card-title">Dirty Harry</span>
+          <div class="g-card-field"></div>
+          <div class="g-card-title-band"><span class="g-card-title">Dirty Harry</span></div>
         </div>
       </div>
     </div>
