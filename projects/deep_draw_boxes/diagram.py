@@ -96,7 +96,7 @@ def _top_panel(ax, width_in, length_in, r2_in, color_hex, nutplate_pattern):
 
 def draw_box(width_in, length_in, height_in, r1_in, r2_in, gauge_in,
              cover_type="none", nutplate_pattern="none", color_hex="#b8bcc0"):
-    fig, axes = plt.subplots(1, 3, figsize=(11, 4.2))
+    fig, axes = plt.subplots(1, 3, figsize=(7.5, 2.7))
     for ax in axes:
         ax.set_aspect("equal")
         ax.axis("off")

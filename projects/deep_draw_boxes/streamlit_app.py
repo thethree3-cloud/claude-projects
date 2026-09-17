@@ -56,7 +56,7 @@ fig = draw_box(
     r1_in=box["r1_in"], r2_in=box["r2_in"], gauge_in=box["gauge_in"],
     cover_type=cover_type, nutplate_pattern=nutplate_pattern,
 )
-st.pyplot(fig)
+st.pyplot(fig, width=650)
 
 quote_col, history_col = st.columns(2)
 

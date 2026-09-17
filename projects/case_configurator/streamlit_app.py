@@ -75,7 +75,7 @@ diagram_col, quote_col = st.columns([2, 1])
 
 with diagram_col:
     fig = draw_case(spec, color_hex=color_hex)
-    st.pyplot(fig)
+    st.pyplot(fig, width=650)
 
 with quote_col:
     st.subheader("Estimated quote")
