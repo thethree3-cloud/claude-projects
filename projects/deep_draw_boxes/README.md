@@ -47,6 +47,7 @@ figure — documented clearly in that module's docstring.
 | `generate_quote_history.py` | Builds a 1,000-row synthetic "historical quote" database (`data/quote_history.db`, gitignored) from the real sample sizes plus random noise. Verified: smallest sampled box (HA050133) averages ~$104, largest (Z452-452) ~$353; every cover type raises the average price over "none." |
 | `quote_lookup.py` | Finds similar historical quotes for a given size and reports an average + confidence score. |
 | `streamlit_app.py` | Pick a real catalog size, height, cover, and nutplate pattern; see a formula quote and a "similar past quotes" comparison side by side. |
+| `branding.py` | Zero Manufacturing header (logo + dark banner, matching the current zerocases.com style) and `st.logo()` sidebar branding. `assets/zero_logo.png` is Zero Cases' own official site icon. |
 | `test_deep_draw_pricing.py` | 15 tests on the cost model. |
 | `test_quote_history.py` | 10 tests on the generator and lookup. |
 

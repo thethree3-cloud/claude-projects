@@ -3,8 +3,10 @@ import streamlit as st
 from pricing import CaseSpec, MATERIAL_THICKNESS_IN, PRICING, compute_quote
 from diagram import draw_case
 from quote_lookup import estimate_from_history, load_quotes
+from branding import render_header
 
 st.set_page_config(page_title="Case configurator", layout="wide")
+render_header("Case Configurator")
 
 FINISH_COLORS = {
     "mill finish": "#b8bcc0",
@@ -16,7 +18,6 @@ FINISH_COLORS = {
 def _load_quote_history():
     return load_quotes()
 
-st.title("Aluminum case configurator")
 st.caption("Pick dimensions and options to see a scaled diagram and an instant quote.")
 
 with st.sidebar:

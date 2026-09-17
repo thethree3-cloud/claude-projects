@@ -4,8 +4,10 @@ from deep_draw_catalog import DEEP_DRAW_BOXES, ALLOY, COVER_TYPES, NUTPLATE_PATT
 from deep_draw_pricing import compute_box_quote
 from diagram import draw_box
 from quote_lookup import estimate_from_history, load_quotes
+from branding import render_header
 
 st.set_page_config(page_title="Deep-draw box configurator", layout="wide")
+render_header("Deep-Draw Box Configurator")
 
 
 @st.cache_data
@@ -13,7 +15,6 @@ def _load_quote_history():
     return load_quotes()
 
 
-st.title("Deep-draw box configurator")
 st.caption(
     "A representative sample of real Zero Manufacturing deep-drawn box sizes "
     "(width, length, height range, gauge) — pick a size, an optional cover, "
