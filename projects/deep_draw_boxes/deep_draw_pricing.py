@@ -87,12 +87,15 @@ def cover_cost(width_in: float, length_in: float, gauge_in: float, cover_type: s
     return material_cost(footprint_sqft, gauge_in, pricing) + pricing["cover_adder"][cover_type]
 
 
+def nutplate_count(width_in: float, length_in: float) -> int:
+    perimeter_in = 2 * (width_in + length_in)
+    return max(4, math.ceil(perimeter_in / 4.0))  # spaced no more than 4" apart
+
+
 def nutplate_cost(width_in: float, length_in: float, pattern: str, pricing: dict = PRICING) -> float:
     if pattern == "none":
         return 0.0
-    perimeter_in = 2 * (width_in + length_in)
-    count = max(4, math.ceil(perimeter_in / 4.0))  # spaced no more than 4" apart
-    return count * pricing["nutplate_each"]
+    return nutplate_count(width_in, length_in) * pricing["nutplate_each"]
 
 
 def compute_box_quote(

@@ -2,6 +2,7 @@ import streamlit as st
 
 from deep_draw_catalog import DEEP_DRAW_BOXES, ALLOY, COVER_TYPES, NUTPLATE_PATTERNS
 from deep_draw_pricing import compute_box_quote
+from diagram import draw_box
 from quote_lookup import estimate_from_history, load_quotes
 
 st.set_page_config(page_title="Deep-draw box configurator", layout="wide")
@@ -49,6 +50,13 @@ st.write(
     f".{str(box['gauge_in']).split('.')[1]}\" gauge, {ALLOY} aluminum "
     f"(catalog page {box['catalog_page']})"
 )
+
+fig = draw_box(
+    width_in=box["width_in"], length_in=box["length_in"], height_in=height_in,
+    r1_in=box["r1_in"], r2_in=box["r2_in"], gauge_in=box["gauge_in"],
+    cover_type=cover_type, nutplate_pattern=nutplate_pattern,
+)
+st.pyplot(fig)
 
 quote_col, history_col = st.columns(2)
 
