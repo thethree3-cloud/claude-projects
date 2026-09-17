@@ -40,6 +40,7 @@ natural place to swap in an image-generation call (see below).
 | `branding.py` | Zero Manufacturing header (logo + dark banner, matching the current zerocases.com style) and `st.logo()` sidebar branding. `assets/zero_logo.png` is Zero Cases' own official site icon. |
 | `test_pricing.py` | Unit tests for the surface area / volume math and the quote formula (14 tests). |
 | `test_quote_history.py` | Unit tests for the catalog-driven data generator and the similarity/confidence lookup (10 tests). |
+| `quote_export.py` | `to_pdf()` — renders the diagram, quote breakdown, and historical comparison into a branded, downloadable PDF (fpdf2, same library/pattern as `10_resume_job_matcher/resume_export.py`). Wired to a "Download quote as PDF" button in the app. |
 
 Note: `pricing.py`'s two material thickness classes (.063"/.090") and its
 aluminum density figure (0.098 lb/in3) also come from the VAL-AN catalog —
@@ -83,7 +84,8 @@ streamlit run streamlit_app.py
   template driven by width/height/depth/color/options) as an
   alternative render mode — kept out of v1 because it costs money per
   render and won't stay dimensionally consistent between renders.
-- No persistence yet for a customer's chosen configuration — each
-  session is a fresh quote. A "save/export this quote as a PDF" step
-  would be the natural next slice if this moves from experiment to
-  something reps actually use.
+- **No persistence across sessions** — each visit starts fresh (though a
+  quote can now be downloaded as a PDF and handed to someone, so it's no
+  longer trapped in the browser tab). Saving/recalling past configurations
+  would be the natural next step if this moves from experiment to
+  something reps use daily.

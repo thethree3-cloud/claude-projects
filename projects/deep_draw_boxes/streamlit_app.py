@@ -5,6 +5,7 @@ from deep_draw_pricing import compute_box_quote
 from diagram import draw_box
 from quote_lookup import estimate_from_history, load_quotes
 from branding import render_header
+from quote_export import to_pdf
 
 st.set_page_config(page_title="Deep-draw box configurator", layout="wide")
 render_header("Deep-Draw Box Configurator")
@@ -84,6 +85,7 @@ with history_col:
     st.caption("Synthetic historical data — see generate_quote_history.py.")
 
     history = _load_quote_history()
+    estimate = None
     if not history:
         st.info("No quote history found. Run `python generate_quote_history.py` to build it.")
     else:
@@ -99,3 +101,13 @@ with history_col:
                 f"(range \\${estimate.min_price:,.2f}\u2013\\${estimate.max_price:,.2f})"
             )
             st.progress(estimate.confidence, text=f"Confidence: {estimate.confidence:.0%}")
+
+st.divider()
+pdf_bytes = to_pdf(part_no, box, height_in, quote, fig, cover_type, nutplate_pattern, estimate=estimate)
+st.download_button(
+    "Download quote as PDF",
+    data=pdf_bytes,
+    file_name=f"zero_box_quote_{part_no}.pdf",
+    mime="application/pdf",
+    icon=":material/download:",
+)

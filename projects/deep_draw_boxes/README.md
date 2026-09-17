@@ -50,6 +50,7 @@ figure — documented clearly in that module's docstring.
 | `branding.py` | Zero Manufacturing header (logo + dark banner, matching the current zerocases.com style) and `st.logo()` sidebar branding. `assets/zero_logo.png` is Zero Cases' own official site icon. |
 | `test_deep_draw_pricing.py` | 15 tests on the cost model. |
 | `test_quote_history.py` | 10 tests on the generator and lookup. |
+| `quote_export.py` | `to_pdf()` — renders the diagram, quote breakdown, and historical comparison into a branded, downloadable PDF (fpdf2, same pattern as `case_configurator/quote_export.py`). Wired to a "Download quote as PDF" button in the app. |
 
 ## Running it
 

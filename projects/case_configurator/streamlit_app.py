@@ -4,6 +4,7 @@ from pricing import CaseSpec, MATERIAL_THICKNESS_IN, PRICING, compute_quote
 from diagram import draw_case
 from quote_lookup import estimate_from_history, load_quotes
 from branding import render_header
+from quote_export import to_pdf
 
 st.set_page_config(page_title="Case configurator", layout="wide")
 render_header("Case Configurator")
@@ -75,23 +76,25 @@ spec = CaseSpec(
 fig = draw_case(spec, color_hex=color_hex)
 st.pyplot(fig, width=900)
 
+label_map = {
+    "material": "Material",
+    "labor": "Fabrication labor",
+    "finish": "Finish upcharge",
+    "handles": "Handles",
+    "bumpers": "Corner bumpers",
+    "foam_interior": "Foam interior",
+    "rack_rails": "Rack rails",
+    "reinforced_opening": "Reinforced opening",
+    "mounting_flanges": "Mounting flanges",
+}
+estimate = None
+
 quote_col, history_col = st.columns(2)
 
 with quote_col:
     st.subheader("Estimated quote")
     quote = compute_quote(spec)
 
-    label_map = {
-        "material": "Material",
-        "labor": "Fabrication labor",
-        "finish": "Finish upcharge",
-        "handles": "Handles",
-        "bumpers": "Corner bumpers",
-        "foam_interior": "Foam interior",
-        "rack_rails": "Rack rails",
-        "reinforced_opening": "Reinforced opening",
-        "mounting_flanges": "Mounting flanges",
-    }
     for key, amount in quote.line_items.items():
         st.write(f"{label_map.get(key, key)}: ${amount:,.2f}")
 
@@ -124,3 +127,13 @@ with history_col:
                 f"(range \\${estimate.min_price:,.2f}\u2013\\${estimate.max_price:,.2f})"
             )
             st.progress(estimate.confidence, text=f"Confidence: {estimate.confidence:.0%}")
+
+st.divider()
+pdf_bytes = to_pdf(spec, quote, fig, label_map, estimate=estimate)
+st.download_button(
+    "Download quote as PDF",
+    data=pdf_bytes,
+    file_name=f"zero_case_quote_{spec.width_in:g}x{spec.height_in:g}x{spec.depth_in:g}.pdf",
+    mime="application/pdf",
+    icon=":material/download:",
+)
