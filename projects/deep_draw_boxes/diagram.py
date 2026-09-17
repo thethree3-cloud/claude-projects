@@ -30,13 +30,15 @@ def _rounded_rect(ax, x, y, w, h, radius, **kwargs):
 def _dim_line(ax, x0, y0, x1, y1, label, offset=0.0, vertical=False):
     ax.annotate(
         "", xy=(x1, y1), xytext=(x0, y0),
-        arrowprops=dict(arrowstyle="<->", color="#555555", lw=1),
+        arrowprops=dict(arrowstyle="<->", color="#444444", lw=1.4),
     )
     mx, my = (x0 + x1) / 2, (y0 + y1) / 2
     if vertical:
-        ax.text(mx + offset, my, label, rotation=90, va="center", ha="center", fontsize=9, color="#333333")
+        ax.text(mx + offset, my, label, rotation=90, va="center", ha="center",
+                 fontsize=13, fontweight="bold", color="#222222")
     else:
-        ax.text(mx, my + offset, label, va="center", ha="center", fontsize=9, color="#333333")
+        ax.text(mx, my + offset, label, va="center", ha="center",
+                 fontsize=13, fontweight="bold", color="#222222")
 
 
 def _elevation_panel(ax, span, height, r2_in, color_hex, cover_type, title):
@@ -60,7 +62,7 @@ def _elevation_panel(ax, span, height, r2_in, color_hex, cover_type, title):
 
     ax.set_xlim(-span * 0.3, span * 1.12)
     ax.set_ylim(-height * 0.3, height * 1.25)
-    ax.set_title(title, fontsize=10, fontweight="bold")
+    ax.set_title(title, fontsize=13, fontweight="bold")
 
 
 def _top_panel(ax, width_in, length_in, r2_in, color_hex, nutplate_pattern):
@@ -91,12 +93,12 @@ def _top_panel(ax, width_in, length_in, r2_in, color_hex, nutplate_pattern):
 
     ax.set_xlim(-width_in * 0.3, width_in * 1.12)
     ax.set_ylim(-length_in * 0.3, length_in * 1.12)
-    ax.set_title("TOP (open)", fontsize=10, fontweight="bold")
+    ax.set_title("TOP (open)", fontsize=13, fontweight="bold")
 
 
 def draw_box(width_in, length_in, height_in, r1_in, r2_in, gauge_in,
              cover_type="none", nutplate_pattern="none", color_hex="#b8bcc0"):
-    fig, axes = plt.subplots(1, 3, figsize=(7.5, 2.7))
+    fig, axes = plt.subplots(1, 3, figsize=(10, 3.6))
     for ax in axes:
         ax.set_aspect("equal")
         ax.axis("off")
@@ -109,7 +111,7 @@ def draw_box(width_in, length_in, height_in, r1_in, r2_in, gauge_in,
     fig.suptitle(
         f'{width_in:g}"W x {length_in:g}"L x {height_in:g}"H  |  {gauge_in:g}" gauge  |  '
         f'R1 {r1_in:g}" / R2 {r2_in:g}"  |  {cover_label}',
-        fontsize=11,
+        fontsize=13,
     )
     fig.tight_layout(rect=[0, 0, 1, 0.93])
     return fig

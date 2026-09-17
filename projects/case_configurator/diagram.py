@@ -109,7 +109,7 @@ def _top_panel(ax, spec: CaseSpec, color_hex: str):
 
 
 def draw_case(spec: CaseSpec, color_hex: str = "#b8bcc0"):
-    fig, axes = plt.subplots(1, 3, figsize=(7.5, 2.7))
+    fig, axes = plt.subplots(1, 3, figsize=(10, 3.6))
     for ax in axes:
         ax.set_aspect("equal")
         ax.axis("off")

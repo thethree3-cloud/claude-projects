@@ -72,11 +72,10 @@ spec = CaseSpec(
     mounting_flanges=mounting_flanges,
 )
 
-diagram_col, quote_col = st.columns([2, 1])
+fig = draw_case(spec, color_hex=color_hex)
+st.pyplot(fig, width=900)
 
-with diagram_col:
-    fig = draw_case(spec, color_hex=color_hex)
-    st.pyplot(fig, width=650)
+quote_col, history_col = st.columns(2)
 
 with quote_col:
     st.subheader("Estimated quote")
@@ -103,7 +102,7 @@ with quote_col:
 
     st.caption("Placeholder pricing — tune the constants in pricing.py against real shop costs.")
 
-    st.divider()
+with history_col:
     st.subheader("Similar past quotes")
     st.caption("Synthetic historical data — see generate_quote_history.py.")
 

@@ -20,13 +20,14 @@ def render_header(subtitle: str) -> None:
 
     logo_b64 = base64.b64encode(LOGO_PATH.read_bytes()).decode()
     st.html(f"""
-    <div style="background:#14171a; padding:14px 22px; border-radius:8px;
-                display:flex; align-items:center; gap:16px; margin-bottom:6px;">
-      <img src="data:image/png;base64,{logo_b64}" style="height:46px; width:46px;">
+    <div style="background:#14171a; padding:22px 32px; border-radius:10px;
+                display:flex; align-items:center; gap:22px; margin-bottom:10px;">
+      <img src="data:image/png;base64,{logo_b64}" style="height:72px; width:72px;">
       <div>
-        <div style="color:#ffffff; font-size:19px; font-weight:700; letter-spacing:0.5px;
+        <div style="color:#ffffff; font-size:32px; font-weight:800; letter-spacing:0.5px;
                     font-family: Arial, Helvetica, sans-serif;">ZERO MANUFACTURING</div>
-        <div style="color:#3ea6e0; font-size:12px; letter-spacing:1.5px; text-transform:uppercase;
+        <div style="color:#5cb8ec; font-size:16px; font-weight:600; letter-spacing:2px;
+                    text-transform:uppercase;
                     font-family: Arial, Helvetica, sans-serif;">{subtitle}</div>
       </div>
     </div>
