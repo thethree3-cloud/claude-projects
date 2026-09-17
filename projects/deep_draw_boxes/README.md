@@ -63,7 +63,10 @@ streamlit run streamlit_app.py
 - **The sample covers ~45 of ~900-1,000 real box SKUs.** It spans the
   full size range evenly, but a lookup for a size between sampled points
   interpolates less precisely than the full table would.
-- **All pricing is placeholder**, same caveat as `case_configurator`.
+- **All pricing is placeholder**, same caveat as `case_configurator`. The
+  nutplate price was re-sourced 2026-09-17 against a real 10-32 floating
+  nutplate ($1.08 each) and lines up closely with the original guess;
+  cover-type adders are still unsourced judgment calls.
 - **Draw count is an engineering approximation**, not a catalog-sourced
   figure — see above.
 - Round Housings, Precision Miniatures, Flanged, and ARINC Style

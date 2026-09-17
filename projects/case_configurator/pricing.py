@@ -19,10 +19,17 @@ Sources checked 2026-09-16:
   metrofoam4u.com) -> used $18/cuft (mid-range, pick-and-pluck complexity).
 - Rubber case bumper feet: ~$0.63-$1.88/piece raw hardware (penn-elcom.com)
   -> used $3.50 each to include mounting labor, not just the part.
-- 19" rack rails and case pull handles: no clean 2026 per-unit figure was
-  found for case-grade (vs. furniture) hardware, so these two remain
-  judgment-call placeholders ($85 flat for a rail pair + mounting labor,
-  $14/handle) -- flag these two specifically if real invoices are available.
+
+Follow-up pass, 2026-09-17 -- Alan asked for closer real numbers on the
+two figures flagged above as pure judgment calls. Found real case-grade
+(not furniture) part prices and recomputed with labor:
+- Case pull handle: Penn Elcom aluminum surface-mount spring-loaded
+  handle, EUR3.15-3.78 (~$3.50-4.10) raw part (penn-elcom.com) + ~10 min
+  mounting labor at $95/hr (~$16) -> used $20.00/handle (was $14, a pure
+  guess with no source).
+- 19" rack rail pair: Thon 10U Studio Rack Strip Set, EUR19.90 (~$21.50)
+  raw parts (thomann.de) + ~30 min labor to drill/tap mounting holes in
+  the case sides (~$47.50) -> used $70.00 flat (was $85, a pure guess).
 
 Material thickness classes (.063"/.090") and the aluminum density figure
 come from a real reference: the Zero Manufacturing VAL-AN Series catalog
@@ -53,10 +60,10 @@ PRICING = {
         "black anodized": 5.00,
         "powder coat (custom color)": 6.00,
     },
-    "handle_each": 14.00,
+    "handle_each": 20.00,
     "bumper_each": 3.50,
     "foam_per_cuft": 18.00,
-    "rack_rails_flat": 85.00,
+    "rack_rails_flat": 70.00,
     "reinforced_opening_flat": 120.00,
     "mounting_flanges_flat": 90.00,
     "markup_pct": 0.35,

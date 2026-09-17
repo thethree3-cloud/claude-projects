@@ -14,8 +14,12 @@ Sources (2026-09-16, same research pass as case_configurator/pricing.py):
   the VAL-AN catalog's own weight formula (case_configurator/pricing.py);
   not re-derived from this catalog since it doesn't publish one.
 - Custom sheet metal fab shop labor: ~$95/hr, same sourced figure.
-- Cover-type and nutplate hardware costs are placeholders (judgment
-  calls, not sourced) -- flag if real invoice numbers become available.
+- Cover-type adders are still placeholders/judgment calls -- flag if real
+  invoice numbers become available.
+- Nutplate hardware, refined 2026-09-17: found a real per-unit price for
+  a 10-32 floating nutplate (MS21059L3K, $1.08 each, military-fasteners.com)
+  that lines up almost exactly with the original $1.25 guess -> updated to
+  $1.10 to track the sourced figure directly.
 
 Draw-count estimate: the catalog states wall thickness depends on "depth
 of draw, number of draws, and net blank thickness" but does NOT publish a
@@ -51,7 +55,7 @@ PRICING = {
         "COL": 9.0,
         "COG": 14.0,
     },
-    "nutplate_each": 1.25,  # hardware + installation, placeholder
+    "nutplate_each": 1.10,  # MS21059L3K real part price, $1.08 -- see docstring
 }
 
 

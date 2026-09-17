@@ -7,24 +7,31 @@ hinges, and a pressure-relief valve, plus a small adder for instrument-type
 cases (which always carry feet on the bottom AND rear, per the catalog's
 CASE TYPES note, vs. combination/transit cases which often don't).
 
-Hardware sources checked 2026-09-16 (all placeholders, not real invoices):
+Hardware sources checked 2026-09-16, refined 2026-09-17 (still placeholders,
+not real Zerocases invoices, but now grounded in real product prices):
 - Spring-loaded draw latches: ~$0.81-$14/each depending on grade
   (sugatsune.com, amazon) -> used $9.00 each (mid-range, mil-spec grade).
-- Case hinges: no clean small-hinge-each price was found (most listings are
-  continuous hinge sold by the foot) -> used $6.00 each as a judgment call.
-- Automatic vs. manual pressure relief valve: no source found for the price
-  delta -> used a $15 flat adder for automatic, a judgment call.
+- Case hinges: no exact case-hinge-each price was found (most case hinge
+  listings are continuous hinge sold by the foot); closest comparable is a
+  small aluminum butt hinge w/ mounting hardware at $7.45 (fazstore.ca,
+  McMaster-equivalent part) -> used $8.00 each, up from a $6 pure guess.
+  Flagged: this comparable is a T-slot-framing hinge, not a case hinge, so
+  still worth replacing with a real invoice number.
+- Automatic vs. manual pressure relief valve: real retail prices found for
+  SKB case valves -- automatic (3SKB-V5) $44.99, manual (3SKB-V12) $19.99
+  (specialtycases.com) -> used the $25.00 delta directly, up from an
+  unsourced $15 guess.
 - Instrument case type (feet on bottom AND rear vs. combination/transit's
   conditional feet, per the catalog's CASE TYPES note): a $25 flat adder
-  for the extra feet/hardware, a judgment call.
+  for the extra feet/hardware, still a judgment call -- no source found.
 """
 
 from pricing import PRICING, surface_area_sqft, material_cost, labor_cost
 
 VALAN_PRICING = {
     "latch_each": 9.00,
-    "hinge_each": 6.00,
-    "valve_automatic_adder": 15.00,
+    "hinge_each": 8.00,
+    "valve_automatic_adder": 25.00,
     "instrument_case_adder": 25.00,
 }
 

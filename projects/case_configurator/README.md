@@ -30,7 +30,7 @@ natural place to swap in an image-generation call (see below).
 
 | File | What it does |
 | --- | --- |
-| `pricing.py` | `CaseSpec` (the configuration) and `compute_quote()` — material cost is physics-based (surface area x thickness x aluminum density x $/lb, so thickness genuinely drives cost), labor is hours-based (setup + area + `num_draws`, the number of forming/bend operations, x shop rate), plus finish upcharge and flat/per-unit option costs, then a markup percentage. All dollar figures live in the `PRICING` dict and are grounded in 2026 market research (sources in the module docstring) but are **still placeholders**, not actual Zerocases costs — see the docstring for which figures are well-sourced vs. judgment calls (rack rails and handle hardware specifically). |
+| `pricing.py` | `CaseSpec` (the configuration) and `compute_quote()` — material cost is physics-based (surface area x thickness x aluminum density x $/lb, so thickness genuinely drives cost), labor is hours-based (setup + area + `num_draws`, the number of forming/bend operations, x shop rate), plus finish upcharge and flat/per-unit option costs, then a markup percentage. All dollar figures live in the `PRICING` dict and are grounded in 2026 market research (sources in the module docstring, refined 2026-09-17) but are **still placeholders**, not actual Zerocases costs. |
 | `diagram.py` | `draw_case()` — draws front/side/top-down views to scale from a `CaseSpec`, including reinforced-opening border, corner bumpers, welded flanges with bolt holes, a handle icon, and rack rails, matching the style of the original reference sheet. |
 | `valan_catalog.py` | **Real** dimension/thickness/hardware data for all 52 case sizes, transcribed from a customer-provided PDF (Zero Manufacturing's VAL-AN Series catalog: width, length, material gauge, the case-height range each size allows, and the handle/latch/hinge counts used in that size's own worked ordering example). |
 | `valan_pricing.py` | `compute_valan_price()` — the real catalog's hardware (latches, hinges, an automatic/manual pressure-relief valve, an instrument-case adder for the extra feet that case type always carries) layered on top of `pricing.py`'s already-sourced material/labor costs. Latch/hinge/valve/case-type dollar figures are placeholders (sources and gaps noted in the docstring) — real invoice numbers would slot in here directly. |
@@ -57,9 +57,11 @@ streamlit run streamlit_app.py
 ## Known limitations / next steps
 
 - **Pricing is a research-grounded formula, not real shop costs.** Before
-  this quotes a real customer, replace the constants in `PRICING` (and
-  the two weakest-sourced figures — rack rails and handles — with real
-  invoice numbers if available).
+  this quotes a real customer, replace the constants in `PRICING` with real
+  invoice numbers. Handles and rack rails (originally pure guesses) were
+  re-sourced 2026-09-17 against real case-grade hardware prices (Penn Elcom,
+  Thon rack strips) — still not real invoices, but closer than before.
+  `valan_pricing.py`'s hinge and valve figures got the same pass.
 - **The quote-history prices are still fake**, even though the
   dimensions/thickness/hardware counts they're computed from are now real
   (the VAL-AN catalog). If Zerocases' actual past quotes become available,
