@@ -58,6 +58,18 @@ class TestCostComponents(unittest.TestCase):
     def test_no_nutplates_costs_nothing(self):
         self.assertEqual(nutplate_cost(10, 10, "none"), 0.0)
 
+    def test_mill_finish_costs_nothing(self):
+        quote = compute_box_quote(width_in=10, length_in=10, height_in=5, gauge_in=0.063)
+        self.assertEqual(quote["line_items"]["finish"], 0.0)
+
+    def test_powder_coat_costs_more_than_mill_finish(self):
+        mill = compute_box_quote(width_in=10, length_in=10, height_in=5, gauge_in=0.063, finish="mill finish")
+        coated = compute_box_quote(
+            width_in=10, length_in=10, height_in=5, gauge_in=0.063,
+            finish="powder coat (custom color)",
+        )
+        self.assertGreater(coated["total"], mill["total"])
+
     def test_bigger_perimeter_needs_more_nutplates(self):
         self.assertGreater(nutplate_cost(30, 30, "AA"), nutplate_cost(3, 3, "AA"))
 

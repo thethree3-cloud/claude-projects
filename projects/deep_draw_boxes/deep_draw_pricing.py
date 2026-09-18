@@ -35,7 +35,6 @@ draw-ratio table.
 import math
 
 ALUMINUM_DENSITY_LB_PER_IN3 = 0.098
-ALLOY = "6061-0"
 
 PRICING = {
     "aluminum_per_lb": 4.00,
@@ -56,6 +55,14 @@ PRICING = {
         "COG": 14.0,
     },
     "nutplate_each": 1.10,  # MS21059L3K real part price, $1.08 -- see docstring
+    # Same sourced figures as case_configurator/pricing.py (powder coating,
+    # custom small-run job shop, ~$8-45/sqft-equivalent once labor/setup/
+    # masking are folded in -- universalpowdercoating.com -> $6.00/sqft).
+    "finish_per_sqft": {
+        "mill finish": 0.0,
+        "black anodized": 5.00,
+        "powder coat (custom color)": 6.00,
+    },
 }
 
 
@@ -109,6 +116,7 @@ def compute_box_quote(
     gauge_in: float,
     cover_type: str = "none",
     nutplate_pattern: str = "none",
+    finish: str = "mill finish",
     pricing: dict = PRICING,
 ) -> dict:
     if width_in <= 0 or length_in <= 0 or height_in <= 0:
@@ -120,6 +128,7 @@ def compute_box_quote(
     items = {
         "material": material_cost(area, gauge_in, pricing),
         "labor": labor_cost(area, num_draws, pricing),
+        "finish": area * pricing["finish_per_sqft"][finish],
     }
     cover = cover_cost(width_in, length_in, gauge_in, cover_type, pricing)
     if cover:
