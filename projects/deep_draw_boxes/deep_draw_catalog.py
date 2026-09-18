@@ -14,7 +14,7 @@ range say "See page 56/57/58" and point to separate mini-series tables
 (ZMR, ZMS, etc.) with a different schema entirely -- coded material
 thickness (A/B/C) instead of a direct gauge, a single combined corner
 radius instead of separate R1/R2, and several possible alloys per code
-(steel/aluminum/brass/Monel). Per 2026-09-17 scoping with Alan, those
+(steel/aluminum/brass/mu-metal). Per 2026-09-17 scoping with Alan, those
 cross-referenced mini-series are out of scope for this pass; only rows
 with a direct part number, gauge, and R1/R2 inline on the main
 Rectangular Boxes table are included here. That's still every such row
@@ -981,7 +981,7 @@ NUTPLATE_PATTERNS = ["none", "AA", "BB", "CC", "DD", "EE", "FF", "GG", "HH", "JJ
 #   gauge depending on which material it's drawn in -- see
 #   mini_series_pricing.MATERIAL_THICKNESS_CODE for the A/B/C -> gauge
 #   table and mini_series_pricing.MATERIALS for the sourced pricing of
-#   each material (steel/aluminum/brass/Monel).
+#   each material (steel/aluminum/brass/mu-metal).
 # - gauge_override_in: set (and material_code is None) for the few rows
 #   the catalog flags "Special Gauge" with a literal thickness instead of
 #   a code. Alloy density/price still comes from whichever material the
@@ -1115,4 +1115,281 @@ ZMR_BOXES = [
     {"part_no": "ZMR-256-300", "width_in": 2.560, "length_in": 3.000, "max_depth_in": 0.810, "material_code": "B", "gauge_override_in": None, "r1_in": 0.03125, "r2_in": 0.03125, "catalog_page": 58},
     {"part_no": "ZMR-325-375", "width_in": 3.250, "length_in": 3.750, "max_depth_in": 1.000, "material_code": "C", "gauge_override_in": None, "r1_in": 0.125, "r2_in": 0.125, "catalog_page": 58},
     {"part_no": "ZMR-393-462", "width_in": 3.938, "length_in": 4.625, "max_depth_in": 0.562, "material_code": "B", "gauge_override_in": None, "r1_in": 0.125, "r2_in": 0.125, "catalog_page": 58},
+]
+
+# --- ZMC circular miniature series -----------------------------------------
+# Transcribed 2026-09-19 from printed catalog page 59, the third
+# sub-series of "Precision Miniature Enclosures" alongside ZMS (square)
+# and ZMR (rectangular) above -- confirmed by the section's own general
+# info page (catalog page 54), which explicitly lists "page 59 for
+# Circular ZMC Series" and was only reached after ZMS/ZMR had already
+# been built (an earlier pass had mislabeled the "MU" material code as
+# Monel before reaching that page's glossary -- see
+# mini_series_pricing.py's docstring for the correction).
+#
+# Round shape instead of square/rectangular: one outside diameter, one
+# combined bottom radius (no separate R1/R2, no width/length), otherwise
+# the same schema as ZMR/ZMS -- a material thickness code (A/B/C) or a
+# literal gauge override for a few "Special Gauge" rows, and a fixed max
+# height with no published minimum. One ambiguous "A/B" code
+# (ZMC-212) is treated as "A", matching ZMR-094-112's precedent.
+#
+# ZMC-170's bottom radius is transcribed exactly as printed -- "1/6"
+# (0.1667"), confirmed at 8x zoom to be genuine ink, not a smudge for
+# "1/16". It's an outlier next to its neighbors (a 1.7"-diameter can with
+# a bigger radius than several 3"+ diameter cans), so it's very likely a
+# source typo, but kept as printed rather than silently corrected -- the
+# same call made for the main series' ZT72-128A (R2 "0.172").
+
+ZMC_BOXES = [
+    {"part_no": "ZMC-037", "diameter_in": 0.375, "max_depth_in": 0.830, "material_code": None, "gauge_override_in": 0.020, "r1_in": 0.03125, "catalog_page": 59},
+    {"part_no": "ZMC-056", "diameter_in": 0.562, "max_depth_in": 1.875, "material_code": None, "gauge_override_in": 0.012, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-062", "diameter_in": 0.625, "max_depth_in": 2.250, "material_code": None, "gauge_override_in": 0.012, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-065", "diameter_in": 0.656, "max_depth_in": 2.625, "material_code": None, "gauge_override_in": 0.012, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-075", "diameter_in": 0.750, "max_depth_in": 2.625, "material_code": None, "gauge_override_in": 0.012, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-081", "diameter_in": 0.812, "max_depth_in": 1.875, "material_code": "A", "gauge_override_in": None, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-084", "diameter_in": 0.844, "max_depth_in": 1.750, "material_code": "A", "gauge_override_in": None, "r1_in": 0.078125, "catalog_page": 59},
+    {"part_no": "ZMC-087", "diameter_in": 0.875, "max_depth_in": 1.875, "material_code": "A", "gauge_override_in": None, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-091", "diameter_in": 0.910, "max_depth_in": 0.850, "material_code": "A", "gauge_override_in": None, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-093", "diameter_in": 0.930, "max_depth_in": 1.625, "material_code": "A", "gauge_override_in": None, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-095", "diameter_in": 0.950, "max_depth_in": 1.625, "material_code": "A", "gauge_override_in": None, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-097", "diameter_in": 0.975, "max_depth_in": 1.750, "material_code": "B", "gauge_override_in": None, "r1_in": 0.078125, "catalog_page": 59},
+    {"part_no": "ZMC-100", "diameter_in": 1.000, "max_depth_in": 2.125, "material_code": "A", "gauge_override_in": None, "r1_in": 0.078125, "catalog_page": 59},
+    {"part_no": "ZMC-106", "diameter_in": 1.062, "max_depth_in": 2.750, "material_code": "A", "gauge_override_in": None, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-112", "diameter_in": 1.125, "max_depth_in": 2.000, "material_code": "A", "gauge_override_in": None, "r1_in": 0.078125, "catalog_page": 59},
+    {"part_no": "ZMC-117", "diameter_in": 1.172, "max_depth_in": 1.875, "material_code": "A", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-118", "diameter_in": 1.187, "max_depth_in": 2.250, "material_code": "A", "gauge_override_in": None, "r1_in": 0.078125, "catalog_page": 59},
+    {"part_no": "ZMC-123", "diameter_in": 1.232, "max_depth_in": 1.625, "material_code": None, "gauge_override_in": 0.016, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-125", "diameter_in": 1.250, "max_depth_in": 2.250, "material_code": "A", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-125A", "diameter_in": 1.250, "max_depth_in": 3.000, "material_code": "C", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-131", "diameter_in": 1.312, "max_depth_in": 3.000, "material_code": "A", "gauge_override_in": None, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-132", "diameter_in": 1.320, "max_depth_in": 3.000, "material_code": "A", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-137", "diameter_in": 1.375, "max_depth_in": 2.187, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-143", "diameter_in": 1.437, "max_depth_in": 2.750, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-145", "diameter_in": 1.453, "max_depth_in": 1.875, "material_code": "A", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-147", "diameter_in": 1.468, "max_depth_in": 1.750, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-150", "diameter_in": 1.500, "max_depth_in": 2.500, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-156", "diameter_in": 1.562, "max_depth_in": 2.500, "material_code": "A", "gauge_override_in": None, "r1_in": 0.078125, "catalog_page": 59},
+    {"part_no": "ZMC-160", "diameter_in": 1.600, "max_depth_in": 3.250, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-162", "diameter_in": 1.625, "max_depth_in": 3.250, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-168", "diameter_in": 1.687, "max_depth_in": 2.500, "material_code": "C", "gauge_override_in": None, "r1_in": 0.125, "catalog_page": 59},
+    {"part_no": "ZMC-170", "diameter_in": 1.700, "max_depth_in": 2.500, "material_code": "B", "gauge_override_in": None, "r1_in": 0.1667, "catalog_page": 59},
+    {"part_no": "ZMC-175", "diameter_in": 1.750, "max_depth_in": 2.750, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-182", "diameter_in": 1.820, "max_depth_in": 2.900, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-184", "diameter_in": 1.840, "max_depth_in": 2.125, "material_code": "A", "gauge_override_in": None, "r1_in": 0.125, "catalog_page": 59},
+    {"part_no": "ZMC-200", "diameter_in": 2.000, "max_depth_in": 3.500, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-200A", "diameter_in": 2.000, "max_depth_in": 1.125, "material_code": None, "gauge_override_in": 0.040, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-206", "diameter_in": 2.062, "max_depth_in": 3.875, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-211", "diameter_in": 2.109, "max_depth_in": 2.500, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+    {"part_no": "ZMC-212", "diameter_in": 2.125, "max_depth_in": 2.500, "material_code": "A", "gauge_override_in": None, "r1_in": 0.125, "catalog_page": 59},
+    {"part_no": "ZMC-220", "diameter_in": 2.203, "max_depth_in": 2.250, "material_code": "B", "gauge_override_in": None, "r1_in": 0.0625, "catalog_page": 59},
+    {"part_no": "ZMC-237", "diameter_in": 2.375, "max_depth_in": 2.125, "material_code": "B", "gauge_override_in": None, "r1_in": 0.125, "catalog_page": 59},
+    {"part_no": "ZMC-295", "diameter_in": 2.950, "max_depth_in": 3.125, "material_code": "C", "gauge_override_in": None, "r1_in": 0.16, "catalog_page": 59},
+    {"part_no": "ZMC-325", "diameter_in": 3.250, "max_depth_in": 2.125, "material_code": None, "gauge_override_in": 0.050, "r1_in": 0.1875, "catalog_page": 59},
+    {"part_no": "ZMC-337", "diameter_in": 3.375, "max_depth_in": 1.125, "material_code": "B", "gauge_override_in": None, "r1_in": 0.09375, "catalog_page": 59},
+]
+
+# --- Round Housings ----------------------------------------------------
+# Transcribed 2026-09-19 from printed catalog pages 31-36 (PDF pages
+# 33-38), the same rendered-page-image method as the main table. A
+# separate top-level catalog section from the Rectangular Boxes table
+# above and from "Precision Miniature Enclosures" -- cylindrical shells
+# (round OD instead of W x L, one bottom radius instead of R1/R2), priced
+# directly by gauge + alloy like the main series (not a material-code
+# table like ZMR/ZMS/ZMC).
+#
+# Like the main table's "See page 55/56/57/58", most diameters below
+# ~1.8" route to "See page 59" (the ZMC mini-series) instead of carrying
+# their own data; those rows are skipped here since ZMC already covers
+# them, same call as the main series' own cross-references.
+#
+# The catalog offers a second "Special" construction (an angle-beveled
+# base -- angle A and inset X -- instead of a uniform bottom radius R1),
+# shown in the Bottom Radius column as e.g. "30 x .31". Those rows (a
+# handful, scattered through the larger-diameter pages) are excluded
+# from this pass -- they'd need a different diagram (a beveled, not
+# rounded, base) that isn't built here. Only the "Standard" (uniform R1)
+# rows are included.
+#
+# height_max_in is a MAXIMUM ONLY -- like ZMR/ZMS/ZMC, the catalog
+# publishes no minimum ("available in any height up to the maximum
+# height listed"), so there's no adjustable height range for these.
+#
+# Alloy is 6061-0 for every row but one (a 3003-0 exception, matching
+# the main series' own single 3003-0 outlier) -- priced the same as
+# 6061 aluminum regardless, the same simplification already used for
+# that main-series row (see deep_draw_pricing.material_cost).
+
+ROUND_HOUSINGS = [
+    {"part_no": "ZR14A", "diameter_in": 0.87, "height_max_in": 1.25, "gauge_in": 0.020, "alloy": "6061-0", "r1_in": 0.02, "catalog_page": 31},
+    {"part_no": "ZR16A", "diameter_in": 1.02, "height_max_in": 1.00, "gauge_in": 0.025, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 31},
+    {"part_no": "ZR20A", "diameter_in": 1.22, "height_max_in": 0.81, "gauge_in": 0.025, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 31},
+    {"part_no": "HR013132", "diameter_in": 1.31, "height_max_in": 1.25, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.14, "catalog_page": 31},
+    {"part_no": "HR013740", "diameter_in": 1.38, "height_max_in": 3.00, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.04, "catalog_page": 31},
+    {"part_no": "ZR25A", "diameter_in": 1.53, "height_max_in": 2.50, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 31},
+    {"part_no": "ZR26A", "diameter_in": 1.62, "height_max_in": 2.50, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 31},
+    {"part_no": "HR016663", "diameter_in": 1.65, "height_max_in": 1.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.13, "catalog_page": 31},
+    {"part_no": "ZR27A", "diameter_in": 1.72, "height_max_in": 1.62, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.09, "catalog_page": 31},
+    {"part_no": "ZR28A", "diameter_in": 1.75, "height_max_in": 2.37, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 31},
+    {"part_no": "ZR28B", "diameter_in": 1.75, "height_max_in": 1.25, "gauge_in": 0.025, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 31},
+    {"part_no": "ZTR30A", "diameter_in": 1.87, "height_max_in": 3.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.12, "catalog_page": 32},
+    {"part_no": "ZR31A", "diameter_in": 1.91, "height_max_in": 1.56, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.12, "catalog_page": 32},
+    {"part_no": "ZTR31B", "diameter_in": 1.92, "height_max_in": 5.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.09, "catalog_page": 32},
+    {"part_no": "HR019932", "diameter_in": 2.00, "height_max_in": 4.50, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.20, "catalog_page": 32},
+    {"part_no": "ZR32A", "diameter_in": 2.00, "height_max_in": 2.00, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 32},
+    {"part_no": "ZR32B", "diameter_in": 2.00, "height_max_in": 2.62, "gauge_in": 0.025, "alloy": "6061-0", "r1_in": 0.09, "catalog_page": 32},
+    {"part_no": "ZR33A", "diameter_in": 2.06, "height_max_in": 1.12, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.12, "catalog_page": 32},
+    {"part_no": "ZTR33B", "diameter_in": 2.08, "height_max_in": 1.50, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.12, "catalog_page": 32},
+    {"part_no": "ZR34A", "diameter_in": 2.12, "height_max_in": 1.12, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.12, "catalog_page": 32},
+    {"part_no": "ZR34B", "diameter_in": 2.13, "height_max_in": 0.87, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 32},
+    {"part_no": "ZR34C", "diameter_in": 2.13, "height_max_in": 1.75, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 32},
+    {"part_no": "ZR35A", "diameter_in": 2.20, "height_max_in": 3.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.22, "catalog_page": 32},
+    {"part_no": "ZTR35B", "diameter_in": 2.22, "height_max_in": 2.25, "gauge_in": 0.025, "alloy": "3003-0", "r1_in": 0.05, "catalog_page": 32},
+    {"part_no": "HR022432", "diameter_in": 2.25, "height_max_in": 4.50, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.13, "catalog_page": 32},
+    {"part_no": "HR022532", "diameter_in": 2.25, "height_max_in": 5.25, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.23, "catalog_page": 32},
+    {"part_no": "HR023140", "diameter_in": 2.31, "height_max_in": 3.75, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 32},
+    {"part_no": "ZTR37A", "diameter_in": 2.33, "height_max_in": 3.25, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 32},
+    {"part_no": "ZTR38A", "diameter_in": 2.37, "height_max_in": 3.00, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 32},
+    {"part_no": "ZR38C", "diameter_in": 2.38, "height_max_in": 4.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 32},
+    {"part_no": "ZTR38B", "diameter_in": 2.39, "height_max_in": 2.25, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 32},
+    {"part_no": "ZR39A", "diameter_in": 2.44, "height_max_in": 2.063, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.37, "catalog_page": 32},
+    {"part_no": "ZTR39B", "diameter_in": 2.48, "height_max_in": 2.50, "gauge_in": 0.020, "alloy": "6061-0", "r1_in": 0.12, "catalog_page": 32},
+    {"part_no": "ZR40A", "diameter_in": 2.50, "height_max_in": 6.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 32},
+    {"part_no": "ZR40B", "diameter_in": 2.50, "height_max_in": 4.00, "gauge_in": 0.025, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 32},
+    {"part_no": "ZTR40C", "diameter_in": 2.50, "height_max_in": 4.00, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.11, "catalog_page": 32},
+    {"part_no": "HR025150", "diameter_in": 2.50, "height_max_in": 8.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.27, "catalog_page": 32},
+    {"part_no": "ZR40D", "diameter_in": 2.50, "height_max_in": 9.75, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 32},
+    {"part_no": "ZTR41", "diameter_in": 2.59, "height_max_in": 2.62, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 32},
+    {"part_no": "ZTR42A", "diameter_in": 2.62, "height_max_in": 3.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 32},
+    {"part_no": "HR026750", "diameter_in": 2.67, "height_max_in": 1.75, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 32},
+    {"part_no": "ZTR44A", "diameter_in": 2.75, "height_max_in": 5.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 33},
+    {"part_no": "HR028340", "diameter_in": 2.83, "height_max_in": 1.50, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 33},
+    {"part_no": "HR028732", "diameter_in": 2.87, "height_max_in": 4.00, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.14, "catalog_page": 33},
+    {"part_no": "HR029240", "diameter_in": 2.92, "height_max_in": 1.63, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 33},
+    {"part_no": "HR029463", "diameter_in": 2.94, "height_max_in": 1.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.13, "catalog_page": 33},
+    {"part_no": "HR029832", "diameter_in": 2.98, "height_max_in": 6.50, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 33},
+    {"part_no": "HR030063", "diameter_in": 3.00, "height_max_in": 5.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 33},
+    {"part_no": "HR029932", "diameter_in": 3.00, "height_max_in": 3.25, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.27, "catalog_page": 33},
+    {"part_no": "ZR48A", "diameter_in": 3.00, "height_max_in": 2.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 33},
+    {"part_no": "ZTR48B", "diameter_in": 3.00, "height_max_in": 6.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 33},
+    {"part_no": "ZTR48C", "diameter_in": 3.00, "height_max_in": 3.00, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.09, "catalog_page": 33},
+    {"part_no": "ZTR49A", "diameter_in": 3.06, "height_max_in": 3.38, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.09, "catalog_page": 33},
+    {"part_no": "HR030932", "diameter_in": 3.09, "height_max_in": 3.50, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.23, "catalog_page": 33},
+    {"part_no": "HR031132", "diameter_in": 3.12, "height_max_in": 7.00, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.22, "catalog_page": 33},
+    {"part_no": "HR031250", "diameter_in": 3.12, "height_max_in": 1.25, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.16, "catalog_page": 33},
+    {"part_no": "HRA31250", "diameter_in": 3.12, "height_max_in": 6.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 33},
+    {"part_no": "HR031263", "diameter_in": 3.12, "height_max_in": 5.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.38, "catalog_page": 33},
+    {"part_no": "ZR52A", "diameter_in": 3.25, "height_max_in": 5.25, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 33},
+    {"part_no": "HR032550", "diameter_in": 3.25, "height_max_in": 6.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 33},
+    {"part_no": "HR032750", "diameter_in": 3.27, "height_max_in": 2.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.13, "catalog_page": 33},
+    {"part_no": "HR033550", "diameter_in": 3.35, "height_max_in": 4.25, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 33},
+    {"part_no": "HR033763", "diameter_in": 3.38, "height_max_in": 2.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.28, "catalog_page": 33},
+    {"part_no": "HR034363", "diameter_in": 3.43, "height_max_in": 2.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 33},
+    {"part_no": "ZR55", "diameter_in": 3.44, "height_max_in": 3.75, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 33},
+    {"part_no": "ZR56A", "diameter_in": 3.48, "height_max_in": 3.87, "gauge_in": 0.071, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 33},
+    {"part_no": "ZR56B", "diameter_in": 3.48, "height_max_in": 2.25, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 33},
+    {"part_no": "ZR56C", "diameter_in": 3.50, "height_max_in": 3.46, "gauge_in": 0.090, "alloy": "6061-0", "r1_in": 0.38, "catalog_page": 33},
+    {"part_no": "HR035040", "diameter_in": 3.50, "height_max_in": 2.50, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 33},
+    {"part_no": "HR035063", "diameter_in": 3.50, "height_max_in": 12.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 33},
+    {"part_no": "ZR57A", "diameter_in": 3.52, "height_max_in": 4.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 34},
+    {"part_no": "HR035750", "diameter_in": 3.57, "height_max_in": 7.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 34},
+    {"part_no": "ZR59A", "diameter_in": 3.70, "height_max_in": 2.62, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 34},
+    {"part_no": "ZR59B", "diameter_in": 3.70, "height_max_in": 3.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.09, "catalog_page": 34},
+    {"part_no": "HR037240", "diameter_in": 3.72, "height_max_in": 2.00, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.14, "catalog_page": 34},
+    {"part_no": "HR038063", "diameter_in": 3.80, "height_max_in": 6.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 34},
+    {"part_no": "HR038550", "diameter_in": 3.85, "height_max_in": 2.25, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 34},
+    {"part_no": "ZR62", "diameter_in": 3.86, "height_max_in": 2.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 34},
+    {"part_no": "HR039050", "diameter_in": 3.90, "height_max_in": 5.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 34},
+    {"part_no": "HR039250", "diameter_in": 3.92, "height_max_in": 2.75, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 34},
+    {"part_no": "HR039890", "diameter_in": 3.98, "height_max_in": 2.00, "gauge_in": 0.090, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 34},
+    {"part_no": "ZR64A", "diameter_in": 4.00, "height_max_in": 4.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.37, "catalog_page": 34},
+    {"part_no": "ZR64B", "diameter_in": 4.00, "height_max_in": 3.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 34},
+    {"part_no": "ZTR64C", "diameter_in": 4.00, "height_max_in": 4.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 34},
+    {"part_no": "ZTR64D", "diameter_in": 4.00, "height_max_in": 6.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 34},
+    {"part_no": "ZTR64E", "diameter_in": 4.00, "height_max_in": 6.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.09, "catalog_page": 34},
+    {"part_no": "ZR64F", "diameter_in": 4.00, "height_max_in": 4.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 34},
+    {"part_no": "HR040032", "diameter_in": 4.00, "height_max_in": 2.25, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.28, "catalog_page": 34},
+    {"part_no": "HR040050", "diameter_in": 4.00, "height_max_in": 6.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.47, "catalog_page": 34},
+    {"part_no": "HR040363", "diameter_in": 4.03, "height_max_in": 6.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.47, "catalog_page": 34},
+    {"part_no": "ZTR66A", "diameter_in": 4.16, "height_max_in": 4.50, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 34},
+    {"part_no": "ZTR66B", "diameter_in": 4.16, "height_max_in": 5.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 34},
+    {"part_no": "ZR67A", "diameter_in": 4.19, "height_max_in": 3.50, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.37, "catalog_page": 34},
+    {"part_no": "ZR67B", "diameter_in": 4.19, "height_max_in": 4.75, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.37, "catalog_page": 34},
+    {"part_no": "ZTR68A", "diameter_in": 4.26, "height_max_in": 3.25, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.09, "catalog_page": 34},
+    {"part_no": "ZR69A", "diameter_in": 4.30, "height_max_in": 3.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.27, "catalog_page": 34},
+    {"part_no": "HR043240", "diameter_in": 4.32, "height_max_in": 2.75, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.27, "catalog_page": 34},
+    {"part_no": "HR043250", "diameter_in": 4.32, "height_max_in": 9.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.23, "catalog_page": 34},
+    {"part_no": "ZR71", "diameter_in": 4.33, "height_max_in": 9.00, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.20, "catalog_page": 34},
+    {"part_no": "ZR70", "diameter_in": 4.37, "height_max_in": 5.80, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.20, "catalog_page": 34},
+    {"part_no": "HR044563", "diameter_in": 4.45, "height_max_in": 9.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.38, "catalog_page": 34},
+    {"part_no": "HR044840", "diameter_in": 4.48, "height_max_in": 3.00, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 34},
+    {"part_no": "ZR72A", "diameter_in": 4.50, "height_max_in": 1.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.12, "catalog_page": 35},
+    {"part_no": "ZTR72B", "diameter_in": 4.50, "height_max_in": 3.25, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 35},
+    {"part_no": "HR045063", "diameter_in": 4.50, "height_max_in": 3.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 35},
+    {"part_no": "HR045750", "diameter_in": 4.58, "height_max_in": 5.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.41, "catalog_page": 35},
+    {"part_no": "HR045850", "diameter_in": 4.58, "height_max_in": 8.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.44, "catalog_page": 35},
+    {"part_no": "HR046032", "diameter_in": 4.60, "height_max_in": 2.00, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 35},
+    {"part_no": "HR046050", "diameter_in": 4.60, "height_max_in": 9.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.28, "catalog_page": 35},
+    {"part_no": "HR046063", "diameter_in": 4.60, "height_max_in": 8.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.44, "catalog_page": 35},
+    {"part_no": "ZR73A", "diameter_in": 4.61, "height_max_in": 4.75, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.06, "catalog_page": 35},
+    {"part_no": "ZR74", "diameter_in": 4.66, "height_max_in": 6.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.28, "catalog_page": 35},
+    {"part_no": "HR047563", "diameter_in": 4.75, "height_max_in": 2.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.38, "catalog_page": 35},
+    {"part_no": "HR048850", "diameter_in": 4.88, "height_max_in": 4.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.44, "catalog_page": 35},
+    {"part_no": "HR049063", "diameter_in": 4.90, "height_max_in": 4.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.44, "catalog_page": 35},
+    {"part_no": "HR049132", "diameter_in": 4.91, "height_max_in": 8.25, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 35},
+    {"part_no": "HR049040", "diameter_in": 4.91, "height_max_in": 5.00, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.34, "catalog_page": 35},
+    {"part_no": "ZTR78A", "diameter_in": 4.91, "height_max_in": 3.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.14, "catalog_page": 35},
+    {"part_no": "HR049240", "diameter_in": 4.92, "height_max_in": 4.25, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.34, "catalog_page": 35},
+    {"part_no": "HR049450", "diameter_in": 4.94, "height_max_in": 8.25, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 35},
+    {"part_no": "HR049432", "diameter_in": 4.94, "height_max_in": 3.50, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 35},
+    {"part_no": "HR049663", "diameter_in": 4.96, "height_max_in": 4.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 35},
+    {"part_no": "HR049932", "diameter_in": 4.99, "height_max_in": 3.00, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 35},
+    {"part_no": "ZTR81B", "diameter_in": 5.04, "height_max_in": 6.75, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.22, "catalog_page": 35},
+    {"part_no": "HR050532", "diameter_in": 5.05, "height_max_in": 3.00, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.23, "catalog_page": 35},
+    {"part_no": "ZR81A", "diameter_in": 5.08, "height_max_in": 4.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.37, "catalog_page": 35},
+    {"part_no": "ZTR82", "diameter_in": 5.11, "height_max_in": 4.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 35},
+    {"part_no": "ZR85", "diameter_in": 5.28, "height_max_in": 2.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.09, "catalog_page": 35},
+    {"part_no": "ZTR88A", "diameter_in": 5.50, "height_max_in": 4.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.19, "catalog_page": 35},
+    {"part_no": "HRA55050", "diameter_in": 5.50, "height_max_in": 7.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 35},
+    {"part_no": "HR055050", "diameter_in": 5.50, "height_max_in": 3.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 35},
+    {"part_no": "HR055763", "diameter_in": 5.57, "height_max_in": 4.25, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.44, "catalog_page": 35},
+    {"part_no": "HR055732", "diameter_in": 5.58, "height_max_in": 2.25, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.28, "catalog_page": 35},
+    {"part_no": "HR056050", "diameter_in": 5.60, "height_max_in": 5.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 35},
+    {"part_no": "HR056063", "diameter_in": 5.60, "height_max_in": 6.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.38, "catalog_page": 35},
+    {"part_no": "HR056150", "diameter_in": 5.61, "height_max_in": 3.25, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.28, "catalog_page": 35},
+    {"part_no": "HR057640", "diameter_in": 5.76, "height_max_in": 3.25, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.44, "catalog_page": 35},
+    {"part_no": "HR058150", "diameter_in": 5.81, "height_max_in": 3.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.38, "catalog_page": 36},
+    {"part_no": "ZR96", "diameter_in": 6.00, "height_max_in": 6.81, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.37, "catalog_page": 36},
+    {"part_no": "HR060850", "diameter_in": 6.08, "height_max_in": 3.75, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 36},
+    {"part_no": "ZTR98A", "diameter_in": 6.11, "height_max_in": 6.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.81, "catalog_page": 36},
+    {"part_no": "HR063132", "diameter_in": 6.31, "height_max_in": 5.50, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 36},
+    {"part_no": "HR063240", "diameter_in": 6.32, "height_max_in": 4.00, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.41, "catalog_page": 36},
+    {"part_no": "HRA63240", "diameter_in": 6.33, "height_max_in": 3.75, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 36},
+    {"part_no": "HR063863", "diameter_in": 6.38, "height_max_in": 3.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 36},
+    {"part_no": "ZTR105", "diameter_in": 6.56, "height_max_in": 5.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 36},
+    {"part_no": "HR066263", "diameter_in": 6.63, "height_max_in": 3.50, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 36},
+    {"part_no": "HR067632", "diameter_in": 6.76, "height_max_in": 4.00, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.28, "catalog_page": 36},
+    {"part_no": "HR067950", "diameter_in": 6.79, "height_max_in": 10.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.28, "catalog_page": 36},
+    {"part_no": "HR068263", "diameter_in": 6.82, "height_max_in": 10.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.75, "catalog_page": 36},
+    {"part_no": "HR071063", "diameter_in": 7.10, "height_max_in": 4.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 36},
+    {"part_no": "HR073132", "diameter_in": 7.31, "height_max_in": 4.25, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 36},
+    {"part_no": "HR073550", "diameter_in": 7.35, "height_max_in": 4.25, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.31, "catalog_page": 36},
+    {"part_no": "HR078863", "diameter_in": 7.88, "height_max_in": 5.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.38, "catalog_page": 36},
+    {"part_no": "HR078850", "diameter_in": 7.88, "height_max_in": 5.75, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 36},
+    {"part_no": "ZTR128", "diameter_in": 8.00, "height_max_in": 10.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 1.50, "catalog_page": 36},
+    {"part_no": "HR082132", "diameter_in": 8.21, "height_max_in": 5.50, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.25, "catalog_page": 36},
+    {"part_no": "ZR136", "diameter_in": 8.50, "height_max_in": 5.50, "gauge_in": 0.125, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 36},
+    {"part_no": "ZTR140", "diameter_in": 8.75, "height_max_in": 7.00, "gauge_in": 0.040, "alloy": "6061-0", "r1_in": 0.14, "catalog_page": 36},
+    {"part_no": "HR090050", "diameter_in": 9.00, "height_max_in": 4.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 36},
+    {"part_no": "ZTR145", "diameter_in": 9.08, "height_max_in": 6.25, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.50, "catalog_page": 36},
+    {"part_no": "HR096050", "diameter_in": 9.61, "height_max_in": 5.50, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.38, "catalog_page": 36},
+    {"part_no": "HR096350", "diameter_in": 9.63, "height_max_in": 6.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.38, "catalog_page": 36},
+    {"part_no": "ZR157A", "diameter_in": 9.81, "height_max_in": 6.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.75, "catalog_page": 36},
+    {"part_no": "HR099832", "diameter_in": 9.98, "height_max_in": 5.50, "gauge_in": 0.032, "alloy": "6061-0", "r1_in": 0.38, "catalog_page": 36},
+    {"part_no": "HR100663", "diameter_in": 10.06, "height_max_in": 6.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.38, "catalog_page": 36},
+    {"part_no": "HR102050", "diameter_in": 10.20, "height_max_in": 5.75, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.34, "catalog_page": 36},
+    {"part_no": "HR102890", "diameter_in": 10.28, "height_max_in": 5.75, "gauge_in": 0.090, "alloy": "6061-0", "r1_in": 0.34, "catalog_page": 36},
+    {"part_no": "ZTR178", "diameter_in": 11.12, "height_max_in": 6.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.28, "catalog_page": 36},
+    {"part_no": "ZTR192", "diameter_in": 12.03, "height_max_in": 7.00, "gauge_in": 0.050, "alloy": "6061-0", "r1_in": 0.14, "catalog_page": 36},
+    {"part_no": "HR130063", "diameter_in": 13.00, "height_max_in": 6.00, "gauge_in": 0.063, "alloy": "6061-0", "r1_in": 0.62, "catalog_page": 36},
 ]

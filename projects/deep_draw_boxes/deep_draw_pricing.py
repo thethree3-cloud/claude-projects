@@ -1,4 +1,4 @@
-"""Cost model for Zero Manufacturing-style deep-drawn boxes.
+"""Cost model for Zero Manufacturing-style deep-drawn boxes and round housings.
 
 These are raw, open-top drawn shells (bottom + 4 sides, no lid) -- covers
 and nutplates are separate, optional add-ons per the catalog's own
@@ -6,6 +6,13 @@ modular ordering system (see deep_draw_catalog.py). This is a different
 shape/cost model than case_configurator's fully-enclosed CaseSpec, and is
 kept as its own separate tool per the user's instruction to keep each
 catalog/product line separate rather than merging them.
+
+`compute_box_quote` is for the Rectangular Boxes table; the same cost
+model is reused for the (also direct-gauge, 6061-0-aluminum) Round
+Housings table via `compute_round_housing_quote`, which just swaps in
+`open_round_surface_area_sqft` (bottom disk + cylindrical wall) for
+`open_box_surface_area_sqft` -- no cover/nutplate modeling for round
+housings, since those aren't wired up for that shape yet.
 
 Sources (2026-09-16, same research pass as case_configurator/pricing.py):
 - Aluminum sheet (here 6061-0 specifically, matching every row in the
@@ -77,6 +84,13 @@ def open_box_surface_area_sqft(width_in: float, length_in: float, height_in: flo
     return sqin / 144.0
 
 
+def open_round_surface_area_sqft(diameter_in: float, height_in: float) -> float:
+    # Bottom disk + cylindrical wall; no lid (open-top shell).
+    radius = diameter_in / 2.0
+    sqin = math.pi * radius * radius + math.pi * diameter_in * height_in
+    return sqin / 144.0
+
+
 def material_cost(area_sqft: float, gauge_in: float, pricing: dict = PRICING) -> float:
     weight_lb = area_sqft * 144.0 * gauge_in * ALUMINUM_DENSITY_LB_PER_IN3
     return weight_lb * pricing["aluminum_per_lb"]
@@ -142,6 +156,39 @@ def compute_box_quote(
     total = subtotal + markup
 
     return {
+        "num_draws": num_draws,
+        "line_items": items,
+        "subtotal": subtotal,
+        "markup": markup,
+        "total": total,
+    }
+
+
+def compute_round_housing_quote(
+    diameter_in: float,
+    height_in: float,
+    gauge_in: float,
+    finish: str = "mill finish",
+    pricing: dict = PRICING,
+) -> dict:
+    if diameter_in <= 0 or height_in <= 0:
+        raise ValueError("diameter and height must both be positive")
+
+    num_draws = estimate_num_draws(diameter_in, diameter_in, height_in)
+    area = open_round_surface_area_sqft(diameter_in, height_in)
+
+    items = {
+        "material": material_cost(area, gauge_in, pricing),
+        "labor": labor_cost(area, num_draws, pricing),
+        "finish": area * pricing["finish_per_sqft"][finish],
+    }
+
+    subtotal = sum(items.values())
+    markup = subtotal * pricing["markup_pct"]
+    total = subtotal + markup
+
+    return {
+        "gauge_in": gauge_in,
         "num_draws": num_draws,
         "line_items": items,
         "subtotal": subtotal,

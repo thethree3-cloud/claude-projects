@@ -1,4 +1,4 @@
-"""Build a synthetic historical quote database for the ZMR/ZMS mini-series.
+"""Build a synthetic historical quote database for the ZMR/ZMS/ZMC mini-series.
 
 Same approach as generate_quote_history.py (main series): real dimensions
 from deep_draw_catalog.py, prices computed via mini_series_pricing.py plus
@@ -11,14 +11,18 @@ mini box ever matching against a main-series quote or vice versa.
 Height isn't varied here: unlike the main series, the catalog publishes
 only one max depth per mini-series size, no adjustable range, so every
 simulated quote uses that fixed depth.
+
+ZMC (circular) rows have no width_in/length_in of their own -- a round
+part's diameter is stored as both, so the shared quote_lookup.py matching
+(which is dimension-based, not shape-aware) still works for it.
 """
 
 import random
 import sqlite3
 from pathlib import Path
 
-from deep_draw_catalog import ZMS_BOXES, ZMR_BOXES
-from mini_series_pricing import compute_mini_box_quote
+from deep_draw_catalog import ZMS_BOXES, ZMR_BOXES, ZMC_BOXES
+from mini_series_pricing import compute_mini_box_quote, compute_mini_can_quote
 
 DB_PATH = Path(__file__).parent / "data" / "mini_quote_history.db"
 NUM_ROWS = 1000
@@ -29,20 +33,33 @@ FINISH_WEIGHTS = {"mill finish": 0.6, "black anodized": 0.25, "powder coat (cust
 
 
 def _simulate_quote(rng: random.Random) -> dict:
-    box = rng.choice(ZMS_BOXES + ZMR_BOXES)
+    box = rng.choice(ZMS_BOXES + ZMR_BOXES + ZMC_BOXES)
     material_key = rng.choices(list(MATERIAL_WEIGHTS), weights=list(MATERIAL_WEIGHTS.values()), k=1)[0]
     finish = rng.choices(list(FINISH_WEIGHTS), weights=list(FINISH_WEIGHTS.values()), k=1)[0]
     height = box["max_depth_in"]
+    is_round = "diameter_in" in box
 
-    quote = compute_mini_box_quote(
-        width_in=box["width_in"],
-        length_in=box["length_in"],
-        height_in=height,
-        material_code=box["material_code"],
-        gauge_override_in=box["gauge_override_in"],
-        material_key=material_key,
-        finish=finish,
-    )
+    if is_round:
+        width_in = length_in = box["diameter_in"]
+        quote = compute_mini_can_quote(
+            diameter_in=box["diameter_in"],
+            height_in=height,
+            material_code=box["material_code"],
+            gauge_override_in=box["gauge_override_in"],
+            material_key=material_key,
+            finish=finish,
+        )
+    else:
+        width_in, length_in = box["width_in"], box["length_in"]
+        quote = compute_mini_box_quote(
+            width_in=width_in,
+            length_in=length_in,
+            height_in=height,
+            material_code=box["material_code"],
+            gauge_override_in=box["gauge_override_in"],
+            material_key=material_key,
+            finish=finish,
+        )
 
     noise_factor = rng.gauss(1.0, 0.12)
     price = max(quote["total"] * noise_factor, quote["total"] * 0.7)
@@ -50,8 +67,8 @@ def _simulate_quote(rng: random.Random) -> dict:
 
     return {
         "part_no": box["part_no"],
-        "width_in": box["width_in"],
-        "length_in": box["length_in"],
+        "width_in": width_in,
+        "length_in": length_in,
         "height_in": height,
         "gauge_in": quote["gauge_in"],
         "num_draws": quote["num_draws"],

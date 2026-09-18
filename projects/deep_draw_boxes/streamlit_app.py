@@ -4,11 +4,11 @@ import streamlit as st
 
 from deep_draw_catalog import (
     DEEP_DRAW_BOXES, COVER_TYPES, NUTPLATE_PATTERNS, FINISH_TYPES,
-    ZMS_BOXES, ZMR_BOXES,
+    ZMS_BOXES, ZMR_BOXES, ZMC_BOXES, ROUND_HOUSINGS,
 )
-from deep_draw_pricing import compute_box_quote
-from mini_series_pricing import MATERIALS, compute_mini_box_quote
-from diagram import draw_box
+from deep_draw_pricing import compute_box_quote, compute_round_housing_quote
+from mini_series_pricing import MATERIALS, compute_mini_box_quote, compute_mini_can_quote
+from diagram import draw_box, draw_can
 from quote_lookup import estimate_from_history, load_quotes
 from branding import render_header
 from quote_export import to_pdf, to_pdf_mini
@@ -23,6 +23,7 @@ FINISH_COLORS = {
 
 
 MINI_DB_PATH = Path(__file__).parent / "data" / "mini_quote_history.db"
+ROUND_HOUSING_DB_PATH = Path(__file__).parent / "data" / "round_housing_quote_history.db"
 
 
 @st.cache_data
@@ -33,6 +34,11 @@ def _load_quote_history():
 @st.cache_data
 def _load_mini_quote_history():
     return load_quotes(MINI_DB_PATH)
+
+
+@st.cache_data
+def _load_round_housing_quote_history():
+    return load_quotes(ROUND_HOUSING_DB_PATH)
 
 
 def _finish_and_color(key_prefix: str):
@@ -50,20 +56,123 @@ def _finish_and_color(key_prefix: str):
 with st.sidebar:
     st.subheader("Catalog series")
     series = st.radio(
-        "Series", ["Standard (Rectangular Boxes)", "Miniature (ZMR/ZMS)"],
+        "Series", ["Standard (Rectangular Boxes)", "Miniature (ZMR/ZMS)", "Round Housings"],
         label_visibility="collapsed",
     )
+
+if series == "Round Housings":
+    rh_by_part_no = {b["part_no"]: b for b in ROUND_HOUSINGS}
+    with st.sidebar:
+        st.subheader("Housing size")
+        rh_part_no = st.selectbox(
+            "Catalog part number",
+            sorted(rh_by_part_no.keys(), key=lambda p: rh_by_part_no[p]["diameter_in"]),
+            format_func=lambda p: f"{p} ({rh_by_part_no[p]['diameter_in']:g}\" dia)",
+        )
+        rh_box = rh_by_part_no[rh_part_no]
+
+        st.caption(f"Maximum height (fixed, no adjustable range published): {rh_box['height_max_in']:g}\"")
+
+        finish, color_hex = _finish_and_color("rh")
+
+    if not finish:
+        st.info("Select a finish in the sidebar.")
+        st.stop()
+
+    height_in = rh_box["height_max_in"]
+    st.caption(
+        "Round Housings — cylindrical deep-drawn shells, a separate top-level catalog section "
+        "from both the Rectangular Boxes table and the ZMR/ZMS/ZMC miniature series. Standard "
+        "(uniform bottom radius) construction only; the beveled-base \"Special\" version and "
+        "cover/nutplate options aren't modeled here."
+    )
+    quote = compute_round_housing_quote(
+        diameter_in=rh_box["diameter_in"], height_in=height_in, gauge_in=rh_box["gauge_in"], finish=finish,
+    )
+    st.write(
+        f"**{rh_part_no}**: {rh_box['diameter_in']:g}\" diameter x {height_in:g}\" H max, "
+        f"{rh_box['gauge_in']:g}\" gauge, {rh_box['alloy']} aluminum (catalog page {rh_box['catalog_page']})"
+    )
+    fig = draw_can(
+        diameter_in=rh_box["diameter_in"], height_in=height_in,
+        r1_in=rh_box["r1_in"], gauge_in=rh_box["gauge_in"], color_hex=color_hex,
+    )
+    st.pyplot(fig, width=900)
+
+    rh_quote_col, rh_history_col = st.columns(2)
+
+    with rh_quote_col:
+        st.subheader("Formula quote")
+        st.caption(f"Estimated draw operations: {quote['num_draws']}")
+
+        label_map = {"material": "Material", "labor": "Fabrication labor", "finish": "Finish upcharge"}
+        for key, amount in quote["line_items"].items():
+            st.write(f"{label_map.get(key, key)}: ${amount:,.2f}")
+
+        st.divider()
+        st.write(f"Subtotal: ${quote['subtotal']:,.2f}")
+        st.write(f"Markup: ${quote['markup']:,.2f}")
+        st.metric("Total estimate", f"${quote['total']:,.2f}")
+        st.caption("Placeholder pricing — see deep_draw_pricing.py for sources/assumptions.")
+
+    with rh_history_col:
+        st.subheader("Similar past quotes")
+        st.caption("Synthetic historical data — see generate_round_housing_quote_history.py.")
+
+        rh_history = _load_round_housing_quote_history()
+        rh_estimate = None
+        if not rh_history:
+            st.info("No quote history found. Run `python generate_round_housing_quote_history.py` to build it.")
+        else:
+            rh_estimate = estimate_from_history(
+                rh_history, width_in=rh_box["diameter_in"], length_in=rh_box["diameter_in"], height_in=height_in,
+            )
+            if rh_estimate is None:
+                st.warning("No similar historical quotes found for this size.")
+            else:
+                st.write(f"Based on **{rh_estimate.match_count}** similar past quotes:")
+                st.write(
+                    f"Average: \\${rh_estimate.avg_price:,.2f}  "
+                    f"(range \\${rh_estimate.min_price:,.2f}\u2013\\${rh_estimate.max_price:,.2f})"
+                )
+                st.progress(rh_estimate.confidence, text=f"Confidence: {rh_estimate.confidence:.0%}")
+
+    st.divider()
+    pdf_bytes = to_pdf_mini(
+        rh_part_no, "Round Housing", rh_box["diameter_in"], rh_box["diameter_in"], height_in,
+        f"{rh_box['alloy']} aluminum", quote, fig, finish=finish, estimate=rh_estimate,
+    )
+    st.download_button(
+        "Download quote as PDF",
+        data=pdf_bytes,
+        file_name=f"zero_housing_quote_{rh_part_no}.pdf",
+        mime="application/pdf",
+        icon=":material/download:",
+    )
+    st.stop()
+
+MINI_SHAPES = {
+    "Square (ZMS)": ZMS_BOXES,
+    "Rectangular (ZMR)": ZMR_BOXES,
+    "Circular (ZMC)": ZMC_BOXES,
+}
 
 if series == "Miniature (ZMR/ZMS)":
     with st.sidebar:
         st.subheader("Box size")
-        shape = st.radio("Shape", ["Square (ZMS)", "Rectangular (ZMR)"])
-        mini_boxes = ZMS_BOXES if shape == "Square (ZMS)" else ZMR_BOXES
+        shape = st.radio("Shape", list(MINI_SHAPES.keys()))
+        is_round = shape == "Circular (ZMC)"
+        mini_boxes = MINI_SHAPES[shape]
         mini_by_part_no = {b["part_no"]: b for b in mini_boxes}
+        size_key = "diameter_in" if is_round else "width_in"
+        if is_round:
+            format_func = lambda p: f"{p} ({mini_by_part_no[p]['diameter_in']:g}\" dia)"
+        else:
+            format_func = lambda p: f"{p} ({mini_by_part_no[p]['width_in']:g}\" x {mini_by_part_no[p]['length_in']:g}\")"
         mini_part_no = st.selectbox(
             "Catalog part number",
-            sorted(mini_by_part_no.keys(), key=lambda p: mini_by_part_no[p]["width_in"]),
-            format_func=lambda p: f"{p} ({mini_by_part_no[p]['width_in']:g}\" x {mini_by_part_no[p]['length_in']:g}\")",
+            sorted(mini_by_part_no.keys(), key=lambda p: mini_by_part_no[p][size_key]),
+            format_func=format_func,
         )
         mini_box = mini_by_part_no[mini_part_no]
 
@@ -82,29 +191,46 @@ if series == "Miniature (ZMR/ZMS)":
         st.stop()
 
     height_in = mini_box["max_depth_in"]
-    series_label = "ZMS" if shape == "Square (ZMS)" else "ZMR"
+    series_label = {"Square (ZMS)": "ZMS", "Rectangular (ZMR)": "ZMR", "Circular (ZMC)": "ZMC"}[shape]
     st.caption(
         f"{series_label} miniature series — small enclosures cross-referenced off the main "
-        "Rectangular Boxes table, available in steel, aluminum, brass, or Monel. No cover or "
+        "Rectangular Boxes table, available in steel, aluminum, brass, or mu-metal. No cover or "
         "nutplate options modeled for this series yet."
     )
-    quote = compute_mini_box_quote(
-        width_in=mini_box["width_in"], length_in=mini_box["length_in"], height_in=height_in,
-        material_code=mini_box["material_code"], gauge_override_in=mini_box["gauge_override_in"],
-        material_key=material_key, finish=finish,
-    )
 
-    st.write(
-        f"**{mini_part_no}**: {mini_box['width_in']:g}\" W x {mini_box['length_in']:g}\" L x "
-        f"{height_in:g}\" H max, {quote['gauge_in']:g}\" gauge, {MATERIALS[material_key]['label']} "
-        f"(catalog page {mini_box['catalog_page']})"
-    )
-
-    fig = draw_box(
-        width_in=mini_box["width_in"], length_in=mini_box["length_in"], height_in=height_in,
-        r1_in=mini_box["r1_in"], r2_in=mini_box["r2_in"], gauge_in=quote["gauge_in"],
-        cover_type="none", nutplate_pattern="none", color_hex=color_hex,
-    )
+    if is_round:
+        quote = compute_mini_can_quote(
+            diameter_in=mini_box["diameter_in"], height_in=height_in,
+            material_code=mini_box["material_code"], gauge_override_in=mini_box["gauge_override_in"],
+            material_key=material_key, finish=finish,
+        )
+        width_in = length_in = mini_box["diameter_in"]
+        st.write(
+            f"**{mini_part_no}**: {mini_box['diameter_in']:g}\" diameter x "
+            f"{height_in:g}\" H max, {quote['gauge_in']:g}\" gauge, {MATERIALS[material_key]['label']} "
+            f"(catalog page {mini_box['catalog_page']})"
+        )
+        fig = draw_can(
+            diameter_in=mini_box["diameter_in"], height_in=height_in,
+            r1_in=mini_box["r1_in"], gauge_in=quote["gauge_in"], color_hex=color_hex,
+        )
+    else:
+        quote = compute_mini_box_quote(
+            width_in=mini_box["width_in"], length_in=mini_box["length_in"], height_in=height_in,
+            material_code=mini_box["material_code"], gauge_override_in=mini_box["gauge_override_in"],
+            material_key=material_key, finish=finish,
+        )
+        width_in, length_in = mini_box["width_in"], mini_box["length_in"]
+        st.write(
+            f"**{mini_part_no}**: {width_in:g}\" W x {length_in:g}\" L x "
+            f"{height_in:g}\" H max, {quote['gauge_in']:g}\" gauge, {MATERIALS[material_key]['label']} "
+            f"(catalog page {mini_box['catalog_page']})"
+        )
+        fig = draw_box(
+            width_in=width_in, length_in=length_in, height_in=height_in,
+            r1_in=mini_box["r1_in"], r2_in=mini_box["r2_in"], gauge_in=quote["gauge_in"],
+            cover_type="none", nutplate_pattern="none", color_hex=color_hex,
+        )
     st.pyplot(fig, width=900)
 
     mini_quote_col, mini_history_col = st.columns(2)
@@ -133,7 +259,7 @@ if series == "Miniature (ZMR/ZMS)":
             st.info("No quote history found. Run `python generate_mini_quote_history.py` to build it.")
         else:
             mini_estimate = estimate_from_history(
-                mini_history, width_in=mini_box["width_in"], length_in=mini_box["length_in"], height_in=height_in,
+                mini_history, width_in=width_in, length_in=length_in, height_in=height_in,
             )
             if mini_estimate is None:
                 st.warning("No similar historical quotes found for this size.")
@@ -147,7 +273,7 @@ if series == "Miniature (ZMR/ZMS)":
 
     st.divider()
     pdf_bytes = to_pdf_mini(
-        mini_part_no, series_label, mini_box["width_in"], mini_box["length_in"], height_in,
+        mini_part_no, series_label, width_in, length_in, height_in,
         MATERIALS[material_key]["label"], quote, fig, finish=finish, estimate=mini_estimate,
     )
     st.download_button(

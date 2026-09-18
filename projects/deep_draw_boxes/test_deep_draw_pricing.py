@@ -3,8 +3,10 @@ import unittest
 from deep_draw_pricing import (
     PRICING,
     compute_box_quote,
+    compute_round_housing_quote,
     estimate_num_draws,
     open_box_surface_area_sqft,
+    open_round_surface_area_sqft,
     material_cost,
     labor_cost,
     cover_cost,
@@ -22,6 +24,20 @@ class TestSurfaceArea(unittest.TestCase):
         self.assertGreater(
             open_box_surface_area_sqft(20, 20, 10),
             open_box_surface_area_sqft(10, 10, 5),
+        )
+
+    def test_round_smaller_than_box_of_same_footprint(self):
+        # A circle inscribed in a square has less area than the square.
+        d, h = 10, 5
+        self.assertLess(
+            open_round_surface_area_sqft(d, h),
+            open_box_surface_area_sqft(d, d, h),
+        )
+
+    def test_bigger_round_has_more_area(self):
+        self.assertGreater(
+            open_round_surface_area_sqft(20, 10),
+            open_round_surface_area_sqft(10, 5),
         )
 
 
@@ -103,6 +119,30 @@ class TestComputeBoxQuote(unittest.TestCase):
     def test_markup_applied(self):
         quote = compute_box_quote(width_in=10, length_in=10, height_in=5, gauge_in=0.063)
         self.assertAlmostEqual(quote["markup"], quote["subtotal"] * PRICING["markup_pct"])
+
+
+class TestComputeRoundHousingQuote(unittest.TestCase):
+    def test_base_quote_has_material_and_labor(self):
+        quote = compute_round_housing_quote(diameter_in=10, height_in=5, gauge_in=0.063)
+        self.assertIn("material", quote["line_items"])
+        self.assertIn("labor", quote["line_items"])
+        self.assertGreater(quote["total"], quote["subtotal"])
+
+    def test_bigger_housing_costs_more(self):
+        small = compute_round_housing_quote(diameter_in=2, height_in=2, gauge_in=0.032)
+        big = compute_round_housing_quote(diameter_in=12, height_in=12, gauge_in=0.090)
+        self.assertGreater(big["total"], small["total"])
+
+    def test_rejects_nonpositive_dimensions(self):
+        with self.assertRaises(ValueError):
+            compute_round_housing_quote(diameter_in=0, height_in=5, gauge_in=0.063)
+
+    def test_powder_coat_costs_more_than_mill_finish(self):
+        mill = compute_round_housing_quote(diameter_in=6, height_in=4, gauge_in=0.050, finish="mill finish")
+        coated = compute_round_housing_quote(
+            diameter_in=6, height_in=4, gauge_in=0.050, finish="powder coat (custom color)",
+        )
+        self.assertGreater(coated["total"], mill["total"])
 
 
 if __name__ == "__main__":

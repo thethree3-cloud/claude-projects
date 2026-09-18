@@ -8,7 +8,7 @@ corner radii (R1/R2) instead of sharp corners.
 """
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, Rectangle
+from matplotlib.patches import Circle, FancyBboxPatch, Rectangle
 
 from deep_draw_pricing import nutplate_count
 
@@ -94,6 +94,53 @@ def _top_panel(ax, width_in, length_in, r2_in, color_hex, nutplate_pattern):
     ax.set_xlim(-width_in * 0.3, width_in * 1.12)
     ax.set_ylim(-length_in * 0.3, length_in * 1.12)
     ax.set_title("TOP (open)", fontsize=13, fontweight="bold")
+
+
+def _can_elevation_panel(ax, diameter_in, height_in, r1_in, color_hex, title):
+    _rounded_rect(ax, 0, 0, diameter_in, height_in, r1_in, facecolor=color_hex, edgecolor=EDGE_COLOR, lw=2)
+
+    peek_h = height_in * 0.08
+    ax.add_patch(Rectangle((r1_in * 0.6, height_in - peek_h), diameter_in - r1_in * 1.2, peek_h,
+                            facecolor=OPEN_TOP_COLOR, edgecolor="none"))
+    ax.plot([r1_in * 0.6, diameter_in - r1_in * 0.6], [height_in, height_in], color=EDGE_COLOR, lw=1, linestyle="--")
+
+    _dim_line(ax, 0, -height_in * 0.14, diameter_in, -height_in * 0.14, f'{diameter_in:g}"')
+    _dim_line(ax, -diameter_in * 0.14, 0, -diameter_in * 0.14, height_in, f'{height_in:g}"', vertical=True)
+
+    ax.set_xlim(-diameter_in * 0.3, diameter_in * 1.12)
+    ax.set_ylim(-height_in * 0.3, height_in * 1.25)
+    ax.set_title(title, fontsize=13, fontweight="bold")
+
+
+def _can_top_panel(ax, diameter_in, color_hex):
+    radius = diameter_in / 2.0
+    ax.add_patch(Circle((radius, radius), radius, facecolor=OPEN_TOP_COLOR, edgecolor=EDGE_COLOR, lw=2))
+    inset = diameter_in * 0.04
+    ax.add_patch(Circle((radius, radius), radius - inset, facecolor=color_hex, edgecolor="none"))
+
+    _dim_line(ax, 0, -diameter_in * 0.15, diameter_in, -diameter_in * 0.15, f'{diameter_in:g}"')
+
+    ax.set_xlim(-diameter_in * 0.3, diameter_in * 1.12)
+    ax.set_ylim(-diameter_in * 0.3, diameter_in * 1.12)
+    ax.set_title("TOP (open)", fontsize=13, fontweight="bold")
+
+
+def draw_can(diameter_in, height_in, r1_in, gauge_in, color_hex="#b8bcc0"):
+    fig, axes = plt.subplots(1, 3, figsize=(10, 3.6))
+    for ax in axes:
+        ax.set_aspect("equal")
+        ax.axis("off")
+
+    _can_elevation_panel(axes[0], diameter_in, height_in, r1_in, color_hex, "FRONT")
+    _can_elevation_panel(axes[1], diameter_in, height_in, r1_in, color_hex, "SIDE")
+    _can_top_panel(axes[2], diameter_in, color_hex)
+
+    fig.suptitle(
+        f'{diameter_in:g}" diameter x {height_in:g}"H  |  {gauge_in:g}" gauge  |  R1 {r1_in:g}"  |  no cover',
+        fontsize=13,
+    )
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    return fig
 
 
 def draw_box(width_in, length_in, height_in, r1_in, r2_in, gauge_in,
