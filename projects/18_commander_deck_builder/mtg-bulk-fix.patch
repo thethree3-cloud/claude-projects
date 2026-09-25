@@ -1,0 +1,84 @@
+diff --git a/src/mtg_mcp_server/services/scryfall_bulk.py b/src/mtg_mcp_server/services/scryfall_bulk.py
+index 99b5a8e..b88c25d 100644
+--- a/src/mtg_mcp_server/services/scryfall_bulk.py
++++ b/src/mtg_mcp_server/services/scryfall_bulk.py
+@@ -21,6 +21,7 @@ from __future__ import annotations
+ 
+ import asyncio
+ import contextlib
++import gzip
+ import json
+ import random
+ import time
+@@ -170,10 +171,12 @@ class ScryfallBulkClient:
+             try:
+                 # Step 1: Fetch metadata to get the current download URL
+                 metadata = await self._fetch_metadata()
+-                download_url = metadata.get("download_uri")
++                # Scryfall now publishes ``jsonl_download_uri``; keep the old key as a fallback.
++                download_url = metadata.get("jsonl_download_uri") or metadata.get("download_uri")
+                 if not download_url or not isinstance(download_url, str):
+                     raise ScryfallBulkError(
+-                        f"Bulk metadata missing 'download_uri'. Keys: {list(metadata.keys())}"
++                        "Bulk metadata missing 'jsonl_download_uri'/'download_uri'. "
++                        f"Keys: {list(metadata.keys())}"
+                     )
+ 
+                 # Step 2: Download the bulk data (with ETag if URL matches)
+@@ -546,8 +549,13 @@ class ScryfallBulkClient:
+             ScryfallBulkError: If JSON is malformed.
+         """
+         try:
+-            raw = json.loads(raw_bytes)
+-        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
++            if raw_bytes[:2] == b"\x1f\x8b":  # gzip magic — .jsonl.gz is not auto-decoded
++                raw_bytes = gzip.decompress(raw_bytes)
++            if raw_bytes.lstrip()[:1] == b"[":
++                raw = json.loads(raw_bytes)
++            else:  # JSON Lines: one card object per line
++                raw = [json.loads(line) for line in raw_bytes.splitlines() if line.strip()]
++        except (json.JSONDecodeError, UnicodeDecodeError, OSError, EOFError) as exc:
+             raise ScryfallBulkError(f"Failed to parse bulk data: {exc}") from exc
+ 
+         if not isinstance(raw, list):
+diff --git a/tests/services/test_scryfall_bulk.py b/tests/services/test_scryfall_bulk.py
+index 8d9e9ba..35ce402 100644
+--- a/tests/services/test_scryfall_bulk.py
++++ b/tests/services/test_scryfall_bulk.py
+@@ -686,9 +686,26 @@ class TestMetadataValidation:
+ 
+             client = ScryfallBulkClient(base_url=_BASE_URL, refresh_hours=24)
+             async with client:
+-                with pytest.raises(ScryfallBulkError, match="missing 'download_uri'"):
++                with pytest.raises(ScryfallBulkError, match="missing 'jsonl_download_uri'/'download_uri'"):
+                     await client.ensure_loaded()
+ 
++    async def test_jsonl_gz_download_uri_loads_cards(self):
++        """Scryfall's current metadata (jsonl_download_uri -> gzipped JSONL) loads."""
++        import gzip
++
++        jsonl_url = "https://data.scryfall.io/oracle-cards/oracle-cards-20260924.jsonl.gz"
++        cards = json.loads(_load_oracle_cards())
++        body = gzip.compress(b"\n".join(json.dumps(c).encode() for c in cards))
++        meta = {"object": "bulk_data", "type": "oracle_cards", "jsonl_download_uri": jsonl_url}
++        with respx.mock:
++            _mock_metadata_route(respx, metadata=meta)
++            _mock_download_route(respx, url=jsonl_url, content=body)
++
++            client = ScryfallBulkClient(base_url=_BASE_URL, refresh_hours=24)
++            async with client:
++                await client.ensure_loaded()
++                assert await client.get_card(cards[0]["name"]) is not None
++
+     async def test_non_json_metadata_raises(self):
+         """Non-JSON metadata response raises ScryfallBulkDownloadError."""
+         with respx.mock:
+@@ -726,7 +743,7 @@ class TestParseFailures:
+ 
+             client = ScryfallBulkClient(base_url=_BASE_URL, refresh_hours=24)
+             async with client:
+-                with pytest.raises(ScryfallBulkError, match="not a JSON array"):
++                with pytest.raises(ScryfallBulkError, match="not a JSON array|Parsed 0 cards"):
+                     await client.ensure_loaded()
+ 
+     async def test_all_invalid_cards_raises_zero_parsed(self):
