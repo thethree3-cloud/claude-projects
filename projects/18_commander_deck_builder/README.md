@@ -30,7 +30,8 @@ runtime dependencies) from j4th's services.
 ## Research output: universal staples
 
 `fetch_staples.py` pulls the most popular cards that fit any deck: colorless
-cards, mono-color cards for each of W/U/B/R/G, and the ten two-color pairs, ranked by EDHREC
+cards, mono-color cards for each of W/U/B/R/G, the ten two-color pairs, and
+the ten three-color identities, ranked by EDHREC
 popularity and priced at the cheapest printing. Outputs:
 
 - [`staples/STAPLES.md`](staples/STAPLES.md) — readable tables by price tier
@@ -45,7 +46,14 @@ covered (exact identity: a pair deck combines its pair list, its two mono
 lists, and colorless). Pair lists are dominated by mana fixing: every pair has
 5+ duals, signets, or talismans under $2, plus a few gold removal spells
 (Terminate $0.33, Putrefy $0.31, Assassin's Trophy $1.26, Anguished Unmaking
-$1.59). Not yet covered: three-color identities. Scope note: these are global
+$1.59). The ten three-color identities (shards and wedges) are covered too,
+but they are small (58-115 cards each, vs 350 elsewhere) and roughly half
+legendary creatures, which rank as commanders rather than staples. The
+readable tables exclude legendary creatures (the JSON keeps them). What
+remains is mana fixing (tri-lands, Charms, banners, Landscapes, all under $1)
+and gold removal/wincons like Crackling Doom $0.37 and Cruel Ultimatum $0.50.
+Not yet covered: four- and five-color identities (those decks lean on the
+colorless, mono, and fixing lists above). Scope note: these are global
 EDHREC ranks, not per-commander inclusion rates.
 
 ## Design rules

@@ -2,10 +2,11 @@
 EDHREC popularity (via Scryfall's ``edhrec_rank``) and priced at the cheapest
 USD printing.
 
-Groups: colorless, mono-color, and the ten two-color pairs (exact identity, so
-a pair deck combines its pair list with its two mono lists and colorless).
+Groups: colorless, mono-color, the ten two-color pairs, and the ten three-color
+identities (exact identity, so a deck combines its own list with the lists of
+every smaller identity inside it, plus colorless).
 
-Writes staples/staples.json and staples/STAPLES.md. Uses ~100+ Scryfall requests
+Writes staples/staples.json and staples/STAPLES.md. Uses ~150+ Scryfall requests
 with a delay between each (Scryfall asks for < 10/sec and a User-Agent).
 
 Why cheapest printing: Scryfall's default printing of some very popular cards
@@ -44,6 +45,16 @@ GROUPS = {
     "bg": ("id=bg", "Golgari (BG)"),
     "rw": ("id=rw", "Boros (RW)"),
     "gu": ("id=gu", "Simic (GU)"),
+    "wub": ("id=wub", "Esper (WUB)"),
+    "ubr": ("id=ubr", "Grixis (UBR)"),
+    "brg": ("id=brg", "Jund (BRG)"),
+    "rgw": ("id=rgw", "Naya (RGW)"),
+    "gwu": ("id=gwu", "Bant (GWU)"),
+    "rwb": ("id=rwb", "Mardu (RWB)"),
+    "gur": ("id=gur", "Temur (GUR)"),
+    "wbg": ("id=wbg", "Abzan (WBG)"),
+    "urw": ("id=urw", "Jeskai (URW)"),
+    "bgu": ("id=bgu", "Sultai (BGU)"),
 }
 TIERS = [("Under $2", 0, 2), ("$2-10", 2, 10), ("$10+", 10, float("inf"))]
 
@@ -105,11 +116,19 @@ def render_markdown(data):
         "",
         "Ranked by EDHREC popularity (Scryfall `edhrec_rank`), priced at the cheapest",
         "USD printing. Colorless cards fit any deck; mono-color cards fit any deck",
-        "that includes that color. Regenerate with `python fetch_staples.py`.",
+        "that includes that color. Legendary creatures are left out of these tables",
+        "(they rank as commanders); they remain in staples.json.",
+        "Regenerate with `python fetch_staples.py`.",
         "",
     ]
     for key, (_, label) in GROUPS.items():
-        priced = [r for r in data[key][:REPRICE_TOP] if r["usd"] is not None]
+        # Legendary creatures rank high as commanders, not as staples for other decks.
+        priced = [
+            r
+            for r in data[key][:REPRICE_TOP]
+            if r["usd"] is not None
+            and not ("Legendary" in r["type"] and "Creature" in r["type"])
+        ]
         lines += [f"## {label}", "", "| Tier | Top cards (price) |", "|---|---|"]
         for tier, lo, hi in TIERS:
             picks = [r for r in priced if lo <= r["usd"] < hi][:8]

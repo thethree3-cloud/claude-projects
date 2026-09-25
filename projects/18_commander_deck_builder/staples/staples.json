@@ -33720,5 +33720,5207 @@
    "usd": 0.08,
    "type": "Creature \u2014 Beast"
   }
+ ],
+ "wub": [
+  {
+   "name": "Arcane Sanctum",
+   "rank": 351,
+   "usd": 0.42,
+   "type": "Land"
+  },
+  {
+   "name": "Raffine's Tower",
+   "rank": 424,
+   "usd": 13.5,
+   "type": "Land \u2014 Plains Island Swamp"
+  },
+  {
+   "name": "Void Rend",
+   "rank": 761,
+   "usd": 1.05,
+   "type": "Instant"
+  },
+  {
+   "name": "Contaminated Landscape",
+   "rank": 2309,
+   "usd": 0.26,
+   "type": "Land",
+   "repriced": true
+  },
+  {
+   "name": "Y'shtola, Night's Blessed",
+   "rank": 2590,
+   "usd": 5.4,
+   "type": "Legendary Creature \u2014 Cat Warlock"
+  },
+  {
+   "name": "Zur the Enchanter",
+   "rank": 2837,
+   "usd": 1.64,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Hashaton, Scarab's Fist",
+   "rank": 3469,
+   "usd": 0.82,
+   "type": "Legendary Creature \u2014 Zombie Wizard"
+  },
+  {
+   "name": "Zur, Eternal Schemer",
+   "rank": 3972,
+   "usd": 4.03,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Tivit, Seller of Secrets",
+   "rank": 4475,
+   "usd": 6.42,
+   "type": "Legendary Creature \u2014 Sphinx Rogue"
+  },
+  {
+   "name": "Queza, Augur of Agonies",
+   "rank": 4575,
+   "usd": 0.35,
+   "type": "Legendary Creature \u2014 Octopus Advisor"
+  },
+  {
+   "name": "Raffine, Scheming Seer",
+   "rank": 4722,
+   "usd": 6.31,
+   "type": "Legendary Creature \u2014 Sphinx Demon"
+  },
+  {
+   "name": "Aminatou, the Fateshifter",
+   "rank": 4814,
+   "usd": 4.26,
+   "type": "Legendary Planeswalker \u2014 Aminatou"
+  },
+  {
+   "name": "Urza, Chief Artificer",
+   "rank": 4869,
+   "usd": 5.72,
+   "type": "Legendary Creature \u2014 Human Artificer"
+  },
+  {
+   "name": "The Master of Keys",
+   "rank": 5064,
+   "usd": 2.63,
+   "type": "Legendary Enchantment Creature \u2014 Horror"
+  },
+  {
+   "name": "Aminatou, Veil Piercer",
+   "rank": 5195,
+   "usd": 0.63,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Temmet, Naktamun's Will",
+   "rank": 5332,
+   "usd": 0.38,
+   "type": "Legendary Creature \u2014 Zombie Wizard"
+  },
+  {
+   "name": "Marneus Calgar",
+   "rank": 5339,
+   "usd": 76.64,
+   "type": "Legendary Creature \u2014 Astartes Warrior"
+  },
+  {
+   "name": "Alela, Artful Provocateur",
+   "rank": 5377,
+   "usd": 1.39,
+   "type": "Legendary Creature \u2014 Faerie Warlock"
+  },
+  {
+   "name": "Varina, Lich Queen",
+   "rank": 5906,
+   "usd": 3.97,
+   "type": "Legendary Creature \u2014 Zombie Wizard"
+  },
+  {
+   "name": "G'raha Tia, Scion Reborn",
+   "rank": 5972,
+   "usd": 0.68,
+   "type": "Legendary Creature \u2014 Cat Wizard"
+  },
+  {
+   "name": "Oloro, Ageless Ascetic",
+   "rank": 6391,
+   "usd": 18.93,
+   "type": "Legendary Creature \u2014 Giant Soldier"
+  },
+  {
+   "name": "Sharuum the Hegemon",
+   "rank": 7267,
+   "usd": 0.46,
+   "type": "Legendary Artifact Creature \u2014 Sphinx"
+  },
+  {
+   "name": "Birth of the Imperium",
+   "rank": 7356,
+   "usd": 2.47,
+   "type": "Enchantment \u2014 Saga"
+  },
+  {
+   "name": "Jin Sakai, Ghost of Tsushima",
+   "rank": 7367,
+   "usd": 101.18,
+   "type": "Legendary Creature \u2014 Human Samurai"
+  },
+  {
+   "name": "Sidar Jabari of Zhalfir",
+   "rank": 7470,
+   "usd": 0.55,
+   "type": "Legendary Creature \u2014 Human Knight"
+  },
+  {
+   "name": "Elenda and Azor",
+   "rank": 7488,
+   "usd": 0.48,
+   "type": "Legendary Creature \u2014 Vampire Knight Sphinx"
+  },
+  {
+   "name": "Arna Kenner\u00fcd, Skycaptain",
+   "rank": 7494,
+   "usd": 0.37,
+   "type": "Legendary Creature \u2014 Human Knight"
+  },
+  {
+   "name": "Kamiz, Obscura Oculus",
+   "rank": 7864,
+   "usd": 1.06,
+   "type": "Legendary Creature \u2014 Octopus Rogue"
+  },
+  {
+   "name": "Thopter Foundry",
+   "rank": 7975,
+   "usd": 0.32,
+   "type": "Artifact"
+  },
+  {
+   "name": "Magister Sphinx",
+   "rank": 8080,
+   "usd": 1.25,
+   "type": "Artifact Creature \u2014 Sphinx"
+  },
+  {
+   "name": "Sefris of the Hidden Ways",
+   "rank": 8285,
+   "usd": 0.59,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Ratonhnhak\u00e9\ua789ton",
+   "rank": 8293,
+   "usd": 0.33,
+   "type": "Legendary Creature \u2014 Human Assassin"
+  },
+  {
+   "name": "Noctis, Prince of Lucis",
+   "rank": 8301,
+   "usd": 0.35,
+   "type": "Legendary Creature \u2014 Human Noble"
+  },
+  {
+   "name": "Obscura Charm",
+   "rank": 8634,
+   "usd": 0.22,
+   "type": "Instant"
+  },
+  {
+   "name": "Esper Charm",
+   "rank": 8996,
+   "usd": 0.37,
+   "type": "Instant"
+  },
+  {
+   "name": "Splinter, Radical Rat",
+   "rank": 9342,
+   "usd": 0.55,
+   "type": "Legendary Creature \u2014 Mutant Ninja Rat"
+  },
+  {
+   "name": "Dromar's Cavern",
+   "rank": 9345,
+   "usd": 0.22,
+   "type": "Land \u2014 Lair"
+  },
+  {
+   "name": "Sen Triplets",
+   "rank": 9376,
+   "usd": 9.1,
+   "type": "Legendary Artifact Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Ethersworn Adjudicator",
+   "rank": 9461,
+   "usd": 0.49,
+   "type": "Artifact Creature \u2014 Vedalken Knight"
+  },
+  {
+   "name": "Deny the Witch",
+   "rank": 9700,
+   "usd": 0.87,
+   "type": "Instant"
+  },
+  {
+   "name": "Inquisitor Greyfax",
+   "rank": 9942,
+   "usd": 5.88,
+   "type": "Legendary Creature \u2014 Human Inquisitor"
+  },
+  {
+   "name": "Yennett, Cryptic Sovereign",
+   "rank": 10251,
+   "usd": 0.42,
+   "type": "Legendary Creature \u2014 Sphinx"
+  },
+  {
+   "name": "Dakkon, Shadow Slayer",
+   "rank": 11172,
+   "usd": 0.53,
+   "type": "Legendary Planeswalker \u2014 Dakkon"
+  },
+  {
+   "name": "Saruman of Many Colors",
+   "rank": 11698,
+   "usd": 1.25,
+   "type": "Legendary Creature \u2014 Avatar Wizard"
+  },
+  {
+   "name": "Brilliant Ultimatum",
+   "rank": 12531,
+   "usd": 1.31,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Enigma Sphinx",
+   "rank": 12990,
+   "usd": 0.39,
+   "type": "Artifact Creature \u2014 Sphinx"
+  },
+  {
+   "name": "The Destined Warrior",
+   "rank": 13068,
+   "usd": 3.98,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Obelisk of Esper",
+   "rank": 13785,
+   "usd": 0.28,
+   "type": "Artifact"
+  },
+  {
+   "name": "Bane, Lord of Darkness",
+   "rank": 14096,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 God"
+  },
+  {
+   "name": "Merieke Ri Berit",
+   "rank": 14185,
+   "usd": 2.83,
+   "type": "Legendary Creature \u2014 Human"
+  },
+  {
+   "name": "Noctis, Heir Apparent",
+   "rank": 14338,
+   "usd": 4.67,
+   "type": "Legendary Creature \u2014 Human Noble"
+  },
+  {
+   "name": "Soundwave, Sonic Spy // Soundwave, Superior Captain",
+   "rank": 14473,
+   "usd": 2.09,
+   "type": "Legendary Artifact Creature \u2014 Robot // Legendary Artifact"
+  },
+  {
+   "name": "Sphinx of the Steel Wind",
+   "rank": 14480,
+   "usd": 0.66,
+   "type": "Artifact Creature \u2014 Sphinx"
+  },
+  {
+   "name": "Sydri, Galvanic Genius",
+   "rank": 14767,
+   "usd": 1.05,
+   "type": "Legendary Creature \u2014 Human Artificer"
+  },
+  {
+   "name": "Eriette, the Beguiler",
+   "rank": 14956,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 Human Warlock"
+  },
+  {
+   "name": "Tawnos, Solemn Survivor",
+   "rank": 15305,
+   "usd": 0.43,
+   "type": "Legendary Creature \u2014 Human Artificer"
+  },
+  {
+   "name": "Dromar's Charm",
+   "rank": 15604,
+   "usd": 0.44,
+   "type": "Instant"
+  },
+  {
+   "name": "Nevinyrral, Urborg Tyrant",
+   "rank": 15627,
+   "usd": 0.3,
+   "type": "Legendary Creature \u2014 Zombie Wizard"
+  },
+  {
+   "name": "The Flesh Is Weak",
+   "rank": 15704,
+   "usd": 0.36,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Toluz, Clever Conductor",
+   "rank": 16564,
+   "usd": 0.28,
+   "type": "Legendary Creature \u2014 Human Rogue"
+  },
+  {
+   "name": "Nihiloor",
+   "rank": 16857,
+   "usd": 0.4,
+   "type": "Legendary Creature \u2014 Horror"
+  },
+  {
+   "name": "Chromium, the Mutable",
+   "rank": 16960,
+   "usd": 0.78,
+   "type": "Legendary Creature \u2014 Elder Dragon"
+  },
+  {
+   "name": "The Celestial Toymaker",
+   "rank": 17015,
+   "usd": 29.24,
+   "type": "Legendary Creature \u2014 Rogue Artificer"
+  },
+  {
+   "name": "Obscura Confluence",
+   "rank": 17566,
+   "usd": 0.29,
+   "type": "Instant"
+  },
+  {
+   "name": "Ertai, the Corrupted",
+   "rank": 18294,
+   "usd": 1.35,
+   "type": "Legendary Creature \u2014 Phyrexian Human Wizard"
+  },
+  {
+   "name": "Dakkon Blackblade",
+   "rank": 19099,
+   "usd": 1.95,
+   "type": "Legendary Creature \u2014 Human Warrior",
+   "repriced": true
+  },
+  {
+   "name": "Obscura Interceptor",
+   "rank": 19260,
+   "usd": 0.23,
+   "type": "Creature \u2014 Octopus Wizard"
+  },
+  {
+   "name": "The Ever-Changing 'Dane",
+   "rank": 19303,
+   "usd": 0.24,
+   "type": "Legendary Creature \u2014 Shapeshifter"
+  },
+  {
+   "name": "Ancient Spring",
+   "rank": 20738,
+   "usd": 0.2,
+   "type": "Land"
+  },
+  {
+   "name": "Dromar, the Banisher",
+   "rank": 20911,
+   "usd": 2.99,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Sphinx Sovereign",
+   "rank": 21751,
+   "usd": 1.33,
+   "type": "Artifact Creature \u2014 Sphinx"
+  },
+  {
+   "name": "Shattered Seraph",
+   "rank": 22477,
+   "usd": 0.19,
+   "type": "Creature \u2014 Angel Rogue"
+  },
+  {
+   "name": "Nimble Larcenist",
+   "rank": 23013,
+   "usd": 0.11,
+   "type": "Creature \u2014 Bird Rogue"
+  },
+  {
+   "name": "Punish Ignorance",
+   "rank": 24188,
+   "usd": 0.26,
+   "type": "Instant"
+  },
+  {
+   "name": "Chromium",
+   "rank": 24247,
+   "usd": 3.35,
+   "type": "Legendary Creature \u2014 Elder Dragon",
+   "repriced": true
+  },
+  {
+   "name": "Etherwrought Page",
+   "rank": 24426,
+   "usd": 0.21,
+   "type": "Artifact"
+  },
+  {
+   "name": "Obscura Ascendancy",
+   "rank": 24614,
+   "usd": 0.21,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Esper Stormblade",
+   "rank": 25619,
+   "usd": 0.27,
+   "type": "Artifact Creature \u2014 Vedalken Wizard"
+  },
+  {
+   "name": "Esper Sojourners",
+   "rank": 25876,
+   "usd": 0.09,
+   "type": "Artifact Creature \u2014 Vedalken Wizard"
+  },
+  {
+   "name": "Trial // Error",
+   "rank": 25932,
+   "usd": 0.15,
+   "type": "Instant // Instant"
+  },
+  {
+   "name": "Wizards' School",
+   "rank": 27352,
+   "usd": 0.34,
+   "type": "Land"
+  },
+  {
+   "name": "Tower Gargoyle",
+   "rank": 28017,
+   "usd": 0.21,
+   "type": "Artifact Creature \u2014 Gargoyle"
+  },
+  {
+   "name": "Windwright Mage",
+   "rank": 28290,
+   "usd": 0.15,
+   "type": "Artifact Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Lady Evangela",
+   "rank": 28349,
+   "usd": 35.54,
+   "type": "Legendary Creature \u2014 Human Cleric",
+   "repriced": true
+  },
+  {
+   "name": "Halfdane",
+   "rank": 28432,
+   "usd": 35.29,
+   "type": "Legendary Creature \u2014 Shapeshifter",
+   "repriced": true
+  },
+  {
+   "name": "Sludge Strider",
+   "rank": 28866,
+   "usd": 0.33,
+   "type": "Artifact Creature \u2014 Insect"
+  },
+  {
+   "name": "Stormscape Battlemage",
+   "rank": 29422,
+   "usd": 0.2,
+   "type": "Creature \u2014 Metathran Wizard"
+  },
+  {
+   "name": "Arsenal Thresher",
+   "rank": 29553,
+   "usd": 0.41,
+   "type": "Artifact Creature \u2014 Construct"
+  },
+  {
+   "name": "Obscura Initiate",
+   "rank": 30433,
+   "usd": 0.05,
+   "type": "Creature \u2014 Bird Citizen"
+  },
+  {
+   "name": "Resounding Wave",
+   "rank": 30617,
+   "usd": 0.14,
+   "type": "Instant"
+  },
+  {
+   "name": "Shaper Guildmage",
+   "rank": 31056,
+   "usd": 0.09,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Stormscape Master",
+   "rank": 31107,
+   "usd": 0.44,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Wandering Mage",
+   "rank": 31147,
+   "usd": 2.1,
+   "type": "Creature \u2014 Human Cleric Wizard",
+   "repriced": true
+  },
+  {
+   "name": "Stormscape Apprentice",
+   "rank": 31186,
+   "usd": 0.18,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Esper Battlemage",
+   "rank": 31327,
+   "usd": 0.18,
+   "type": "Artifact Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Dromar's Attendant",
+   "rank": 31355,
+   "usd": 0.22,
+   "type": "Artifact Creature \u2014 Golem"
+  },
+  {
+   "name": "Scornful Aether-Lich",
+   "rank": 31626,
+   "usd": 0.18,
+   "type": "Artifact Creature \u2014 Zombie Wizard"
+  }
+ ],
+ "ubr": [
+  {
+   "name": "Crumbling Necropolis",
+   "rank": 362,
+   "usd": 0.32,
+   "type": "Land"
+  },
+  {
+   "name": "Xander's Lounge",
+   "rank": 470,
+   "usd": 13.88,
+   "type": "Land \u2014 Island Swamp Mountain"
+  },
+  {
+   "name": "Relic of Sauron",
+   "rank": 1748,
+   "usd": 9.43,
+   "type": "Artifact"
+  },
+  {
+   "name": "Seething Landscape",
+   "rank": 1956,
+   "usd": 0.31,
+   "type": "Land"
+  },
+  {
+   "name": "Kefka, Court Mage // Kefka, Ruler of Ruin",
+   "rank": 2903,
+   "usd": 6.97,
+   "type": "Legendary Creature \u2014 Human Wizard // Legendary Creature \u2014 Avatar Wizard"
+  },
+  {
+   "name": "Kess, Dissident Mage",
+   "rank": 3156,
+   "usd": 3.7,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Sauron, the Dark Lord",
+   "rank": 3194,
+   "usd": 21.57,
+   "type": "Legendary Creature \u2014 Avatar Horror"
+  },
+  {
+   "name": "Oscorp Industries",
+   "rank": 3562,
+   "usd": 1.12,
+   "type": "Land"
+  },
+  {
+   "name": "Saruman, the White Hand",
+   "rank": 3658,
+   "usd": 0.83,
+   "type": "Legendary Creature \u2014 Avatar Wizard"
+  },
+  {
+   "name": "Fire Lord Azula",
+   "rank": 3706,
+   "usd": 0.89,
+   "type": "Legendary Creature \u2014 Human Noble"
+  },
+  {
+   "name": "Nekusar, the Mindrazer",
+   "rank": 3759,
+   "usd": 3.98,
+   "type": "Legendary Creature \u2014 Zombie Wizard"
+  },
+  {
+   "name": "In the Darkness Bind Them",
+   "rank": 4055,
+   "usd": 1.68,
+   "type": "Enchantment \u2014 Saga"
+  },
+  {
+   "name": "Nicol Bolas, Dragon-God",
+   "rank": 4418,
+   "usd": 5.12,
+   "type": "Legendary Planeswalker \u2014 Bolas"
+  },
+  {
+   "name": "Norman Osborn // Green Goblin",
+   "rank": 4840,
+   "usd": 14.14,
+   "type": "Legendary Creature \u2014 Human Scientist Villain // Legendary Creature \u2014 Goblin Human Villain"
+  },
+  {
+   "name": "Marchesa, the Black Rose",
+   "rank": 4888,
+   "usd": 3.38,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Sauron, Lord of the Rings",
+   "rank": 5135,
+   "usd": 0.52,
+   "type": "Legendary Creature \u2014 Avatar Horror"
+  },
+  {
+   "name": "Nicol Bolas, the Ravager // Nicol Bolas, the Arisen",
+   "rank": 5331,
+   "usd": 17.66,
+   "type": "Legendary Creature \u2014 Elder Dragon // Legendary Planeswalker \u2014 Bolas"
+  },
+  {
+   "name": "Don Andres, the Renegade",
+   "rank": 5439,
+   "usd": 0.36,
+   "type": "Legendary Creature \u2014 Vampire Pirate"
+  },
+  {
+   "name": "Edward Kenway",
+   "rank": 5636,
+   "usd": 7.03,
+   "type": "Legendary Creature \u2014 Human Assassin Pirate"
+  },
+  {
+   "name": "Nicol Bolas, God-Pharaoh",
+   "rank": 5736,
+   "usd": 3.91,
+   "type": "Legendary Planeswalker \u2014 Bolas"
+  },
+  {
+   "name": "Cruel Ultimatum",
+   "rank": 5877,
+   "usd": 0.5,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Obeka, Splitter of Seconds",
+   "rank": 5884,
+   "usd": 0.25,
+   "type": "Legendary Creature \u2014 Ogre Warlock"
+  },
+  {
+   "name": "Admiral Beckett Brass",
+   "rank": 6142,
+   "usd": 0.36,
+   "type": "Legendary Creature \u2014 Human Pirate"
+  },
+  {
+   "name": "Cormela, Glamour Thief",
+   "rank": 6327,
+   "usd": 0.27,
+   "type": "Legendary Creature \u2014 Vampire Rogue"
+  },
+  {
+   "name": "Be'lakor, the Dark Master",
+   "rank": 7549,
+   "usd": 27.97,
+   "type": "Legendary Creature \u2014 Demon Noble"
+  },
+  {
+   "name": "Davros, Dalek Creator",
+   "rank": 7590,
+   "usd": 0.38,
+   "type": "Legendary Artifact Creature \u2014 Alien Scientist"
+  },
+  {
+   "name": "Nicol Bolas, Planeswalker",
+   "rank": 7595,
+   "usd": 4.09,
+   "type": "Legendary Planeswalker \u2014 Bolas"
+  },
+  {
+   "name": "Lord Xander, the Collector",
+   "rank": 7624,
+   "usd": 2.5,
+   "type": "Legendary Creature \u2014 Vampire Demon Noble"
+  },
+  {
+   "name": "Admiral Brass, Unsinkable",
+   "rank": 7650,
+   "usd": 0.24,
+   "type": "Legendary Creature \u2014 Human Pirate"
+  },
+  {
+   "name": "Obeka, Brute Chronologist",
+   "rank": 7719,
+   "usd": 0.36,
+   "type": "Legendary Creature \u2014 Ogre Wizard"
+  },
+  {
+   "name": "Phyrexian Tyranny",
+   "rank": 8181,
+   "usd": 1.82,
+   "type": "Enchantment"
+  },
+  {
+   "name": "The Valeyard",
+   "rank": 8267,
+   "usd": 0.42,
+   "type": "Legendary Creature \u2014 Time Lord Noble"
+  },
+  {
+   "name": "Maestros Charm",
+   "rank": 8362,
+   "usd": 0.21,
+   "type": "Instant"
+  },
+  {
+   "name": "Inalla, Archmage Ritualist",
+   "rank": 8494,
+   "usd": 4.07,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Dr. Eggman",
+   "rank": 8599,
+   "usd": 1.6,
+   "type": "Legendary Creature \u2014 Human Scientist"
+  },
+  {
+   "name": "Abaddon the Despoiler",
+   "rank": 8780,
+   "usd": 10.82,
+   "type": "Legendary Creature \u2014 Astartes Warrior"
+  },
+  {
+   "name": "Doctor Doom, King of Latveria",
+   "rank": 8991,
+   "usd": 4.56,
+   "type": "Legendary Creature \u2014 Human Noble Villain",
+   "repriced": true
+  },
+  {
+   "name": "Thraximundar",
+   "rank": 9124,
+   "usd": 1.41,
+   "type": "Legendary Creature \u2014 Zombie Assassin"
+  },
+  {
+   "name": "Crosis's Catacombs",
+   "rank": 9157,
+   "usd": 0.34,
+   "type": "Land \u2014 Lair"
+  },
+  {
+   "name": "The Horus Heresy",
+   "rank": 9222,
+   "usd": 1.58,
+   "type": "Enchantment \u2014 Saga"
+  },
+  {
+   "name": "Crosis's Charm",
+   "rank": 9245,
+   "usd": 0.49,
+   "type": "Instant"
+  },
+  {
+   "name": "Geyadrone Dihada",
+   "rank": 9281,
+   "usd": 1.1,
+   "type": "Legendary Planeswalker \u2014 Dihada"
+  },
+  {
+   "name": "Wick, the Whorled Mind",
+   "rank": 9611,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 Rat Warlock"
+  },
+  {
+   "name": "Missy",
+   "rank": 9872,
+   "usd": 0.3,
+   "type": "Legendary Creature \u2014 Time Lord Rogue"
+  },
+  {
+   "name": "Mishra, Eminent One",
+   "rank": 10128,
+   "usd": 0.5,
+   "type": "Legendary Creature \u2014 Human Artificer"
+  },
+  {
+   "name": "Mai and Zuko",
+   "rank": 10751,
+   "usd": 4.26,
+   "type": "Legendary Creature \u2014 Human Noble Ally"
+  },
+  {
+   "name": "Goro-Goro and Satoru",
+   "rank": 10770,
+   "usd": 1.98,
+   "type": "Legendary Creature \u2014 Goblin Human"
+  },
+  {
+   "name": "Loki, the Deceiver",
+   "rank": 10859,
+   "usd": 0.37,
+   "type": "Legendary Creature \u2014 God Sorcerer Villain"
+  },
+  {
+   "name": "Crypt of the Eternals",
+   "rank": 11180,
+   "usd": 0.19,
+   "type": "Land"
+  },
+  {
+   "name": "Cult of Skaro",
+   "rank": 11469,
+   "usd": 0.26,
+   "type": "Legendary Artifact Creature \u2014 Dalek"
+  },
+  {
+   "name": "Marchesa, Dealer of Death",
+   "rank": 11521,
+   "usd": 0.24,
+   "type": "Legendary Creature \u2014 Human Rogue"
+  },
+  {
+   "name": "Anhelo, the Painter",
+   "rank": 11841,
+   "usd": 0.43,
+   "type": "Legendary Creature \u2014 Vampire Assassin"
+  },
+  {
+   "name": "Obelisk of Grixis",
+   "rank": 12163,
+   "usd": 0.29,
+   "type": "Artifact"
+  },
+  {
+   "name": "Lynde, Cheerful Tormentor",
+   "rank": 12275,
+   "usd": 1.26,
+   "type": "Legendary Creature \u2014 Human Warlock"
+  },
+  {
+   "name": "Cecily, Haunted Mage",
+   "rank": 12348,
+   "usd": 0.39,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Nicol Bolas",
+   "rank": 12437,
+   "usd": 1.36,
+   "type": "Legendary Creature \u2014 Elder Dragon"
+  },
+  {
+   "name": "Nicol Bolas, the Deceiver",
+   "rank": 12825,
+   "usd": 6.81,
+   "type": "Legendary Planeswalker \u2014 Bolas"
+  },
+  {
+   "name": "Sedris, the Traitor King",
+   "rank": 13019,
+   "usd": 1.12,
+   "type": "Legendary Creature \u2014 Zombie Warrior"
+  },
+  {
+   "name": "Ashad, the Lone Cyberman",
+   "rank": 13210,
+   "usd": 0.3,
+   "type": "Legendary Artifact Creature \u2014 Cyberman"
+  },
+  {
+   "name": "Zevlor, Elturel Exile",
+   "rank": 13224,
+   "usd": 0.33,
+   "type": "Legendary Creature \u2014 Tiefling Warrior"
+  },
+  {
+   "name": "The Rani",
+   "rank": 13338,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 Time Lord Scientist"
+  },
+  {
+   "name": "Ashnod the Uncaring",
+   "rank": 13545,
+   "usd": 0.33,
+   "type": "Legendary Creature \u2014 Human Artificer"
+  },
+  {
+   "name": "Slave of Bolas",
+   "rank": 13628,
+   "usd": 0.41,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Crosis, the Purger",
+   "rank": 13902,
+   "usd": 0.62,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Edea, Possessed Sorceress",
+   "rank": 14018,
+   "usd": 9.47,
+   "type": "Legendary Creature \u2014 Human Warlock"
+  },
+  {
+   "name": "Jeleva, Nephalia's Scourge",
+   "rank": 14149,
+   "usd": 2.82,
+   "type": "Legendary Creature \u2014 Vampire Wizard"
+  },
+  {
+   "name": "Nathan Drake, Treasure Hunter",
+   "rank": 14554,
+   "usd": 4.56,
+   "type": "Legendary Creature \u2014 Human Rogue"
+  },
+  {
+   "name": "Dark Intimations",
+   "rank": 14618,
+   "usd": 0.16,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Evelyn, the Covetous",
+   "rank": 14710,
+   "usd": 0.28,
+   "type": "Legendary Creature \u2014 Vampire Rogue"
+  },
+  {
+   "name": "Prince of Thralls",
+   "rank": 14974,
+   "usd": 4.0,
+   "type": "Creature \u2014 Demon"
+  },
+  {
+   "name": "Blood Tyrant",
+   "rank": 15013,
+   "usd": 0.34,
+   "type": "Creature \u2014 Vampire"
+  },
+  {
+   "name": "Maestros Confluence",
+   "rank": 15239,
+   "usd": 0.23,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Grixis Charm",
+   "rank": 16546,
+   "usd": 0.2,
+   "type": "Instant"
+  },
+  {
+   "name": "Parnesse, the Subtle Brush",
+   "rank": 16797,
+   "usd": 0.42,
+   "type": "Legendary Creature \u2014 Vampire Wizard"
+  },
+  {
+   "name": "Maestros Ascendancy",
+   "rank": 17040,
+   "usd": 0.23,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Tetsuo, Imperial Champion",
+   "rank": 17414,
+   "usd": 0.43,
+   "type": "Legendary Creature \u2014 Human Samurai"
+  },
+  {
+   "name": "Visage of Bolas",
+   "rank": 17704,
+   "usd": 0.31,
+   "type": "Artifact"
+  },
+  {
+   "name": "Unscythe, Killer of Kings",
+   "rank": 18472,
+   "usd": 1.79,
+   "type": "Legendary Artifact \u2014 Equipment"
+  },
+  {
+   "name": "Mairsil, the Pretender",
+   "rank": 18558,
+   "usd": 0.39,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Maestros Diabolist",
+   "rank": 19481,
+   "usd": 0.27,
+   "type": "Creature \u2014 Vampire Warrior"
+  },
+  {
+   "name": "Sol'kanar the Swamp King",
+   "rank": 19812,
+   "usd": 0.28,
+   "type": "Legendary Creature \u2014 Demon"
+  },
+  {
+   "name": "Hostile Takeover",
+   "rank": 20752,
+   "usd": 0.19,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Sedraxis Specter",
+   "rank": 20795,
+   "usd": 0.11,
+   "type": "Creature \u2014 Specter"
+  },
+  {
+   "name": "Corpse Appraiser",
+   "rank": 20893,
+   "usd": 0.15,
+   "type": "Creature \u2014 Vampire Rogue"
+  },
+  {
+   "name": "Sol'Kanar the Tainted",
+   "rank": 21200,
+   "usd": 0.33,
+   "type": "Legendary Creature \u2014 Elemental Demon"
+  },
+  {
+   "name": "Glamorous Outlaw",
+   "rank": 21300,
+   "usd": 0.12,
+   "type": "Creature \u2014 Vampire Rogue"
+  },
+  {
+   "name": "Lord of Tresserhorn",
+   "rank": 21487,
+   "usd": 3.57,
+   "type": "Legendary Creature \u2014 Zombie",
+   "repriced": true
+  },
+  {
+   "name": "Sulfur Vent",
+   "rank": 21758,
+   "usd": 0.29,
+   "type": "Land"
+  },
+  {
+   "name": "Breaking // Entering",
+   "rank": 22007,
+   "usd": 0.33,
+   "type": "Sorcery // Sorcery"
+  },
+  {
+   "name": "Mishra, Artificer Prodigy",
+   "rank": 23365,
+   "usd": 0.45,
+   "type": "Legendary Creature \u2014 Human Artificer"
+  },
+  {
+   "name": "Elder Mastery",
+   "rank": 24813,
+   "usd": 0.35,
+   "type": "Enchantment \u2014 Aura"
+  },
+  {
+   "name": "Gwendlyn Di Corci",
+   "rank": 24821,
+   "usd": 217.38,
+   "type": "Legendary Creature \u2014 Human Rogue",
+   "repriced": true
+  },
+  {
+   "name": "Bladecoil Serpent",
+   "rank": 24949,
+   "usd": 0.35,
+   "type": "Artifact Creature \u2014 Serpent"
+  },
+  {
+   "name": "Grixis Grimblade",
+   "rank": 25334,
+   "usd": 0.14,
+   "type": "Creature \u2014 Zombie Warrior"
+  },
+  {
+   "name": "Castle Sengir",
+   "rank": 26561,
+   "usd": 0.28,
+   "type": "Land"
+  },
+  {
+   "name": "Rise // Fall",
+   "rank": 26821,
+   "usd": 0.25,
+   "type": "Sorcery // Sorcery"
+  },
+  {
+   "name": "Drastic Revelation",
+   "rank": 27678,
+   "usd": 0.13,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Tetsuo Umezawa",
+   "rank": 27785,
+   "usd": 86.86,
+   "type": "Legendary Creature \u2014 Human Archer",
+   "repriced": true
+  },
+  {
+   "name": "Garza Zol, Plague Queen",
+   "rank": 28276,
+   "usd": 2.28,
+   "type": "Legendary Creature \u2014 Vampire Noble"
+  },
+  {
+   "name": "Grixis Battlemage",
+   "rank": 28774,
+   "usd": 0.16,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Elemental Augury",
+   "rank": 28972,
+   "usd": 0.49,
+   "type": "Enchantment",
+   "repriced": true
+  },
+  {
+   "name": "Kederekt Creeper",
+   "rank": 29105,
+   "usd": 0.1,
+   "type": "Creature \u2014 Horror"
+  },
+  {
+   "name": "Nightscape Apprentice",
+   "rank": 29122,
+   "usd": 0.14,
+   "type": "Creature \u2014 Zombie Wizard"
+  },
+  {
+   "name": "Morgue Toad",
+   "rank": 29636,
+   "usd": 0.17,
+   "type": "Creature \u2014 Frog"
+  },
+  {
+   "name": "Nightscape Master",
+   "rank": 29828,
+   "usd": 0.46,
+   "type": "Creature \u2014 Zombie Wizard"
+  },
+  {
+   "name": "Fire-Field Ogre",
+   "rank": 29847,
+   "usd": 0.1,
+   "type": "Creature \u2014 Ogre Mutant"
+  },
+  {
+   "name": "Shadow Guildmage",
+   "rank": 29980,
+   "usd": 0.26,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Crosis's Attendant",
+   "rank": 30288,
+   "usd": 0.19,
+   "type": "Artifact Creature \u2014 Golem"
+  },
+  {
+   "name": "Grixis Sojourners",
+   "rank": 30430,
+   "usd": 0.08,
+   "type": "Creature \u2014 Zombie Ogre"
+  },
+  {
+   "name": "Nightscape Battlemage",
+   "rank": 30693,
+   "usd": 0.2,
+   "type": "Creature \u2014 Zombie Wizard"
+  },
+  {
+   "name": "Maestros Initiate",
+   "rank": 30731,
+   "usd": 0.07,
+   "type": "Creature \u2014 Human Citizen"
+  },
+  {
+   "name": "Sewn-Eye Drake",
+   "rank": 31017,
+   "usd": 0.14,
+   "type": "Creature \u2014 Zombie Drake"
+  },
+  {
+   "name": "Dreadwing",
+   "rank": 31656,
+   "usd": 0.1,
+   "type": "Creature \u2014 Zombie"
+  },
+  {
+   "name": "Resounding Scream",
+   "rank": 31789,
+   "usd": 0.05,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Krovikan Elementalist",
+   "rank": 32221,
+   "usd": 0.23,
+   "type": "Creature \u2014 Human Wizard"
+  }
+ ],
+ "brg": [
+  {
+   "name": "Ziatora's Proving Ground",
+   "rank": 533,
+   "usd": 9.23,
+   "type": "Land \u2014 Swamp Mountain Forest"
+  },
+  {
+   "name": "Ignoble Hierarch",
+   "rank": 535,
+   "usd": 1.15,
+   "type": "Creature \u2014 Goblin Shaman"
+  },
+  {
+   "name": "Savage Lands",
+   "rank": 645,
+   "usd": 0.32,
+   "type": "Land"
+  },
+  {
+   "name": "Korvold, Fae-Cursed King",
+   "rank": 1837,
+   "usd": 0.47,
+   "type": "Legendary Creature \u2014 Dragon Noble"
+  },
+  {
+   "name": "Twisted Landscape",
+   "rank": 1862,
+   "usd": 0.31,
+   "type": "Land"
+  },
+  {
+   "name": "Ziatora, the Incinerator",
+   "rank": 3111,
+   "usd": 0.67,
+   "type": "Legendary Creature \u2014 Demon Dragon"
+  },
+  {
+   "name": "Hearthhull, the Worldseed",
+   "rank": 3410,
+   "usd": 1.09,
+   "type": "Legendary Artifact \u2014 Spacecraft"
+  },
+  {
+   "name": "Szarel, Genesis Shepherd",
+   "rank": 4133,
+   "usd": 0.48,
+   "type": "Legendary Creature \u2014 Insect Druid"
+  },
+  {
+   "name": "Riveteers Ascendancy",
+   "rank": 4291,
+   "usd": 0.48,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Soul of Windgrace",
+   "rank": 5202,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 Cat Avatar"
+  },
+  {
+   "name": "The Reaper, King No More",
+   "rank": 5910,
+   "usd": 0.5,
+   "type": "Legendary Artifact Creature \u2014 Scarecrow"
+  },
+  {
+   "name": "Lord Windgrace",
+   "rank": 6152,
+   "usd": 17.67,
+   "type": "Legendary Planeswalker \u2014 Windgrace"
+  },
+  {
+   "name": "Auntie Ool, Cursewretch",
+   "rank": 6335,
+   "usd": 0.37,
+   "type": "Legendary Creature \u2014 Goblin Warlock"
+  },
+  {
+   "name": "Henzie \"Toolbox\" Torre",
+   "rank": 7165,
+   "usd": 1.0,
+   "type": "Legendary Creature \u2014 Devil Rogue"
+  },
+  {
+   "name": "Coram, the Undertaker",
+   "rank": 7316,
+   "usd": 0.28,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Riveteers Charm",
+   "rank": 7343,
+   "usd": 0.17,
+   "type": "Instant"
+  },
+  {
+   "name": "Mr. Orfeo, the Boulder",
+   "rank": 7854,
+   "usd": 0.22,
+   "type": "Legendary Creature \u2014 Rhino Warrior"
+  },
+  {
+   "name": "Karrthus, Tyrant of Jund",
+   "rank": 8368,
+   "usd": 6.46,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Yurlok of Scorch Thrash",
+   "rank": 8381,
+   "usd": 0.33,
+   "type": "Legendary Creature \u2014 Lizard Shaman"
+  },
+  {
+   "name": "Slimefoot and Squee",
+   "rank": 8797,
+   "usd": 3.82,
+   "type": "Legendary Creature \u2014 Fungus Goblin"
+  },
+  {
+   "name": "Indoraptor, the Perfect Hybrid",
+   "rank": 8822,
+   "usd": 24.82,
+   "type": "Legendary Creature \u2014 Dinosaur Mutant"
+  },
+  {
+   "name": "Eddie Brock // Venom, Lethal Protector",
+   "rank": 9005,
+   "usd": 1.99,
+   "type": "Legendary Creature \u2014 Human Hero Villain // Legendary Creature \u2014 Symbiote Hero Villain"
+  },
+  {
+   "name": "Kresh the Bloodbraided",
+   "rank": 9127,
+   "usd": 1.72,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Vaevictis Asmadi, the Dire",
+   "rank": 9216,
+   "usd": 1.82,
+   "type": "Legendary Creature \u2014 Elder Dragon"
+  },
+  {
+   "name": "Lavalanche",
+   "rank": 9217,
+   "usd": 0.17,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Disa the Restless",
+   "rank": 9235,
+   "usd": 0.13,
+   "type": "Legendary Creature \u2014 Human Scout"
+  },
+  {
+   "name": "Winter, Misanthropic Guide",
+   "rank": 9258,
+   "usd": 0.25,
+   "type": "Legendary Creature \u2014 Human Warlock"
+  },
+  {
+   "name": "Ognis, the Dragon's Lash",
+   "rank": 9386,
+   "usd": 0.35,
+   "type": "Legendary Creature \u2014 Lizard Warrior"
+  },
+  {
+   "name": "Prossh, Skyraider of Kher",
+   "rank": 9718,
+   "usd": 0.39,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Thantis, the Warweaver",
+   "rank": 10542,
+   "usd": 2.28,
+   "type": "Legendary Creature \u2014 Spider"
+  },
+  {
+   "name": "Maarika, Brutal Gladiator",
+   "rank": 10590,
+   "usd": 2.53,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Gluttonous Hellkite",
+   "rank": 10863,
+   "usd": 0.46,
+   "type": "Creature \u2014 Dragon"
+  },
+  {
+   "name": "Darigaaz's Caldera",
+   "rank": 10988,
+   "usd": 0.24,
+   "type": "Land \u2014 Lair"
+  },
+  {
+   "name": "Wasitora, Nekoru Queen",
+   "rank": 11166,
+   "usd": 0.61,
+   "type": "Legendary Creature \u2014 Cat Dragon"
+  },
+  {
+   "name": "Sprouting Thrinax",
+   "rank": 11831,
+   "usd": 0.3,
+   "type": "Creature \u2014 Lizard"
+  },
+  {
+   "name": "The Beamtown Bullies",
+   "rank": 11969,
+   "usd": 0.45,
+   "type": "Legendary Creature \u2014 Ogre Devil Warrior"
+  },
+  {
+   "name": "Ziatora's Envoy",
+   "rank": 12018,
+   "usd": 0.3,
+   "type": "Creature \u2014 Lizard Warrior"
+  },
+  {
+   "name": "Xira, the Golden Sting",
+   "rank": 13585,
+   "usd": 0.36,
+   "type": "Legendary Creature \u2014 Insect Assassin"
+  },
+  {
+   "name": "Broodmate Tyrant",
+   "rank": 14023,
+   "usd": 0.37,
+   "type": "Creature \u2014 Dragon"
+  },
+  {
+   "name": "Vazi, Keen Negotiator",
+   "rank": 14741,
+   "usd": 0.29,
+   "type": "Legendary Creature \u2014 Human Advisor"
+  },
+  {
+   "name": "Jund Charm",
+   "rank": 15191,
+   "usd": 0.2,
+   "type": "Instant"
+  },
+  {
+   "name": "Bhaal, Lord of Murder",
+   "rank": 15952,
+   "usd": 0.24,
+   "type": "Legendary Creature \u2014 God"
+  },
+  {
+   "name": "Darigaaz Reincarnated",
+   "rank": 16002,
+   "usd": 0.73,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Broodmate Dragon",
+   "rank": 16068,
+   "usd": 0.34,
+   "type": "Creature \u2014 Dragon"
+  },
+  {
+   "name": "Shattergang Brothers",
+   "rank": 16430,
+   "usd": 0.4,
+   "type": "Legendary Creature \u2014 Goblin Artificer"
+  },
+  {
+   "name": "Sek'Kuar, Deathkeeper",
+   "rank": 16462,
+   "usd": 0.3,
+   "type": "Legendary Creature \u2014 Orc Shaman"
+  },
+  {
+   "name": "Xira Arien",
+   "rank": 16982,
+   "usd": 0.3,
+   "type": "Legendary Creature \u2014 Insect Wizard"
+  },
+  {
+   "name": "Rebuild the City",
+   "rank": 17298,
+   "usd": 0.22,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Korvold, Gleeful Glutton",
+   "rank": 17378,
+   "usd": 0.58,
+   "type": "Legendary Creature \u2014 Dragon Noble"
+  },
+  {
+   "name": "Riveteers Confluence",
+   "rank": 17511,
+   "usd": 0.29,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Hellkite Overlord",
+   "rank": 18044,
+   "usd": 0.56,
+   "type": "Creature \u2014 Dragon"
+  },
+  {
+   "name": "Violent Ultimatum",
+   "rank": 18497,
+   "usd": 0.34,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Obelisk of Jund",
+   "rank": 18630,
+   "usd": 0.35,
+   "type": "Artifact"
+  },
+  {
+   "name": "Unleash the Inferno",
+   "rank": 18795,
+   "usd": 0.27,
+   "type": "Instant"
+  },
+  {
+   "name": "Gyrus, Waker of Corpses",
+   "rank": 18877,
+   "usd": 1.04,
+   "type": "Legendary Creature \u2014 Hydra"
+  },
+  {
+   "name": "Charnelhoard Wurm",
+   "rank": 19846,
+   "usd": 0.21,
+   "type": "Creature \u2014 Wurm"
+  },
+  {
+   "name": "Destructive Flow",
+   "rank": 20168,
+   "usd": 1.42,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Flesh // Blood",
+   "rank": 20196,
+   "usd": 0.29,
+   "type": "Sorcery // Sorcery"
+  },
+  {
+   "name": "Geothermal Crevice",
+   "rank": 21272,
+   "usd": 0.28,
+   "type": "Land"
+  },
+  {
+   "name": "Darigaaz's Charm",
+   "rank": 21947,
+   "usd": 0.38,
+   "type": "Instant"
+  },
+  {
+   "name": "Darigaaz, the Igniter",
+   "rank": 22129,
+   "usd": 0.5,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Madrush Cyclops",
+   "rank": 23208,
+   "usd": 0.35,
+   "type": "Creature \u2014 Cyclops Warrior"
+  },
+  {
+   "name": "Masked Bandits",
+   "rank": 23216,
+   "usd": 0.14,
+   "type": "Creature \u2014 Raccoon Rogue"
+  },
+  {
+   "name": "Scarland Thrinax",
+   "rank": 23657,
+   "usd": 0.27,
+   "type": "Creature \u2014 Lizard"
+  },
+  {
+   "name": "Vaevictis Asmadi",
+   "rank": 23909,
+   "usd": 0.69,
+   "type": "Legendary Creature \u2014 Elder Dragon",
+   "repriced": true
+  },
+  {
+   "name": "Adun Oakenshield",
+   "rank": 24249,
+   "usd": 66.67,
+   "type": "Legendary Creature \u2014 Human Knight",
+   "repriced": true
+  },
+  {
+   "name": "Crew Captain",
+   "rank": 24450,
+   "usd": 0.1,
+   "type": "Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Jund Battlemage",
+   "rank": 26727,
+   "usd": 0.2,
+   "type": "Creature \u2014 Human Shaman"
+  },
+  {
+   "name": "Jund Hackblade",
+   "rank": 26741,
+   "usd": 0.09,
+   "type": "Creature \u2014 Goblin Berserker"
+  },
+  {
+   "name": "Dragon Appeasement",
+   "rank": 26819,
+   "usd": 0.17,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Misfortune",
+   "rank": 28229,
+   "usd": 1.33,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Hit // Run",
+   "rank": 28314,
+   "usd": 0.23,
+   "type": "Instant // Instant"
+  },
+  {
+   "name": "Koskun Keep",
+   "rank": 28764,
+   "usd": 0.24,
+   "type": "Land"
+  },
+  {
+   "name": "Carrion Thrash",
+   "rank": 29065,
+   "usd": 0.16,
+   "type": "Creature \u2014 Lizard Warrior"
+  },
+  {
+   "name": "Riveteers Initiate",
+   "rank": 29381,
+   "usd": 0.06,
+   "type": "Creature \u2014 Lizard Citizen"
+  },
+  {
+   "name": "Keldon Mantle",
+   "rank": 29523,
+   "usd": 0.14,
+   "type": "Enchantment \u2014 Aura"
+  },
+  {
+   "name": "Earthlink",
+   "rank": 29778,
+   "usd": 0.93,
+   "type": "Enchantment",
+   "repriced": true
+  },
+  {
+   "name": "Jund Sojourners",
+   "rank": 30128,
+   "usd": 0.07,
+   "type": "Creature \u2014 Lizard Shaman"
+  },
+  {
+   "name": "Bartel Runeaxe",
+   "rank": 30585,
+   "usd": 19.99,
+   "type": "Legendary Creature \u2014 Giant Warrior",
+   "repriced": true
+  },
+  {
+   "name": "Giant Ambush Beetle",
+   "rank": 30666,
+   "usd": 0.26,
+   "type": "Creature \u2014 Insect"
+  },
+  {
+   "name": "Thunderscape Battlemage",
+   "rank": 30915,
+   "usd": 0.24,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Sangrite Backlash",
+   "rank": 30940,
+   "usd": 0.08,
+   "type": "Enchantment \u2014 Aura"
+  },
+  {
+   "name": "Resounding Thunder",
+   "rank": 30992,
+   "usd": 0.13,
+   "type": "Instant"
+  },
+  {
+   "name": "Darigaaz's Attendant",
+   "rank": 31020,
+   "usd": 0.18,
+   "type": "Artifact Creature \u2014 Golem"
+  },
+  {
+   "name": "Armorer Guildmage",
+   "rank": 31111,
+   "usd": 0.09,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Caldera Kavu",
+   "rank": 31248,
+   "usd": 0.1,
+   "type": "Creature \u2014 Kavu"
+  },
+  {
+   "name": "Viashino Slaughtermaster",
+   "rank": 31293,
+   "usd": 0.17,
+   "type": "Creature \u2014 Lizard Warrior"
+  },
+  {
+   "name": "Thunderscape Master",
+   "rank": 31614,
+   "usd": 0.35,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Thunderscape Apprentice",
+   "rank": 31856,
+   "usd": 0.09,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Orcish Healer",
+   "rank": 32121,
+   "usd": 0.26,
+   "type": "Creature \u2014 Orc Cleric"
+  }
+ ],
+ "rgw": [
+  {
+   "name": "Jungle Shrine",
+   "rank": 320,
+   "usd": 0.37,
+   "type": "Land"
+  },
+  {
+   "name": "Jetmir's Garden",
+   "rank": 364,
+   "usd": 16.52,
+   "type": "Land \u2014 Mountain Forest Plains"
+  },
+  {
+   "name": "Annie Joins Up",
+   "rank": 1014,
+   "usd": 4.06,
+   "type": "Legendary Enchantment"
+  },
+  {
+   "name": "Zacama, Primal Calamity",
+   "rank": 1801,
+   "usd": 2.16,
+   "type": "Legendary Creature \u2014 Elder Dinosaur"
+  },
+  {
+   "name": "Jetmir, Nexus of Revels",
+   "rank": 2228,
+   "usd": 10.42,
+   "type": "Legendary Creature \u2014 Cat Demon"
+  },
+  {
+   "name": "Sheltering Landscape",
+   "rank": 2301,
+   "usd": 0.33,
+   "type": "Land"
+  },
+  {
+   "name": "Gishath, Sun's Avatar",
+   "rank": 2430,
+   "usd": 5.88,
+   "type": "Legendary Creature \u2014 Dinosaur Avatar"
+  },
+  {
+   "name": "Pantlaza, Sun-Favored",
+   "rank": 2459,
+   "usd": 5.59,
+   "type": "Legendary Creature \u2014 Dinosaur"
+  },
+  {
+   "name": "Baylen, the Haymaker",
+   "rank": 2657,
+   "usd": 1.21,
+   "type": "Legendary Creature \u2014 Rabbit Warrior"
+  },
+  {
+   "name": "Naya Charm",
+   "rank": 3140,
+   "usd": 0.42,
+   "type": "Instant"
+  },
+  {
+   "name": "Toph, the First Metalbender",
+   "rank": 3311,
+   "usd": 1.2,
+   "type": "Legendary Creature \u2014 Human Warrior Ally"
+  },
+  {
+   "name": "Tifa, Martial Artist",
+   "rank": 3838,
+   "usd": 2.96,
+   "type": "Legendary Creature \u2014 Human Monk"
+  },
+  {
+   "name": "Shalai and Hallar",
+   "rank": 4081,
+   "usd": 6.62,
+   "type": "Legendary Creature \u2014 Angel Elf"
+  },
+  {
+   "name": "Jinnie Fay, Jetmir's Second",
+   "rank": 4353,
+   "usd": 0.63,
+   "type": "Legendary Creature \u2014 Elf Druid"
+  },
+  {
+   "name": "Cloud, Ex-SOLDIER",
+   "rank": 4456,
+   "usd": 1.51,
+   "type": "Legendary Creature \u2014 Human Soldier Mercenary"
+  },
+  {
+   "name": "Atla Palani, Nest Tender",
+   "rank": 4536,
+   "usd": 1.99,
+   "type": "Legendary Creature \u2014 Human Shaman"
+  },
+  {
+   "name": "Marisi, Breaker of the Coil",
+   "rank": 4660,
+   "usd": 7.44,
+   "type": "Legendary Creature \u2014 Cat Warrior"
+  },
+  {
+   "name": "Rith, Liberated Primeval",
+   "rank": 4964,
+   "usd": 3.16,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Rin and Seri, Inseparable",
+   "rank": 5506,
+   "usd": 32.49,
+   "type": "Legendary Creature \u2014 Dog Cat"
+  },
+  {
+   "name": "Rocco, Cabaretti Caterer",
+   "rank": 6025,
+   "usd": 0.24,
+   "type": "Legendary Creature \u2014 Elf Druid"
+  },
+  {
+   "name": "Voja, Jaws of the Conclave",
+   "rank": 6236,
+   "usd": 9.91,
+   "type": "Legendary Creature \u2014 Wolf"
+  },
+  {
+   "name": "Samut, Voice of Dissent",
+   "rank": 6300,
+   "usd": 2.3,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Aragorn, Hornburg Hero",
+   "rank": 6708,
+   "usd": 4.16,
+   "type": "Legendary Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Rocco, Street Chef",
+   "rank": 6796,
+   "usd": 0.43,
+   "type": "Legendary Creature \u2014 Elf Druid"
+  },
+  {
+   "name": "Titanic Ultimatum",
+   "rank": 6859,
+   "usd": 3.47,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Trace of Abundance",
+   "rank": 6955,
+   "usd": 0.93,
+   "type": "Enchantment \u2014 Aura"
+  },
+  {
+   "name": "Rienne, Angel of Rebirth",
+   "rank": 7040,
+   "usd": 0.65,
+   "type": "Legendary Creature \u2014 Angel"
+  },
+  {
+   "name": "Mayael's Aria",
+   "rank": 7049,
+   "usd": 2.37,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Sigurd, Jarl of Ravensthorpe",
+   "rank": 7115,
+   "usd": 0.39,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Miles Morales // Ultimate Spider-Man",
+   "rank": 7253,
+   "usd": 3.92,
+   "type": "Legendary Creature \u2014 Human Citizen Hero // Legendary Creature \u2014 Spider Human Hero"
+  },
+  {
+   "name": "Druid of the Anima",
+   "rank": 7728,
+   "usd": 0.53,
+   "type": "Creature \u2014 Elf Druid"
+  },
+  {
+   "name": "Cabaretti Charm",
+   "rank": 7765,
+   "usd": 0.25,
+   "type": "Instant"
+  },
+  {
+   "name": "Hazezon, Shaper of Sand",
+   "rank": 7985,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Havi, the All-Father",
+   "rank": 8066,
+   "usd": 0.32,
+   "type": "Legendary Creature \u2014 God Warrior"
+  },
+  {
+   "name": "Wayta, Trainer Prodigy",
+   "rank": 8344,
+   "usd": 0.35,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Yuma, Proud Protector",
+   "rank": 9045,
+   "usd": 0.39,
+   "type": "Legendary Creature \u2014 Human Ranger"
+  },
+  {
+   "name": "Dogmeat, Ever Loyal",
+   "rank": 9210,
+   "usd": 0.69,
+   "type": "Legendary Creature \u2014 Dog"
+  },
+  {
+   "name": "Huatli, Poet of Unity // Roar of the Fifth People",
+   "rank": 9276,
+   "usd": 0.98,
+   "type": "Legendary Creature \u2014 Human Warrior Bard // Enchantment \u2014 Saga"
+  },
+  {
+   "name": "Rith's Grove",
+   "rank": 9402,
+   "usd": 0.27,
+   "type": "Land \u2014 Lair"
+  },
+  {
+   "name": "Ghired, Mirror of the Wilds",
+   "rank": 9601,
+   "usd": 0.38,
+   "type": "Legendary Creature \u2014 Human Shaman"
+  },
+  {
+   "name": "Bright-Palm, Soul Awakener",
+   "rank": 9658,
+   "usd": 0.39,
+   "type": "Legendary Creature \u2014 Fox Shaman"
+  },
+  {
+   "name": "Eivor, Wolf-Kissed",
+   "rank": 9745,
+   "usd": 0.91,
+   "type": "Legendary Creature \u2014 Human Assassin Warrior"
+  },
+  {
+   "name": "Phabine, Boss's Confidant",
+   "rank": 10534,
+   "usd": 0.44,
+   "type": "Legendary Creature \u2014 Cat Advisor"
+  },
+  {
+   "name": "Obuun, Mul Daya Ancestor",
+   "rank": 10745,
+   "usd": 0.39,
+   "type": "Legendary Creature \u2014 Elf Spirit"
+  },
+  {
+   "name": "Duskana, the Rage Mother",
+   "rank": 11116,
+   "usd": 0.4,
+   "type": "Legendary Creature \u2014 Bear"
+  },
+  {
+   "name": "Gahiji, Honored One",
+   "rank": 11774,
+   "usd": 0.38,
+   "type": "Legendary Creature \u2014 Beast"
+  },
+  {
+   "name": "Kitt Kanto, Mayhem Diva",
+   "rank": 11786,
+   "usd": 0.43,
+   "type": "Legendary Creature \u2014 Cat Bard Druid"
+  },
+  {
+   "name": "Kirri, Talented Sprout",
+   "rank": 12229,
+   "usd": 0.43,
+   "type": "Legendary Creature \u2014 Plant Druid"
+  },
+  {
+   "name": "Ghired, Conclave Exile",
+   "rank": 12313,
+   "usd": 0.34,
+   "type": "Legendary Creature \u2014 Human Shaman"
+  },
+  {
+   "name": "Preston Garvey, Minuteman",
+   "rank": 12914,
+   "usd": 0.29,
+   "type": "Legendary Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Samut, the Driving Force",
+   "rank": 13003,
+   "usd": 0.24,
+   "type": "Legendary Creature \u2014 Human Warrior Cleric"
+  },
+  {
+   "name": "Uril, the Miststalker",
+   "rank": 13571,
+   "usd": 1.14,
+   "type": "Legendary Creature \u2014 Beast"
+  },
+  {
+   "name": "Jared Carthalion, True Heir",
+   "rank": 14365,
+   "usd": 0.31,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Cabaretti Ascendancy",
+   "rank": 14381,
+   "usd": 0.25,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Knotvine Mystic",
+   "rank": 14533,
+   "usd": 0.41,
+   "type": "Creature \u2014 Elf Druid"
+  },
+  {
+   "name": "Mazzy, Truesword Paladin",
+   "rank": 15012,
+   "usd": 0.2,
+   "type": "Legendary Creature \u2014 Halfling Knight"
+  },
+  {
+   "name": "Mayael the Anima",
+   "rank": 15158,
+   "usd": 2.43,
+   "type": "Legendary Creature \u2014 Elf Shaman"
+  },
+  {
+   "name": "Rith, the Awakener",
+   "rank": 15205,
+   "usd": 0.31,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Godsire",
+   "rank": 15554,
+   "usd": 4.08,
+   "type": "Creature \u2014 Beast"
+  },
+  {
+   "name": "Marath, Will of the Wild",
+   "rank": 15634,
+   "usd": 0.71,
+   "type": "Legendary Creature \u2014 Elemental Beast"
+  },
+  {
+   "name": "Ultra Magnus, Tactician // Ultra Magnus, Armored Carrier",
+   "rank": 15734,
+   "usd": 0.73,
+   "type": "Legendary Artifact Creature \u2014 Robot // Legendary Artifact \u2014 Vehicle"
+  },
+  {
+   "name": "Minsc, Beloved Ranger",
+   "rank": 16671,
+   "usd": 0.42,
+   "type": "Legendary Creature \u2014 Human Ranger"
+  },
+  {
+   "name": "Rith's Charm",
+   "rank": 16748,
+   "usd": 0.36,
+   "type": "Instant"
+  },
+  {
+   "name": "Cabaretti Confluence",
+   "rank": 16812,
+   "usd": 0.29,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Kaust, Eyes of the Glade",
+   "rank": 16925,
+   "usd": 0.28,
+   "type": "Legendary Creature \u2014 Dryad Detective"
+  },
+  {
+   "name": "Annie Flash, the Veteran",
+   "rank": 17617,
+   "usd": 0.28,
+   "type": "Legendary Creature \u2014 Human Rogue"
+  },
+  {
+   "name": "Skyshroud Elf",
+   "rank": 18071,
+   "usd": 0.26,
+   "type": "Creature \u2014 Elf Druid",
+   "repriced": true
+  },
+  {
+   "name": "Palladia-Mors, the Ruiner",
+   "rank": 18475,
+   "usd": 0.4,
+   "type": "Legendary Creature \u2014 Elder Dragon"
+  },
+  {
+   "name": "Obelisk of Naya",
+   "rank": 18553,
+   "usd": 0.24,
+   "type": "Artifact"
+  },
+  {
+   "name": "Fleetfoot Dancer",
+   "rank": 19040,
+   "usd": 0.22,
+   "type": "Creature \u2014 Elf Druid"
+  },
+  {
+   "name": "Incandescent Aria",
+   "rank": 19557,
+   "usd": 0.22,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Tinder Farm",
+   "rank": 21651,
+   "usd": 0.19,
+   "type": "Land"
+  },
+  {
+   "name": "Meglonoth",
+   "rank": 22082,
+   "usd": 0.37,
+   "type": "Creature \u2014 Beast"
+  },
+  {
+   "name": "Retaliator Griffin",
+   "rank": 22273,
+   "usd": 0.38,
+   "type": "Creature \u2014 Griffin"
+  },
+  {
+   "name": "Rakish Revelers",
+   "rank": 22590,
+   "usd": 0.1,
+   "type": "Creature \u2014 Elf Druid Rogue"
+  },
+  {
+   "name": "Hazezon Tamar",
+   "rank": 22615,
+   "usd": 171.56,
+   "type": "Legendary Creature \u2014 Human Warrior",
+   "repriced": true
+  },
+  {
+   "name": "Brazen Upstart",
+   "rank": 22960,
+   "usd": 0.08,
+   "type": "Creature \u2014 Elf Shaman"
+  },
+  {
+   "name": "Realm Razer",
+   "rank": 22964,
+   "usd": 0.53,
+   "type": "Creature \u2014 Beast"
+  },
+  {
+   "name": "Woolly Thoctar",
+   "rank": 24228,
+   "usd": 0.2,
+   "type": "Creature \u2014 Beast"
+  },
+  {
+   "name": "Gloryscale Viashino",
+   "rank": 24547,
+   "usd": 0.14,
+   "type": "Creature \u2014 Lizard Soldier"
+  },
+  {
+   "name": "Fiery Justice",
+   "rank": 24651,
+   "usd": 0.22,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Naya Hushblade",
+   "rank": 24898,
+   "usd": 0.16,
+   "type": "Creature \u2014 Elf Rogue"
+  },
+  {
+   "name": "Johan",
+   "rank": 25578,
+   "usd": 0.42,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Palladia-Mors",
+   "rank": 25645,
+   "usd": 0.7,
+   "type": "Legendary Creature \u2014 Elder Dragon",
+   "repriced": true
+  },
+  {
+   "name": "Marisi's Twinclaws",
+   "rank": 25744,
+   "usd": 0.34,
+   "type": "Creature \u2014 Cat Warrior"
+  },
+  {
+   "name": "Tamanoa",
+   "rank": 25864,
+   "usd": 1.02,
+   "type": "Creature \u2014 Spirit"
+  },
+  {
+   "name": "Rakeclaw Gargantuan",
+   "rank": 26101,
+   "usd": 0.13,
+   "type": "Creature \u2014 Beast"
+  },
+  {
+   "name": "Pure // Simple",
+   "rank": 26212,
+   "usd": 0.16,
+   "type": "Sorcery // Sorcery"
+  },
+  {
+   "name": "An-Havva Township",
+   "rank": 27233,
+   "usd": 0.28,
+   "type": "Land"
+  },
+  {
+   "name": "Jacques le Vert",
+   "rank": 28369,
+   "usd": 26.23,
+   "type": "Legendary Creature \u2014 Human Warrior",
+   "repriced": true
+  },
+  {
+   "name": "Radiant Kavu",
+   "rank": 28689,
+   "usd": 0.29,
+   "type": "Creature \u2014 Kavu"
+  },
+  {
+   "name": "Nacatl Hunt-Pride",
+   "rank": 28814,
+   "usd": 0.28,
+   "type": "Creature \u2014 Cat Warrior"
+  },
+  {
+   "name": "Thornscape Battlemage",
+   "rank": 29314,
+   "usd": 0.07,
+   "type": "Creature \u2014 Elf Wizard"
+  },
+  {
+   "name": "Cabaretti Initiate",
+   "rank": 29749,
+   "usd": 0.22,
+   "type": "Creature \u2014 Raccoon Citizen"
+  },
+  {
+   "name": "Winter's Night",
+   "rank": 29855,
+   "usd": 0.89,
+   "type": "World Enchantment",
+   "repriced": true
+  },
+  {
+   "name": "Naya Battlemage",
+   "rank": 29979,
+   "usd": 0.25,
+   "type": "Creature \u2014 Human Shaman"
+  },
+  {
+   "name": "Mirrorwood Treefolk",
+   "rank": 30304,
+   "usd": 0.28,
+   "type": "Creature \u2014 Treefolk"
+  },
+  {
+   "name": "Granger Guildmage",
+   "rank": 30447,
+   "usd": 0.17,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Naya Sojourners",
+   "rank": 30464,
+   "usd": 0.2,
+   "type": "Creature \u2014 Elf Shaman"
+  },
+  {
+   "name": "Thornscape Apprentice",
+   "rank": 30834,
+   "usd": 0.28,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Rith's Attendant",
+   "rank": 31265,
+   "usd": 0.17,
+   "type": "Artifact Creature \u2014 Golem"
+  },
+  {
+   "name": "Thornscape Master",
+   "rank": 31409,
+   "usd": 0.32,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Resounding Roar",
+   "rank": 31439,
+   "usd": 0.11,
+   "type": "Instant"
+  },
+  {
+   "name": "Stone Kavu",
+   "rank": 31469,
+   "usd": 0.07,
+   "type": "Creature \u2014 Kavu"
+  },
+  {
+   "name": "Sacellum Archers",
+   "rank": 31868,
+   "usd": 0.11,
+   "type": "Creature \u2014 Elf Archer"
+  },
+  {
+   "name": "Cylian Sunsinger",
+   "rank": 32068,
+   "usd": 0.28,
+   "type": "Creature \u2014 Elf Shaman"
+  }
+ ],
+ "gwu": [
+  {
+   "name": "Spara's Headquarters",
+   "rank": 398,
+   "usd": 13.75,
+   "type": "Land \u2014 Forest Plains Island"
+  },
+  {
+   "name": "Seaside Citadel",
+   "rank": 406,
+   "usd": 0.32,
+   "type": "Land"
+  },
+  {
+   "name": "Noble Hierarch",
+   "rank": 771,
+   "usd": 11.9,
+   "type": "Creature \u2014 Human Druid"
+  },
+  {
+   "name": "Tranquil Landscape",
+   "rank": 2109,
+   "usd": 0.24,
+   "type": "Land"
+  },
+  {
+   "name": "Chulane, Teller of Tales",
+   "rank": 2612,
+   "usd": 6.16,
+   "type": "Legendary Creature \u2014 Human Druid"
+  },
+  {
+   "name": "Derevi, Empyrial Tactician",
+   "rank": 2926,
+   "usd": 6.83,
+   "type": "Legendary Creature \u2014 Bird Wizard"
+  },
+  {
+   "name": "Brokers Ascendancy",
+   "rank": 2938,
+   "usd": 2.5,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Tamiyo, Field Researcher",
+   "rank": 2982,
+   "usd": 2.01,
+   "type": "Legendary Planeswalker \u2014 Tamiyo"
+  },
+  {
+   "name": "Ms. Bumbleflower",
+   "rank": 3188,
+   "usd": 6.65,
+   "type": "Legendary Creature \u2014 Rabbit Citizen"
+  },
+  {
+   "name": "Yuna, Grand Summoner",
+   "rank": 3566,
+   "usd": 43.22,
+   "type": "Legendary Creature \u2014 Human Cleric"
+  },
+  {
+   "name": "Tidus, Yuna's Guardian",
+   "rank": 3774,
+   "usd": 2.73,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Galadriel, Light of Valinor",
+   "rank": 4183,
+   "usd": 26.93,
+   "type": "Legendary Creature \u2014 Elf Noble"
+  },
+  {
+   "name": "Helga, Skittish Seer",
+   "rank": 4356,
+   "usd": 4.15,
+   "type": "Legendary Creature \u2014 Frog Druid"
+  },
+  {
+   "name": "Katara, the Fearless",
+   "rank": 4557,
+   "usd": 0.61,
+   "type": "Legendary Creature \u2014 Human Warrior Ally"
+  },
+  {
+   "name": "Urban Retreat",
+   "rank": 4784,
+   "usd": 0.63,
+   "type": "Land"
+  },
+  {
+   "name": "Bant Charm",
+   "rank": 5041,
+   "usd": 0.27,
+   "type": "Instant"
+  },
+  {
+   "name": "Aang, at the Crossroads // Aang, Destined Savior",
+   "rank": 5080,
+   "usd": 0.68,
+   "type": "Legendary Creature \u2014 Human Avatar Ally // Legendary Creature \u2014 Avatar Ally"
+  },
+  {
+   "name": "Kellan, the Kid",
+   "rank": 5489,
+   "usd": 1.81,
+   "type": "Legendary Creature \u2014 Human Faerie Rogue"
+  },
+  {
+   "name": "Wargate",
+   "rank": 5711,
+   "usd": 3.7,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Arcades, the Strategist",
+   "rank": 5807,
+   "usd": 4.41,
+   "type": "Legendary Creature \u2014 Elder Dragon"
+  },
+  {
+   "name": "Choco, Seeker of Paradise",
+   "rank": 6195,
+   "usd": 0.46,
+   "type": "Legendary Creature \u2014 Bird"
+  },
+  {
+   "name": "Brokers Charm",
+   "rank": 6241,
+   "usd": 0.29,
+   "type": "Instant"
+  },
+  {
+   "name": "Falco Spara, Pactweaver",
+   "rank": 7053,
+   "usd": 2.93,
+   "type": "Legendary Creature \u2014 Bird Demon"
+  },
+  {
+   "name": "Peter Parker // Amazing Spider-Man",
+   "rank": 7084,
+   "usd": 4.26,
+   "type": "Legendary Creature \u2014 Human Scientist Hero // Legendary Creature \u2014 Spider Human Hero"
+  },
+  {
+   "name": "Mr. Foxglove",
+   "rank": 7156,
+   "usd": 1.95,
+   "type": "Legendary Creature \u2014 Fox Rogue",
+   "repriced": true
+  },
+  {
+   "name": "Endless Detour",
+   "rank": 7360,
+   "usd": 0.19,
+   "type": "Instant"
+  },
+  {
+   "name": "Kellan Joins Up",
+   "rank": 7646,
+   "usd": 0.35,
+   "type": "Legendary Enchantment"
+  },
+  {
+   "name": "Tuvasa the Sunlit",
+   "rank": 8337,
+   "usd": 3.71,
+   "type": "Legendary Creature \u2014 Merfolk Shaman"
+  },
+  {
+   "name": "Finest Hour",
+   "rank": 8624,
+   "usd": 0.95,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Flurry of Wings",
+   "rank": 8723,
+   "usd": 2.44,
+   "type": "Instant"
+  },
+  {
+   "name": "Morska, Undersea Sleuth",
+   "rank": 8860,
+   "usd": 0.41,
+   "type": "Legendary Creature \u2014 Vedalken Fish Detective"
+  },
+  {
+   "name": "Aang and Katara",
+   "rank": 9324,
+   "usd": 8.94,
+   "type": "Legendary Creature \u2014 Human Avatar Ally"
+  },
+  {
+   "name": "Brenard, Ginger Sculptor",
+   "rank": 9786,
+   "usd": 1.11,
+   "type": "Legendary Creature \u2014 Human Artificer"
+  },
+  {
+   "name": "Brokers Confluence",
+   "rank": 10119,
+   "usd": 1.48,
+   "type": "Instant"
+  },
+  {
+   "name": "Treva's Ruins",
+   "rank": 10440,
+   "usd": 0.26,
+   "type": "Land \u2014 Lair"
+  },
+  {
+   "name": "Rafiq of the Many",
+   "rank": 10829,
+   "usd": 0.29,
+   "type": "Legendary Creature \u2014 Human Knight"
+  },
+  {
+   "name": "Kros, Defense Contractor",
+   "rank": 11354,
+   "usd": 0.42,
+   "type": "Legendary Creature \u2014 Cat Advisor"
+  },
+  {
+   "name": "Estrid, the Masked",
+   "rank": 11421,
+   "usd": 1.07,
+   "type": "Legendary Planeswalker \u2014 Estrid"
+  },
+  {
+   "name": "Storvald, Frost Giant Jarl",
+   "rank": 11496,
+   "usd": 0.58,
+   "type": "Legendary Creature \u2014 Giant"
+  },
+  {
+   "name": "Amareth, the Lustrous",
+   "rank": 11865,
+   "usd": 0.34,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Alistair, the Brigadier",
+   "rank": 12297,
+   "usd": 0.23,
+   "type": "Legendary Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Galea, Kindler of Hope",
+   "rank": 12587,
+   "usd": 0.66,
+   "type": "Legendary Creature \u2014 Elf Knight"
+  },
+  {
+   "name": "Sophia, Dogged Detective",
+   "rank": 12691,
+   "usd": 0.34,
+   "type": "Legendary Creature \u2014 Human Detective"
+  },
+  {
+   "name": "Kestia, the Cultivator",
+   "rank": 13723,
+   "usd": 2.3,
+   "type": "Legendary Enchantment Creature \u2014 Nymph"
+  },
+  {
+   "name": "Roon of the Hidden Realm",
+   "rank": 13956,
+   "usd": 0.35,
+   "type": "Legendary Creature \u2014 Rhino Soldier"
+  },
+  {
+   "name": "Rigo, Streetwise Mentor",
+   "rank": 14034,
+   "usd": 0.29,
+   "type": "Legendary Creature \u2014 Cat Citizen"
+  },
+  {
+   "name": "Lagrella, the Magpie",
+   "rank": 14246,
+   "usd": 0.25,
+   "type": "Legendary Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Ellie and Alan, Paleontologists",
+   "rank": 14605,
+   "usd": 6.31,
+   "type": "Legendary Creature \u2014 Human Scientist"
+  },
+  {
+   "name": "Phelddagrif",
+   "rank": 15152,
+   "usd": 10.04,
+   "type": "Legendary Creature \u2014 Phelddagrif",
+   "repriced": true
+  },
+  {
+   "name": "Stoic Angel",
+   "rank": 15214,
+   "usd": 0.67,
+   "type": "Creature \u2014 Angel"
+  },
+  {
+   "name": "Shanna, Purifying Blade",
+   "rank": 15403,
+   "usd": 0.41,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Shaun & Rebecca, Agents",
+   "rank": 15732,
+   "usd": 0.27,
+   "type": "Legendary Creature \u2014 Human Assassin Scientist"
+  },
+  {
+   "name": "Giltspire Avenger",
+   "rank": 15897,
+   "usd": 0.78,
+   "type": "Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Perrie, the Pulverizer",
+   "rank": 16580,
+   "usd": 0.46,
+   "type": "Legendary Creature \u2014 Rhino Soldier"
+  },
+  {
+   "name": "Beck // Call",
+   "rank": 17163,
+   "usd": 0.32,
+   "type": "Sorcery // Sorcery"
+  },
+  {
+   "name": "Questing Phelddagrif",
+   "rank": 17240,
+   "usd": 0.72,
+   "type": "Creature \u2014 Phelddagrif"
+  },
+  {
+   "name": "Gorion, Wise Mentor",
+   "rank": 17330,
+   "usd": 0.21,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Katilda and Lier",
+   "rank": 17363,
+   "usd": 0.37,
+   "type": "Legendary Creature \u2014 Human"
+  },
+  {
+   "name": "Isu the Abominable",
+   "rank": 17904,
+   "usd": 4.16,
+   "type": "Legendary Snow Creature \u2014 Yeti"
+  },
+  {
+   "name": "Treva's Charm",
+   "rank": 18709,
+   "usd": 0.34,
+   "type": "Instant"
+  },
+  {
+   "name": "Jenara, Asura of War",
+   "rank": 18728,
+   "usd": 0.42,
+   "type": "Legendary Creature \u2014 Angel"
+  },
+  {
+   "name": "Angus Mackenzie",
+   "rank": 18792,
+   "usd": 214.71,
+   "type": "Legendary Creature \u2014 Human Cleric",
+   "repriced": true
+  },
+  {
+   "name": "Tocasia, Dig Site Mentor",
+   "rank": 19075,
+   "usd": 0.21,
+   "type": "Legendary Creature \u2014 Human Artificer"
+  },
+  {
+   "name": "Rubinia Soulsinger",
+   "rank": 19192,
+   "usd": 0.38,
+   "type": "Legendary Creature \u2014 Faerie"
+  },
+  {
+   "name": "Obelisk of Bant",
+   "rank": 19637,
+   "usd": 0.17,
+   "type": "Artifact"
+  },
+  {
+   "name": "Soul of Emancipation",
+   "rank": 19956,
+   "usd": 0.23,
+   "type": "Creature \u2014 Avatar"
+  },
+  {
+   "name": "Supply // Demand",
+   "rank": 20084,
+   "usd": 0.34,
+   "type": "Sorcery // Sorcery"
+  },
+  {
+   "name": "Diamond Faerie",
+   "rank": 20192,
+   "usd": 0.79,
+   "type": "Snow Creature \u2014 Faerie"
+  },
+  {
+   "name": "Jedit Ojanen, Mercenary",
+   "rank": 20947,
+   "usd": 0.43,
+   "type": "Legendary Creature \u2014 Cat Mercenary"
+  },
+  {
+   "name": "Crystallization",
+   "rank": 20969,
+   "usd": 0.14,
+   "type": "Enchantment \u2014 Aura"
+  },
+  {
+   "name": "Empyrial Archangel",
+   "rank": 21412,
+   "usd": 0.32,
+   "type": "Creature \u2014 Angel"
+  },
+  {
+   "name": "Treva, the Renewer",
+   "rank": 21491,
+   "usd": 0.58,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Aerie Mystics",
+   "rank": 21958,
+   "usd": 0.15,
+   "type": "Creature \u2014 Bird Wizard"
+  },
+  {
+   "name": "Disciplined Duelist",
+   "rank": 22962,
+   "usd": 0.14,
+   "type": "Creature \u2014 Human Citizen"
+  },
+  {
+   "name": "Irrigation Ditch",
+   "rank": 23525,
+   "usd": 0.22,
+   "type": "Land"
+  },
+  {
+   "name": "Spara's Adjudicators",
+   "rank": 23617,
+   "usd": 0.15,
+   "type": "Creature \u2014 Cat Citizen"
+  },
+  {
+   "name": "Arcades Sabboth",
+   "rank": 23980,
+   "usd": 0.19,
+   "type": "Legendary Creature \u2014 Elder Dragon"
+  },
+  {
+   "name": "Waveskimmer Aven",
+   "rank": 24182,
+   "usd": 0.12,
+   "type": "Creature \u2014 Bird Soldier"
+  },
+  {
+   "name": "Bant Sureblade",
+   "rank": 24405,
+   "usd": 0.14,
+   "type": "Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Clarion Ultimatum",
+   "rank": 24573,
+   "usd": 0.29,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Skyward Eye Prophets",
+   "rank": 25103,
+   "usd": 0.22,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Bant Battlemage",
+   "rank": 27292,
+   "usd": 0.2,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Aysen Abbey",
+   "rank": 27461,
+   "usd": 0.34,
+   "type": "Land"
+  },
+  {
+   "name": "Rhox War Monk",
+   "rank": 27649,
+   "usd": 0.07,
+   "type": "Creature \u2014 Rhino Monk"
+  },
+  {
+   "name": "Ragnar",
+   "rank": 28100,
+   "usd": 24.72,
+   "type": "Legendary Creature \u2014 Human Cleric",
+   "repriced": true
+  },
+  {
+   "name": "Messenger Falcons",
+   "rank": 28461,
+   "usd": 0.19,
+   "type": "Creature \u2014 Bird"
+  },
+  {
+   "name": "Bant Sojourners",
+   "rank": 29453,
+   "usd": 0.18,
+   "type": "Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Brokers Initiate",
+   "rank": 29796,
+   "usd": 0.23,
+   "type": "Creature \u2014 Cat Citizen"
+  },
+  {
+   "name": "Resounding Silence",
+   "rank": 29838,
+   "usd": 0.13,
+   "type": "Instant"
+  },
+  {
+   "name": "Civic Guildmage",
+   "rank": 30888,
+   "usd": 0.1,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Sunscape Master",
+   "rank": 30898,
+   "usd": 0.39,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Treva's Attendant",
+   "rank": 31002,
+   "usd": 0.24,
+   "type": "Artifact Creature \u2014 Golem"
+  },
+  {
+   "name": "Sunscape Battlemage",
+   "rank": 31089,
+   "usd": 0.4,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Sunscape Apprentice",
+   "rank": 31349,
+   "usd": 0.1,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Storm Spirit",
+   "rank": 31936,
+   "usd": 0.76,
+   "type": "Creature \u2014 Elemental Spirit",
+   "repriced": true
+  }
+ ],
+ "rwb": [
+  {
+   "name": "Nomad Outpost",
+   "rank": 376,
+   "usd": 0.35,
+   "type": "Land"
+  },
+  {
+   "name": "Savai Triome",
+   "rank": 496,
+   "usd": 19.1,
+   "type": "Land \u2014 Mountain Plains Swamp"
+  },
+  {
+   "name": "Ruinous Ultimatum",
+   "rank": 653,
+   "usd": 2.41,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Isshin, Two Heavens as One",
+   "rank": 1468,
+   "usd": 3.91,
+   "type": "Legendary Creature \u2014 Human Samurai"
+  },
+  {
+   "name": "Shattered Landscape",
+   "rank": 1943,
+   "usd": 0.28,
+   "type": "Land"
+  },
+  {
+   "name": "Crackling Doom",
+   "rank": 2126,
+   "usd": 0.37,
+   "type": "Instant"
+  },
+  {
+   "name": "Queen Marchesa",
+   "rank": 2677,
+   "usd": 2.33,
+   "type": "Legendary Creature \u2014 Human Assassin"
+  },
+  {
+   "name": "Caesar, Legion's Emperor",
+   "rank": 2766,
+   "usd": 7.54,
+   "type": "Legendary Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Zurgo Stormrender",
+   "rank": 2978,
+   "usd": 5.04,
+   "type": "Legendary Creature \u2014 Orc Warrior"
+  },
+  {
+   "name": "Edgar Markov",
+   "rank": 3158,
+   "usd": 42.26,
+   "type": "Legendary Creature \u2014 Vampire Knight"
+  },
+  {
+   "name": "Kaalia of the Vast",
+   "rank": 3478,
+   "usd": 4.74,
+   "type": "Legendary Creature \u2014 Human Cleric"
+  },
+  {
+   "name": "Dihada, Binder of Wills",
+   "rank": 3528,
+   "usd": 12.97,
+   "type": "Legendary Planeswalker \u2014 Dihada"
+  },
+  {
+   "name": "All-Out Assault",
+   "rank": 3606,
+   "usd": 4.05,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Mardu Siegebreaker",
+   "rank": 3767,
+   "usd": 0.4,
+   "type": "Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Jan Jansen, Chaos Crafter",
+   "rank": 4135,
+   "usd": 0.52,
+   "type": "Legendary Creature \u2014 Gnome Artificer"
+  },
+  {
+   "name": "Bone-Cairn Butcher",
+   "rank": 4484,
+   "usd": 0.36,
+   "type": "Creature \u2014 Demon"
+  },
+  {
+   "name": "Shanid, Sleepers' Scourge",
+   "rank": 4661,
+   "usd": 2.39,
+   "type": "Legendary Creature \u2014 Human Knight"
+  },
+  {
+   "name": "Neriv, Heart of the Storm",
+   "rank": 4828,
+   "usd": 2.77,
+   "type": "Legendary Creature \u2014 Spirit Dragon"
+  },
+  {
+   "name": "Celes, Rune Knight",
+   "rank": 4953,
+   "usd": 1.84,
+   "type": "Legendary Creature \u2014 Human Wizard Knight"
+  },
+  {
+   "name": "Zurgo, Thunder's Decree",
+   "rank": 5032,
+   "usd": 0.46,
+   "type": "Legendary Creature \u2014 Orc Warrior"
+  },
+  {
+   "name": "Olivia, Opulent Outlaw",
+   "rank": 5051,
+   "usd": 6.6,
+   "type": "Legendary Creature \u2014 Vampire Assassin"
+  },
+  {
+   "name": "Fervent Charge",
+   "rank": 5274,
+   "usd": 2.09,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Terra, Herald of Hope",
+   "rank": 5299,
+   "usd": 1.09,
+   "type": "Legendary Creature \u2014 Human Wizard Warrior"
+  },
+  {
+   "name": "Fire Lord Zuko",
+   "rank": 5820,
+   "usd": 0.44,
+   "type": "Legendary Creature \u2014 Human Noble Ally"
+  },
+  {
+   "name": "Vihaan, Goldwaker",
+   "rank": 5990,
+   "usd": 1.91,
+   "type": "Legendary Creature \u2014 Dwarf Warlock"
+  },
+  {
+   "name": "Mr. House, President and CEO",
+   "rank": 6054,
+   "usd": 2.09,
+   "type": "Legendary Artifact Creature \u2014 Human"
+  },
+  {
+   "name": "Alesha, Who Smiles at Death",
+   "rank": 6261,
+   "usd": 0.23,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Inevitable Defeat",
+   "rank": 6598,
+   "usd": 0.78,
+   "type": "Instant"
+  },
+  {
+   "name": "Mythos of Snapdax",
+   "rank": 6690,
+   "usd": 0.38,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Brutal Hordechief",
+   "rank": 6773,
+   "usd": 3.69,
+   "type": "Creature \u2014 Orc Warrior"
+  },
+  {
+   "name": "Kaalia, Zenith Seeker",
+   "rank": 6978,
+   "usd": 11.27,
+   "type": "Legendary Creature \u2014 Human Cleric"
+  },
+  {
+   "name": "Mardu Ascendancy",
+   "rank": 7026,
+   "usd": 0.81,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Alta\u00efr Ibn-La'Ahad",
+   "rank": 7424,
+   "usd": 1.39,
+   "type": "Legendary Creature \u2014 Human Assassin"
+  },
+  {
+   "name": "Kelsien, the Plague",
+   "rank": 8529,
+   "usd": 2.52,
+   "type": "Legendary Creature \u2014 Human Assassin"
+  },
+  {
+   "name": "Ankle Shanker",
+   "rank": 9418,
+   "usd": 0.4,
+   "type": "Creature \u2014 Goblin Berserker"
+  },
+  {
+   "name": "Ghen, Arcanum Weaver",
+   "rank": 9437,
+   "usd": 0.35,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Neriv, Crackling Vanguard",
+   "rank": 9568,
+   "usd": 0.83,
+   "type": "Legendary Creature \u2014 Spirit Dragon"
+  },
+  {
+   "name": "Thunder of Unity",
+   "rank": 9721,
+   "usd": 0.23,
+   "type": "Enchantment \u2014 Saga"
+  },
+  {
+   "name": "Piru, the Volatile",
+   "rank": 9966,
+   "usd": 0.33,
+   "type": "Legendary Creature \u2014 Elder Dragon"
+  },
+  {
+   "name": "Mathas, Fiend Seeker",
+   "rank": 10310,
+   "usd": 0.53,
+   "type": "Legendary Creature \u2014 Vampire"
+  },
+  {
+   "name": "Tariel, Reckoner of Souls",
+   "rank": 10332,
+   "usd": 1.6,
+   "type": "Legendary Creature \u2014 Angel"
+  },
+  {
+   "name": "Mardu Banner",
+   "rank": 10346,
+   "usd": 0.12,
+   "type": "Artifact"
+  },
+  {
+   "name": "Zurgo Helmsmasher",
+   "rank": 10765,
+   "usd": 0.53,
+   "type": "Legendary Creature \u2014 Orc Warrior"
+  },
+  {
+   "name": "Syr Gwyn, Hero of Ashvale",
+   "rank": 11032,
+   "usd": 2.85,
+   "type": "Legendary Creature \u2014 Human Knight"
+  },
+  {
+   "name": "Extus, Oriq Overlord // Awaken the Blood Avatar",
+   "rank": 11648,
+   "usd": 0.57,
+   "type": "Legendary Creature \u2014 Human Warlock // Sorcery"
+  },
+  {
+   "name": "Megatron, Tyrant // Megatron, Destructive Force",
+   "rank": 11667,
+   "usd": 1.85,
+   "type": "Legendary Artifact Creature \u2014 Robot // Legendary Artifact \u2014 Vehicle"
+  },
+  {
+   "name": "Tournament Grounds",
+   "rank": 11835,
+   "usd": 0.28,
+   "type": "Land"
+  },
+  {
+   "name": "Jirina Kudro",
+   "rank": 12542,
+   "usd": 0.66,
+   "type": "Legendary Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Malik, Grim Manipulator",
+   "rank": 13227,
+   "usd": 5.27,
+   "type": "Legendary Creature \u2014 Human Rogue"
+  },
+  {
+   "name": "Reigning Victor",
+   "rank": 13462,
+   "usd": 0.19,
+   "type": "Creature \u2014 Orc Warrior"
+  },
+  {
+   "name": "Savai Crystal",
+   "rank": 13656,
+   "usd": 0.26,
+   "type": "Artifact"
+  },
+  {
+   "name": "Snapdax, Apex of the Hunt",
+   "rank": 14036,
+   "usd": 0.45,
+   "type": "Legendary Creature \u2014 Dinosaur Cat Nightmare"
+  },
+  {
+   "name": "Mardu Devotee",
+   "rank": 14138,
+   "usd": 0.19,
+   "type": "Creature \u2014 Human Scout"
+  },
+  {
+   "name": "Mardu Monument",
+   "rank": 14172,
+   "usd": 0.16,
+   "type": "Artifact"
+  },
+  {
+   "name": "Licia, Sanguine Tribune",
+   "rank": 14738,
+   "usd": 5.64,
+   "type": "Legendary Creature \u2014 Vampire Soldier"
+  },
+  {
+   "name": "Kroxa and Kunoros",
+   "rank": 14789,
+   "usd": 0.39,
+   "type": "Legendary Creature \u2014 Elder Giant Dog"
+  },
+  {
+   "name": "Sonic Shrieker",
+   "rank": 15260,
+   "usd": 0.24,
+   "type": "Creature \u2014 Dragon"
+  },
+  {
+   "name": "Squall, Gunblade Duelist",
+   "rank": 16918,
+   "usd": 4.6,
+   "type": "Legendary Creature \u2014 Human Mercenary"
+  },
+  {
+   "name": "Mardu Charm",
+   "rank": 17400,
+   "usd": 0.07,
+   "type": "Instant"
+  },
+  {
+   "name": "Oros, the Avenger",
+   "rank": 19279,
+   "usd": 0.77,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Defibrillating Current",
+   "rank": 20850,
+   "usd": 0.13,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Butcher of the Horde",
+   "rank": 21002,
+   "usd": 0.23,
+   "type": "Creature \u2014 Demon"
+  },
+  {
+   "name": "Hide // Seek",
+   "rank": 21128,
+   "usd": 1.07,
+   "type": "Instant // Instant"
+  },
+  {
+   "name": "Offspring's Revenge",
+   "rank": 21753,
+   "usd": 0.18,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Archangel of Wrath",
+   "rank": 22401,
+   "usd": 0.27,
+   "type": "Creature \u2014 Angel"
+  },
+  {
+   "name": "Push // Pull",
+   "rank": 23097,
+   "usd": 0.21,
+   "type": "Sorcery // Sorcery"
+  },
+  {
+   "name": "Mardu Roughrider",
+   "rank": 24906,
+   "usd": 0.11,
+   "type": "Creature \u2014 Orc Warrior"
+  },
+  {
+   "name": "Ponyback Brigade",
+   "rank": 25461,
+   "usd": 0.06,
+   "type": "Creature \u2014 Goblin Warrior"
+  },
+  {
+   "name": "Mardu Warshrieker",
+   "rank": 26618,
+   "usd": 0.06,
+   "type": "Creature \u2014 Orc Shaman"
+  },
+  {
+   "name": "Smiting Helix",
+   "rank": 30443,
+   "usd": 0.22,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Degavolver",
+   "rank": 31472,
+   "usd": 0.39,
+   "type": "Creature \u2014 Volver"
+  },
+  {
+   "name": "Manacles of Decay",
+   "rank": 31882,
+   "usd": 0.06,
+   "type": "Enchantment \u2014 Aura"
+  },
+  {
+   "name": "Dega Disciple",
+   "rank": 31941,
+   "usd": 0.05,
+   "type": "Creature \u2014 Human Wizard"
+  }
+ ],
+ "gur": [
+  {
+   "name": "Ketria Triome",
+   "rank": 359,
+   "usd": 16.38,
+   "type": "Land \u2014 Forest Island Mountain"
+  },
+  {
+   "name": "Frontier Bivouac",
+   "rank": 399,
+   "usd": 0.25,
+   "type": "Land"
+  },
+  {
+   "name": "Temur Ascendancy",
+   "rank": 891,
+   "usd": 4.02,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Miirym, Sentinel Wyrm",
+   "rank": 1455,
+   "usd": 6.93,
+   "type": "Legendary Creature \u2014 Dragon Spirit"
+  },
+  {
+   "name": "Maelstrom Wanderer",
+   "rank": 1605,
+   "usd": 0.38,
+   "type": "Legendary Creature \u2014 Elemental"
+  },
+  {
+   "name": "Bountiful Landscape",
+   "rank": 1730,
+   "usd": 0.26,
+   "type": "Land"
+  },
+  {
+   "name": "Temur Battlecrier",
+   "rank": 2253,
+   "usd": 1.47,
+   "type": "Creature \u2014 Orc Ranger"
+  },
+  {
+   "name": "Animar, Soul of Elements",
+   "rank": 2372,
+   "usd": 30.77,
+   "type": "Legendary Creature \u2014 Elemental"
+  },
+  {
+   "name": "Ureni of the Unwritten",
+   "rank": 2469,
+   "usd": 17.35,
+   "type": "Legendary Creature \u2014 Spirit Dragon"
+  },
+  {
+   "name": "Surrak Dragonclaw",
+   "rank": 3288,
+   "usd": 3.48,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Omnath, Locus of the Roil",
+   "rank": 3556,
+   "usd": 0.3,
+   "type": "Legendary Creature \u2014 Elemental"
+  },
+  {
+   "name": "Genesis Ultimatum",
+   "rank": 3875,
+   "usd": 0.56,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Xyris, the Writhing Storm",
+   "rank": 4611,
+   "usd": 2.07,
+   "type": "Legendary Creature \u2014 Snake Leviathan"
+  },
+  {
+   "name": "Song of Creation",
+   "rank": 4923,
+   "usd": 0.77,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Ureni, the Song Unending",
+   "rank": 5250,
+   "usd": 2.29,
+   "type": "Legendary Creature \u2014 Spirit Dragon"
+  },
+  {
+   "name": "Eshki, Temur's Roar",
+   "rank": 5333,
+   "usd": 2.4,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Dragonback Assault",
+   "rank": 5769,
+   "usd": 2.38,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Iroh, Grand Lotus",
+   "rank": 6055,
+   "usd": 0.36,
+   "type": "Legendary Creature \u2014 Human Noble Ally"
+  },
+  {
+   "name": "Flubs, the Fool",
+   "rank": 6073,
+   "usd": 2.91,
+   "type": "Legendary Creature \u2014 Frog Scout"
+  },
+  {
+   "name": "Rattleclaw Mystic",
+   "rank": 6177,
+   "usd": 0.95,
+   "type": "Creature \u2014 Human Shaman"
+  },
+  {
+   "name": "Sarkhan Unbroken",
+   "rank": 6280,
+   "usd": 19.41,
+   "type": "Legendary Planeswalker \u2014 Sarkhan"
+  },
+  {
+   "name": "Magus Lucea Kane",
+   "rank": 6940,
+   "usd": 28.1,
+   "type": "Legendary Creature \u2014 Human Tyranid Wizard"
+  },
+  {
+   "name": "Averna, the Chaos Bloom",
+   "rank": 6999,
+   "usd": 0.36,
+   "type": "Legendary Creature \u2014 Elemental Shaman"
+  },
+  {
+   "name": "Storm, Force of Nature",
+   "rank": 7173,
+   "usd": 4.88,
+   "type": "Legendary Creature \u2014 Mutant Hero"
+  },
+  {
+   "name": "Temur Charm",
+   "rank": 7408,
+   "usd": 0.35,
+   "type": "Instant"
+  },
+  {
+   "name": "Illuna, Apex of Wishes",
+   "rank": 9686,
+   "usd": 0.5,
+   "type": "Legendary Creature \u2014 Beast Elemental Dinosaur"
+  },
+  {
+   "name": "Kalamax, the Stormsire",
+   "rank": 9741,
+   "usd": 0.74,
+   "type": "Legendary Creature \u2014 Elemental Dinosaur"
+  },
+  {
+   "name": "Bruce Banner // The Incredible Hulk",
+   "rank": 9806,
+   "usd": 3.98,
+   "type": "Legendary Creature \u2014 Human Scientist Hero // Legendary Creature \u2014 Gamma Berserker Hero"
+  },
+  {
+   "name": "Saheeli, Radiant Creator",
+   "rank": 9898,
+   "usd": 0.33,
+   "type": "Legendary Creature \u2014 Human Artificer"
+  },
+  {
+   "name": "Loot, the Pathfinder",
+   "rank": 10168,
+   "usd": 0.41,
+   "type": "Legendary Creature \u2014 Beast Noble"
+  },
+  {
+   "name": "Rashmi and Ragavan",
+   "rank": 10211,
+   "usd": 0.45,
+   "type": "Legendary Creature \u2014 Elf Monkey"
+  },
+  {
+   "name": "Eshki Dragonclaw",
+   "rank": 10805,
+   "usd": 0.22,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "The First Tyrannic War",
+   "rank": 11315,
+   "usd": 0.64,
+   "type": "Enchantment \u2014 Saga"
+  },
+  {
+   "name": "Loot, the Key to Everything",
+   "rank": 11358,
+   "usd": 0.38,
+   "type": "Legendary Creature \u2014 Beast Noble"
+  },
+  {
+   "name": "Intet, the Dreamer",
+   "rank": 11488,
+   "usd": 0.69,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Dragonclaw Strike",
+   "rank": 11977,
+   "usd": 0.19,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Shaman of the Great Hunt",
+   "rank": 12050,
+   "usd": 0.94,
+   "type": "Creature \u2014 Orc Shaman"
+  },
+  {
+   "name": "Guided Passage",
+   "rank": 12066,
+   "usd": 0.38,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Riku of Two Reflections",
+   "rank": 12252,
+   "usd": 6.43,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Pia Nalaar, Chief Mechanic",
+   "rank": 12643,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 Human Artificer"
+  },
+  {
+   "name": "Songcrafter Mage",
+   "rank": 12890,
+   "usd": 0.24,
+   "type": "Creature \u2014 Human Bard"
+  },
+  {
+   "name": "Riku of Many Paths",
+   "rank": 13034,
+   "usd": 0.24,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Roar of Endless Song",
+   "rank": 13242,
+   "usd": 0.22,
+   "type": "Enchantment \u2014 Saga"
+  },
+  {
+   "name": "Mythos of Illuna",
+   "rank": 13324,
+   "usd": 0.25,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Karakyk Guardian",
+   "rank": 13409,
+   "usd": 0.16,
+   "type": "Creature \u2014 Dragon"
+  },
+  {
+   "name": "The Swarmlord",
+   "rank": 13478,
+   "usd": 7.9,
+   "type": "Legendary Creature \u2014 Tyranid"
+  },
+  {
+   "name": "Beluna Grandsquall // Seek Thrills",
+   "rank": 14306,
+   "usd": 0.35,
+   "type": "Legendary Creature \u2014 Giant Noble // Instant \u2014 Adventure"
+  },
+  {
+   "name": "Lara Croft, Tomb Raider",
+   "rank": 15140,
+   "usd": 49.56,
+   "type": "Legendary Creature \u2014 Human Ranger"
+  },
+  {
+   "name": "Me, the Immortal",
+   "rank": 15283,
+   "usd": 0.25,
+   "type": "Legendary Creature \u2014 Human Rogue"
+  },
+  {
+   "name": "Gimbal, Gremlin Prodigy",
+   "rank": 15548,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 Gremlin Artificer"
+  },
+  {
+   "name": "Trap Essence",
+   "rank": 15955,
+   "usd": 0.23,
+   "type": "Instant"
+  },
+  {
+   "name": "Ketria Crystal",
+   "rank": 16429,
+   "usd": 0.17,
+   "type": "Artifact"
+  },
+  {
+   "name": "Temur Banner",
+   "rank": 16832,
+   "usd": 0.2,
+   "type": "Artifact"
+  },
+  {
+   "name": "Yasova Dragonclaw",
+   "rank": 17928,
+   "usd": 0.15,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Borborygmos and Fblthp",
+   "rank": 18351,
+   "usd": 0.38,
+   "type": "Legendary Creature \u2014 Cyclops Homunculus"
+  },
+  {
+   "name": "Temur Monument",
+   "rank": 19484,
+   "usd": 0.13,
+   "type": "Artifact"
+  },
+  {
+   "name": "Temur Devotee",
+   "rank": 20636,
+   "usd": 0.09,
+   "type": "Creature \u2014 Human Druid"
+  },
+  {
+   "name": "Temur Tawnyback",
+   "rank": 22745,
+   "usd": 0.1,
+   "type": "Creature \u2014 Beast"
+  },
+  {
+   "name": "Mammoth Bellow",
+   "rank": 23096,
+   "usd": 0.2,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Savage Knuckleblade",
+   "rank": 24578,
+   "usd": 0.22,
+   "type": "Creature \u2014 Ogre Warrior"
+  },
+  {
+   "name": "Avalanche Tusker",
+   "rank": 25627,
+   "usd": 0.19,
+   "type": "Creature \u2014 Elephant Warrior"
+  },
+  {
+   "name": "Vodalian Mindsinger",
+   "rank": 27604,
+   "usd": 0.15,
+   "type": "Creature \u2014 Merfolk Wizard"
+  },
+  {
+   "name": "Hustle // Bustle",
+   "rank": 28111,
+   "usd": 0.11,
+   "type": "Instant // Sorcery"
+  },
+  {
+   "name": "Bear's Companion",
+   "rank": 28155,
+   "usd": 0.2,
+   "type": "Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Research // Development",
+   "rank": 29561,
+   "usd": 0.31,
+   "type": "Instant // Instant"
+  },
+  {
+   "name": "Snowhorn Rider",
+   "rank": 30495,
+   "usd": 0.06,
+   "type": "Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Ceta Disciple",
+   "rank": 31214,
+   "usd": 0.12,
+   "type": "Creature \u2014 Merfolk Wizard"
+  },
+  {
+   "name": "Cetavolver",
+   "rank": 31470,
+   "usd": 0.31,
+   "type": "Creature \u2014 Volver"
+  }
+ ],
+ "wbg": [
+  {
+   "name": "Indatha Triome",
+   "rank": 480,
+   "usd": 17.75,
+   "type": "Land \u2014 Plains Swamp Forest"
+  },
+  {
+   "name": "Sandsteppe Citadel",
+   "rank": 508,
+   "usd": 0.26,
+   "type": "Land"
+  },
+  {
+   "name": "Eerie Ultimatum",
+   "rank": 1541,
+   "usd": 3.43,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Deceptive Landscape",
+   "rank": 2248,
+   "usd": 0.25,
+   "type": "Land"
+  },
+  {
+   "name": "Murmuring Bosk",
+   "rank": 2703,
+   "usd": 0.43,
+   "type": "Land \u2014 Forest"
+  },
+  {
+   "name": "Betor, Kin to All",
+   "rank": 3200,
+   "usd": 6.57,
+   "type": "Legendary Creature \u2014 Spirit Dragon"
+  },
+  {
+   "name": "The Necrobloom",
+   "rank": 3746,
+   "usd": 0.35,
+   "type": "Legendary Creature \u2014 Plant"
+  },
+  {
+   "name": "Thalia and The Gitrog Monster",
+   "rank": 3923,
+   "usd": 5.76,
+   "type": "Legendary Creature \u2014 Human Frog Horror"
+  },
+  {
+   "name": "Felothar the Steadfast",
+   "rank": 4104,
+   "usd": 3.12,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Abzan Charm",
+   "rank": 4474,
+   "usd": 0.27,
+   "type": "Instant"
+  },
+  {
+   "name": "Narci, Fable Singer",
+   "rank": 5159,
+   "usd": 12.21,
+   "type": "Legendary Creature \u2014 Human Bard"
+  },
+  {
+   "name": "Doran, the Siege Tower",
+   "rank": 5248,
+   "usd": 8.53,
+   "type": "Legendary Creature \u2014 Treefolk Shaman"
+  },
+  {
+   "name": "Betor, Ancestor's Voice",
+   "rank": 5272,
+   "usd": 3.67,
+   "type": "Legendary Creature \u2014 Spirit Dragon"
+  },
+  {
+   "name": "Anikthea, Hand of Erebos",
+   "rank": 5325,
+   "usd": 7.75,
+   "type": "Legendary Enchantment Creature \u2014 Demigod"
+  },
+  {
+   "name": "Nethroi, Apex of Death",
+   "rank": 5535,
+   "usd": 2.53,
+   "type": "Legendary Creature \u2014 Cat Nightmare Beast"
+  },
+  {
+   "name": "Doran, Besieged by Time",
+   "rank": 5784,
+   "usd": 0.57,
+   "type": "Legendary Creature \u2014 Treefolk Druid"
+  },
+  {
+   "name": "Ixhel, Scion of Atraxa",
+   "rank": 5843,
+   "usd": 3.15,
+   "type": "Legendary Creature \u2014 Phyrexian Angel"
+  },
+  {
+   "name": "Vishgraz, the Doomhive",
+   "rank": 6835,
+   "usd": 1.42,
+   "type": "Legendary Creature \u2014 Phyrexian Insect"
+  },
+  {
+   "name": "Bilbo, Birthday Celebrant",
+   "rank": 7126,
+   "usd": 0.34,
+   "type": "Legendary Creature \u2014 Halfling Rogue"
+  },
+  {
+   "name": "Colfenor, the Last Yew",
+   "rank": 7215,
+   "usd": 0.59,
+   "type": "Legendary Creature \u2014 Treefolk Shaman"
+  },
+  {
+   "name": "Kethis, the Hidden Hand",
+   "rank": 7499,
+   "usd": 3.32,
+   "type": "Legendary Creature \u2014 Elf Advisor"
+  },
+  {
+   "name": "Duneblast",
+   "rank": 8061,
+   "usd": 0.26,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Teneb, the Harvester",
+   "rank": 8410,
+   "usd": 0.96,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Felothar, Dawn of the Abzan",
+   "rank": 9026,
+   "usd": 0.28,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Mythos of Nethroi",
+   "rank": 9580,
+   "usd": 0.34,
+   "type": "Instant"
+  },
+  {
+   "name": "Ghave, Guru of Spores",
+   "rank": 9761,
+   "usd": 1.21,
+   "type": "Legendary Creature \u2014 Fungus Shaman"
+  },
+  {
+   "name": "Tayam, Luminous Enigma",
+   "rank": 9845,
+   "usd": 3.18,
+   "type": "Legendary Creature \u2014 Nightmare Beast"
+  },
+  {
+   "name": "Abzan Ascendancy",
+   "rank": 10122,
+   "usd": 0.34,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Myrkul, Lord of Bones",
+   "rank": 10167,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 God"
+  },
+  {
+   "name": "Karador, Ghost Chieftain",
+   "rank": 10688,
+   "usd": 0.34,
+   "type": "Legendary Creature \u2014 Centaur Spirit"
+  },
+  {
+   "name": "Perennation",
+   "rank": 11046,
+   "usd": 0.52,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Revival of the Ancestors",
+   "rank": 11624,
+   "usd": 0.27,
+   "type": "Enchantment \u2014 Saga"
+  },
+  {
+   "name": "Kin-Tree Severance",
+   "rank": 14167,
+   "usd": 0.17,
+   "type": "Instant"
+  },
+  {
+   "name": "Anafenza, the Foremost",
+   "rank": 14640,
+   "usd": 0.6,
+   "type": "Legendary Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Kathril, Aspect Warper",
+   "rank": 14836,
+   "usd": 0.99,
+   "type": "Legendary Creature \u2014 Nightmare Insect"
+  },
+  {
+   "name": "Abzan Monument",
+   "rank": 15092,
+   "usd": 0.17,
+   "type": "Artifact"
+  },
+  {
+   "name": "Death's Oasis",
+   "rank": 15491,
+   "usd": 0.25,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Abzan Banner",
+   "rank": 15795,
+   "usd": 0.26,
+   "type": "Artifact"
+  },
+  {
+   "name": "Ready // Willing",
+   "rank": 16030,
+   "usd": 0.26,
+   "type": "Instant // Instant"
+  },
+  {
+   "name": "Siege Rhino",
+   "rank": 16140,
+   "usd": 0.32,
+   "type": "Creature \u2014 Rhino"
+  },
+  {
+   "name": "Indatha Crystal",
+   "rank": 16157,
+   "usd": 0.23,
+   "type": "Artifact"
+  },
+  {
+   "name": "Armament Dragon",
+   "rank": 16803,
+   "usd": 0.16,
+   "type": "Creature \u2014 Dragon"
+  },
+  {
+   "name": "Skirmish Rhino",
+   "rank": 17105,
+   "usd": 0.25,
+   "type": "Creature \u2014 Rhino"
+  },
+  {
+   "name": "Ivorytusk Fortress",
+   "rank": 17888,
+   "usd": 0.28,
+   "type": "Creature \u2014 Elephant"
+  },
+  {
+   "name": "Stronghold Arena",
+   "rank": 18107,
+   "usd": 0.23,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Yathan Roadwatcher",
+   "rank": 19162,
+   "usd": 0.18,
+   "type": "Creature \u2014 Human Scout"
+  },
+  {
+   "name": "Abzan Devotee",
+   "rank": 19952,
+   "usd": 0.16,
+   "type": "Creature \u2014 Dog Cleric"
+  },
+  {
+   "name": "Overgrown Estate",
+   "rank": 21418,
+   "usd": 0.49,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Cease // Desist",
+   "rank": 23263,
+   "usd": 0.14,
+   "type": "Instant // Sorcery"
+  },
+  {
+   "name": "Crime // Punishment",
+   "rank": 23974,
+   "usd": 0.52,
+   "type": "Sorcery // Sorcery"
+  },
+  {
+   "name": "Daghatar the Adamant",
+   "rank": 23996,
+   "usd": 0.17,
+   "type": "Legendary Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Severance Priest",
+   "rank": 24193,
+   "usd": 0.1,
+   "type": "Creature \u2014 Djinn Cleric"
+  },
+  {
+   "name": "Reputable Merchant",
+   "rank": 24311,
+   "usd": 0.07,
+   "type": "Creature \u2014 Human Citizen"
+  },
+  {
+   "name": "Warden of the First Tree",
+   "rank": 25959,
+   "usd": 0.36,
+   "type": "Creature \u2014 Human"
+  },
+  {
+   "name": "Armament Corps",
+   "rank": 29085,
+   "usd": 0.07,
+   "type": "Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Abzan Guide",
+   "rank": 30041,
+   "usd": 0.05,
+   "type": "Creature \u2014 Human Warrior"
+  },
+  {
+   "name": "Necravolver",
+   "rank": 31299,
+   "usd": 0.43,
+   "type": "Creature \u2014 Volver"
+  },
+  {
+   "name": "Necra Disciple",
+   "rank": 31637,
+   "usd": 0.09,
+   "type": "Creature \u2014 Human Wizard"
+  }
+ ],
+ "urw": [
+  {
+   "name": "Mystic Monastery",
+   "rank": 375,
+   "usd": 0.66,
+   "type": "Land"
+  },
+  {
+   "name": "Raugrin Triome",
+   "rank": 484,
+   "usd": 15.68,
+   "type": "Land \u2014 Island Mountain Plains"
+  },
+  {
+   "name": "Whirlwind of Thought",
+   "rank": 1590,
+   "usd": 0.27,
+   "type": "Enchantment",
+   "repriced": true
+  },
+  {
+   "name": "Perilous Landscape",
+   "rank": 2102,
+   "usd": 0.21,
+   "type": "Land",
+   "repriced": true
+  },
+  {
+   "name": "Jeskai Ascendancy",
+   "rank": 2818,
+   "usd": 1.61,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Kykar, Wind's Fury",
+   "rank": 2990,
+   "usd": 0.44,
+   "type": "Legendary Creature \u2014 Bird Wizard"
+  },
+  {
+   "name": "Kilo, Apogee Mind",
+   "rank": 3167,
+   "usd": 2.23,
+   "type": "Legendary Artifact Creature \u2014 Robot Artificer"
+  },
+  {
+   "name": "Inspirit, Flagship Vessel",
+   "rank": 3720,
+   "usd": 1.26,
+   "type": "Legendary Artifact \u2014 Spacecraft"
+  },
+  {
+   "name": "Aragorn, King of Gondor",
+   "rank": 4090,
+   "usd": 0.66,
+   "type": "Legendary Creature \u2014 Human Noble"
+  },
+  {
+   "name": "Cayth, Famed Mechanist",
+   "rank": 4369,
+   "usd": 0.38,
+   "type": "Legendary Creature \u2014 Dwarf Artificer"
+  },
+  {
+   "name": "\u00c9owyn, Shieldmaiden",
+   "rank": 4487,
+   "usd": 0.37,
+   "type": "Legendary Creature \u2014 Human Knight"
+  },
+  {
+   "name": "Sokka, Tenacious Tactician",
+   "rank": 4998,
+   "usd": 0.53,
+   "type": "Legendary Creature \u2014 Human Warrior Ally"
+  },
+  {
+   "name": "Narset, Enlightened Exile",
+   "rank": 5433,
+   "usd": 7.48,
+   "type": "Legendary Creature \u2014 Human Monk"
+  },
+  {
+   "name": "Satya, Aetherflux Genius",
+   "rank": 6515,
+   "usd": 0.28,
+   "type": "Legendary Creature \u2014 Human Artificer"
+  },
+  {
+   "name": "Elsha, Threefold Master",
+   "rank": 6537,
+   "usd": 1.01,
+   "type": "Legendary Creature \u2014 Djinn Monk"
+  },
+  {
+   "name": "Pramikon, Sky Rampart",
+   "rank": 6795,
+   "usd": 3.21,
+   "type": "Legendary Creature \u2014 Wall"
+  },
+  {
+   "name": "Elsha of the Infinite",
+   "rank": 6806,
+   "usd": 0.66,
+   "type": "Legendary Creature \u2014 Djinn Monk"
+  },
+  {
+   "name": "Zinnia, Valley's Voice",
+   "rank": 7009,
+   "usd": 0.43,
+   "type": "Legendary Creature \u2014 Bird Bard"
+  },
+  {
+   "name": "Dr. Madison Li",
+   "rank": 7159,
+   "usd": 0.31,
+   "type": "Legendary Creature \u2014 Human Scientist"
+  },
+  {
+   "name": "Narset of the Ancient Way",
+   "rank": 7263,
+   "usd": 0.7,
+   "type": "Legendary Planeswalker \u2014 Narset"
+  },
+  {
+   "name": "Commodore Guff",
+   "rank": 7473,
+   "usd": 12.83,
+   "type": "Legendary Planeswalker \u2014 Guff"
+  },
+  {
+   "name": "Captain America, First Avenger",
+   "rank": 7826,
+   "usd": 7.43,
+   "type": "Legendary Creature \u2014 Human Soldier Hero"
+  },
+  {
+   "name": "Liberty Prime, Recharged",
+   "rank": 7839,
+   "usd": 0.34,
+   "type": "Legendary Artifact Creature \u2014 Robot"
+  },
+  {
+   "name": "Arthur, Marigold Knight",
+   "rank": 8094,
+   "usd": 0.36,
+   "type": "Legendary Creature \u2014 Mouse Knight"
+  },
+  {
+   "name": "Shiko and Narset, Unified",
+   "rank": 8215,
+   "usd": 0.87,
+   "type": "Legendary Creature \u2014 Human Spirit Dragon"
+  },
+  {
+   "name": "Gwen Stacy // Ghost-Spider",
+   "rank": 8520,
+   "usd": 2.76,
+   "type": "Legendary Creature \u2014 Human Performer Hero // Legendary Creature \u2014 Spider Human Hero"
+  },
+  {
+   "name": "Narset, Enlightened Master",
+   "rank": 8540,
+   "usd": 0.58,
+   "type": "Legendary Creature \u2014 Human Monk"
+  },
+  {
+   "name": "Zedruu the Greathearted",
+   "rank": 8697,
+   "usd": 2.41,
+   "type": "Legendary Creature \u2014 Minotaur Monk"
+  },
+  {
+   "name": "Sonic the Hedgehog",
+   "rank": 8957,
+   "usd": 3.39,
+   "type": "Legendary Creature \u2014 Hedgehog Warrior"
+  },
+  {
+   "name": "Zurgo and Ojutai",
+   "rank": 8971,
+   "usd": 1.31,
+   "type": "Legendary Creature \u2014 Orc Dragon"
+  },
+  {
+   "name": "Jeskai Charm",
+   "rank": 9111,
+   "usd": 0.3,
+   "type": "Instant"
+  },
+  {
+   "name": "Optimus Prime, Hero // Optimus Prime, Autobot Leader",
+   "rank": 9355,
+   "usd": 10.92,
+   "type": "Legendary Artifact Creature \u2014 Robot // Legendary Artifact \u2014 Vehicle"
+  },
+  {
+   "name": "Hinata, Dawn-Crowned",
+   "rank": 9890,
+   "usd": 0.34,
+   "type": "Legendary Creature \u2014 Kirin Spirit"
+  },
+  {
+   "name": "Inspired Ultimatum",
+   "rank": 10228,
+   "usd": 0.26,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Raugrin Crystal",
+   "rank": 11117,
+   "usd": 0.21,
+   "type": "Artifact"
+  },
+  {
+   "name": "Shiko, Paragon of the Way",
+   "rank": 11229,
+   "usd": 0.94,
+   "type": "Legendary Creature \u2014 Spirit Dragon"
+  },
+  {
+   "name": "New Way Forward",
+   "rank": 11288,
+   "usd": 0.19,
+   "type": "Instant"
+  },
+  {
+   "name": "Leori, Sparktouched Hunter",
+   "rank": 11609,
+   "usd": 0.4,
+   "type": "Legendary Creature \u2014 Elemental Cat"
+  },
+  {
+   "name": "Captain America, Team Leader",
+   "rank": 11905,
+   "usd": 3.44,
+   "type": "Legendary Creature \u2014 Human Soldier Hero",
+   "repriced": true
+  },
+  {
+   "name": "Narset, Jeskai Waymaster",
+   "rank": 12038,
+   "usd": 0.22,
+   "type": "Legendary Creature \u2014 Human Monk"
+  },
+  {
+   "name": "Flamehold Grappler",
+   "rank": 12110,
+   "usd": 0.24,
+   "type": "Creature \u2014 Human Monk"
+  },
+  {
+   "name": "Soulfire Grand Master",
+   "rank": 12209,
+   "usd": 0.86,
+   "type": "Creature \u2014 Human Monk"
+  },
+  {
+   "name": "Director Nick Fury",
+   "rank": 12301,
+   "usd": 0.65,
+   "type": "Legendary Creature \u2014 Human Spy Hero"
+  },
+  {
+   "name": "Rediscover the Way",
+   "rank": 12462,
+   "usd": 0.28,
+   "type": "Enchantment \u2014 Saga"
+  },
+  {
+   "name": "Jeskai Revelation",
+   "rank": 12585,
+   "usd": 7.25,
+   "type": "Instant"
+  },
+  {
+   "name": "Gandalf of the Secret Fire",
+   "rank": 13154,
+   "usd": 7.29,
+   "type": "Legendary Creature \u2014 Avatar Wizard"
+  },
+  {
+   "name": "Jeskai Banner",
+   "rank": 13174,
+   "usd": 0.14,
+   "type": "Artifact"
+  },
+  {
+   "name": "Vadrok, Apex of Thunder",
+   "rank": 13450,
+   "usd": 0.6,
+   "type": "Legendary Creature \u2014 Elemental Dinosaur Cat"
+  },
+  {
+   "name": "Dynaheir, Invoker Adept",
+   "rank": 13453,
+   "usd": 0.14,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Jeskai Shrinekeeper",
+   "rank": 13608,
+   "usd": 0.22,
+   "type": "Creature \u2014 Dragon"
+  },
+  {
+   "name": "Kasla, the Broken Halo",
+   "rank": 13968,
+   "usd": 0.32,
+   "type": "Legendary Creature \u2014 Angel Ally"
+  },
+  {
+   "name": "Shu Yun, the Silent Tempest",
+   "rank": 14063,
+   "usd": 0.34,
+   "type": "Legendary Creature \u2014 Human Monk"
+  },
+  {
+   "name": "Saint Traft and Rem Karolus",
+   "rank": 14171,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 Spirit Human"
+  },
+  {
+   "name": "Gavi, Nest Warden",
+   "rank": 14320,
+   "usd": 0.45,
+   "type": "Legendary Creature \u2014 Human Shaman"
+  },
+  {
+   "name": "Flying Crane Technique",
+   "rank": 14973,
+   "usd": 0.3,
+   "type": "Instant"
+  },
+  {
+   "name": "Tetzin, Gnome Champion // The Golden-Gear Colossus",
+   "rank": 15228,
+   "usd": 0.27,
+   "type": "Legendary Artifact Creature \u2014 Gnome // Legendary Artifact Creature \u2014 Gnome"
+  },
+  {
+   "name": "Kate Stewart",
+   "rank": 15350,
+   "usd": 0.21,
+   "type": "Legendary Creature \u2014 Human Scientist"
+  },
+  {
+   "name": "Sokka and Suki",
+   "rank": 15435,
+   "usd": 2.61,
+   "type": "Legendary Creature \u2014 Human Warrior Ally"
+  },
+  {
+   "name": "Gandalf, Party Guest",
+   "rank": 16073,
+   "usd": 2.23,
+   "type": "Legendary Creature \u2014 Avatar Wizard"
+  },
+  {
+   "name": "Ruhan of the Fomori",
+   "rank": 16077,
+   "usd": 2.5,
+   "type": "Legendary Creature \u2014 Giant Warrior"
+  },
+  {
+   "name": "Wild Research",
+   "rank": 16167,
+   "usd": 1.68,
+   "type": "Enchantment"
+  },
+  {
+   "name": "The Face of Boe",
+   "rank": 16687,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 Alien Advisor"
+  },
+  {
+   "name": "Numot, the Devastator",
+   "rank": 17086,
+   "usd": 1.87,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Akim, the Soaring Wind",
+   "rank": 17129,
+   "usd": 0.62,
+   "type": "Legendary Creature \u2014 Bird Dinosaur"
+  },
+  {
+   "name": "Mantis Rider",
+   "rank": 17540,
+   "usd": 0.21,
+   "type": "Creature \u2014 Human Monk"
+  },
+  {
+   "name": "The Archimandrite",
+   "rank": 17574,
+   "usd": 0.37,
+   "type": "Legendary Creature \u2014 Human Advisor"
+  },
+  {
+   "name": "Immard, the Stormcleaver",
+   "rank": 18409,
+   "usd": 0.35,
+   "type": "Legendary Creature \u2014 Human Soldier"
+  },
+  {
+   "name": "Jeskai Monument",
+   "rank": 18752,
+   "usd": 0.13,
+   "type": "Artifact"
+  },
+  {
+   "name": "Jeskai Brushmaster",
+   "rank": 19390,
+   "usd": 0.17,
+   "type": "Creature \u2014 Orc Monk"
+  },
+  {
+   "name": "Narset's Rebuke",
+   "rank": 19733,
+   "usd": 0.17,
+   "type": "Instant"
+  },
+  {
+   "name": "Sevinne, the Chronoclasm",
+   "rank": 20387,
+   "usd": 0.29,
+   "type": "Legendary Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Riverwheel Sweep",
+   "rank": 20589,
+   "usd": 0.19,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Sage of the Inward Eye",
+   "rank": 20973,
+   "usd": 0.16,
+   "type": "Creature \u2014 Djinn Wizard"
+  },
+  {
+   "name": "Monastery Messenger",
+   "rank": 20985,
+   "usd": 0.13,
+   "type": "Creature \u2014 Bird Scout"
+  },
+  {
+   "name": "Jeskai Devotee",
+   "rank": 22583,
+   "usd": 0.11,
+   "type": "Creature \u2014 Orc Monk"
+  },
+  {
+   "name": "Gnostro, Voice of the Crags",
+   "rank": 23153,
+   "usd": 0.26,
+   "type": "Legendary Creature \u2014 Chimera"
+  },
+  {
+   "name": "Lightning Angel",
+   "rank": 23279,
+   "usd": 0.32,
+   "type": "Creature \u2014 Angel"
+  },
+  {
+   "name": "Mythos of Vadrok",
+   "rank": 24380,
+   "usd": 0.18,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Fuss // Bother",
+   "rank": 24824,
+   "usd": 0.09,
+   "type": "Instant // Sorcery"
+  },
+  {
+   "name": "Warden of the Eye",
+   "rank": 25054,
+   "usd": 0.22,
+   "type": "Creature \u2014 Djinn Wizard"
+  },
+  {
+   "name": "Catch // Release",
+   "rank": 25163,
+   "usd": 0.21,
+   "type": "Sorcery // Sorcery"
+  },
+  {
+   "name": "Temporal Firestorm",
+   "rank": 26174,
+   "usd": 0.15,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Odds // Ends",
+   "rank": 26195,
+   "usd": 0.44,
+   "type": "Instant // Instant"
+  },
+  {
+   "name": "Efreet Weaponmaster",
+   "rank": 31067,
+   "usd": 0.03,
+   "type": "Creature \u2014 Efreet Monk"
+  },
+  {
+   "name": "Rakavolver",
+   "rank": 31619,
+   "usd": 0.35,
+   "type": "Creature \u2014 Volver"
+  },
+  {
+   "name": "Kavu Glider",
+   "rank": 31671,
+   "usd": 0.07,
+   "type": "Creature \u2014 Kavu"
+  },
+  {
+   "name": "Raka Disciple",
+   "rank": 31828,
+   "usd": 0.1,
+   "type": "Creature \u2014 Minotaur Wizard"
+  }
+ ],
+ "bgu": [
+  {
+   "name": "Opulent Palace",
+   "rank": 384,
+   "usd": 0.37,
+   "type": "Land"
+  },
+  {
+   "name": "Zagoth Triome",
+   "rank": 400,
+   "usd": 21.22,
+   "type": "Land \u2014 Swamp Forest Island"
+  },
+  {
+   "name": "Muldrotha, the Gravetide",
+   "rank": 1098,
+   "usd": 0.59,
+   "type": "Legendary Creature \u2014 Elemental Avatar"
+  },
+  {
+   "name": "Foreboding Landscape",
+   "rank": 1686,
+   "usd": 0.22,
+   "type": "Land"
+  },
+  {
+   "name": "Villainous Wealth",
+   "rank": 2437,
+   "usd": 0.35,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Yarok, the Desecrated",
+   "rank": 2461,
+   "usd": 0.32,
+   "type": "Legendary Creature \u2014 Elemental Horror"
+  },
+  {
+   "name": "Teval, the Balanced Scale",
+   "rank": 2661,
+   "usd": 5.15,
+   "type": "Legendary Creature \u2014 Spirit Dragon"
+  },
+  {
+   "name": "Sidisi, Brood Tyrant",
+   "rank": 3539,
+   "usd": 2.43,
+   "type": "Legendary Creature \u2014 Snake Shaman"
+  },
+  {
+   "name": "The Wise Mothman",
+   "rank": 3701,
+   "usd": 11.85,
+   "type": "Legendary Creature \u2014 Insect Mutant"
+  },
+  {
+   "name": "Glarb, Calamity's Augur",
+   "rank": 3743,
+   "usd": 3.96,
+   "type": "Legendary Creature \u2014 Frog Wizard Noble"
+  },
+  {
+   "name": "Kheru Goldkeeper",
+   "rank": 4275,
+   "usd": 0.3,
+   "type": "Creature \u2014 Dragon"
+  },
+  {
+   "name": "Felix Five-Boots",
+   "rank": 4903,
+   "usd": 4.86,
+   "type": "Legendary Creature \u2014 Ooze Rogue"
+  },
+  {
+   "name": "Sultai Charm",
+   "rank": 5128,
+   "usd": 0.33,
+   "type": "Instant"
+  },
+  {
+   "name": "Awaken the Honored Dead",
+   "rank": 5176,
+   "usd": 0.42,
+   "type": "Enchantment \u2014 Saga"
+  },
+  {
+   "name": "The Master, Transcendent",
+   "rank": 5256,
+   "usd": 0.97,
+   "type": "Legendary Artifact Creature \u2014 Mutant"
+  },
+  {
+   "name": "Kotis, the Fangkeeper",
+   "rank": 5327,
+   "usd": 0.4,
+   "type": "Legendary Creature \u2014 Zombie Warrior"
+  },
+  {
+   "name": "Zaxara, the Exemplary",
+   "rank": 5761,
+   "usd": 2.24,
+   "type": "Legendary Creature \u2014 Nightmare Hydra"
+  },
+  {
+   "name": "Maralen, Fae Ascendant",
+   "rank": 5800,
+   "usd": 0.38,
+   "type": "Legendary Creature \u2014 Elf Faerie Noble"
+  },
+  {
+   "name": "Emergent Ultimatum",
+   "rank": 6907,
+   "usd": 0.43,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Kotis, Sibsig Champion",
+   "rank": 7342,
+   "usd": 0.42,
+   "type": "Legendary Creature \u2014 Zombie Warrior"
+  },
+  {
+   "name": "The Mimeoplasm",
+   "rank": 7432,
+   "usd": 0.25,
+   "type": "Legendary Creature \u2014 Ooze"
+  },
+  {
+   "name": "Death Begets Life",
+   "rank": 7756,
+   "usd": 0.56,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Tasigur, the Golden Fang",
+   "rank": 7969,
+   "usd": 0.21,
+   "type": "Legendary Creature \u2014 Human Shaman"
+  },
+  {
+   "name": "Brokkos, Apex of Forever",
+   "rank": 8112,
+   "usd": 2.58,
+   "type": "Legendary Creature \u2014 Nightmare Beast Elemental"
+  },
+  {
+   "name": "Nine-Fingers Keene",
+   "rank": 8128,
+   "usd": 0.31,
+   "type": "Legendary Creature \u2014 Human Rogue"
+  },
+  {
+   "name": "Gonti, Canny Acquisitor",
+   "rank": 8199,
+   "usd": 1.63,
+   "type": "Legendary Creature \u2014 Aetherborn Rogue"
+  },
+  {
+   "name": "Archelos, Lagoon Mystic",
+   "rank": 8615,
+   "usd": 0.3,
+   "type": "Legendary Creature \u2014 Turtle Shaman"
+  },
+  {
+   "name": "Lotuslight Dancers",
+   "rank": 8731,
+   "usd": 0.29,
+   "type": "Creature \u2014 Zombie Bard"
+  },
+  {
+   "name": "Xavier Sal, Infested Captain",
+   "rank": 8886,
+   "usd": 3.11,
+   "type": "Legendary Creature \u2014 Human Fungus Pirate"
+  },
+  {
+   "name": "Sultai Ascendancy",
+   "rank": 9203,
+   "usd": 0.32,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Sin, Spira's Punishment",
+   "rank": 9404,
+   "usd": 0.28,
+   "type": "Legendary Creature \u2014 Leviathan Avatar"
+  },
+  {
+   "name": "Titans' Nest",
+   "rank": 9903,
+   "usd": 0.33,
+   "type": "Enchantment"
+  },
+  {
+   "name": "Otrimi, the Ever-Playful",
+   "rank": 10041,
+   "usd": 1.15,
+   "type": "Legendary Creature \u2014 Nightmare Beast"
+  },
+  {
+   "name": "Zimone and Dina",
+   "rank": 10106,
+   "usd": 0.54,
+   "type": "Legendary Creature \u2014 Human Dryad"
+  },
+  {
+   "name": "Urborg Elf",
+   "rank": 10278,
+   "usd": 0.45,
+   "type": "Creature \u2014 Elf Druid"
+  },
+  {
+   "name": "Indominus Rex, Alpha",
+   "rank": 10293,
+   "usd": 30.15,
+   "type": "Legendary Creature \u2014 Dinosaur Mutant"
+  },
+  {
+   "name": "Teval, Arbiter of Virtue",
+   "rank": 10899,
+   "usd": 0.28,
+   "type": "Legendary Creature \u2014 Spirit Dragon"
+  },
+  {
+   "name": "Fangkeeper's Familiar",
+   "rank": 10967,
+   "usd": 0.24,
+   "type": "Creature \u2014 Snake"
+  },
+  {
+   "name": "Mythos of Brokkos",
+   "rank": 11017,
+   "usd": 0.31,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Thranduil, the Elvenking",
+   "rank": 11106,
+   "usd": 0.58,
+   "type": "Legendary Creature \u2014 Elf Noble"
+  },
+  {
+   "name": "Rakshasa's Bargain",
+   "rank": 11722,
+   "usd": 0.27,
+   "type": "Instant"
+  },
+  {
+   "name": "Kadena, Slinking Sorcerer",
+   "rank": 12206,
+   "usd": 0.44,
+   "type": "Legendary Creature \u2014 Snake Wizard Sorcerer"
+  },
+  {
+   "name": "Tatsunari, Toad Rider",
+   "rank": 12552,
+   "usd": 0.29,
+   "type": "Legendary Creature \u2014 Human Ninja"
+  },
+  {
+   "name": "Jorn, God of Winter // Kaldring, the Rimestaff",
+   "rank": 12974,
+   "usd": 0.34,
+   "type": "Legendary Snow Creature \u2014 God // Legendary Snow Artifact"
+  },
+  {
+   "name": "Lie in Wait",
+   "rank": 13056,
+   "usd": 0.23,
+   "type": "Sorcery"
+  },
+  {
+   "name": "Volrath, the Shapestealer",
+   "rank": 13673,
+   "usd": 0.62,
+   "type": "Legendary Creature \u2014 Phyrexian Shapeshifter"
+  },
+  {
+   "name": "Mimeoplasm, Revered One",
+   "rank": 14214,
+   "usd": 0.32,
+   "type": "Legendary Creature \u2014 Ooze"
+  },
+  {
+   "name": "Damia, Sage of Stone",
+   "rank": 14458,
+   "usd": 6.43,
+   "type": "Legendary Creature \u2014 Gorgon Wizard"
+  },
+  {
+   "name": "Flotsam // Jetsam",
+   "rank": 14681,
+   "usd": 0.14,
+   "type": "Instant // Sorcery"
+  },
+  {
+   "name": "Urborg Lhurgoyf",
+   "rank": 14959,
+   "usd": 0.34,
+   "type": "Creature \u2014 Lhurgoyf"
+  },
+  {
+   "name": "Zagoth Crystal",
+   "rank": 15885,
+   "usd": 0.2,
+   "type": "Artifact"
+  },
+  {
+   "name": "Sultai Banner",
+   "rank": 16933,
+   "usd": 0.11,
+   "type": "Artifact"
+  },
+  {
+   "name": "Sultai Devotee",
+   "rank": 18063,
+   "usd": 0.17,
+   "type": "Creature \u2014 Zombie Snake Druid"
+  },
+  {
+   "name": "Torrent Elemental",
+   "rank": 18793,
+   "usd": 0.33,
+   "type": "Creature \u2014 Elemental"
+  },
+  {
+   "name": "Nashi, Moon's Legacy",
+   "rank": 18839,
+   "usd": 0.24,
+   "type": "Legendary Creature \u2014 Rat Shaman"
+  },
+  {
+   "name": "Vorosh, the Hunter",
+   "rank": 19688,
+   "usd": 1.0,
+   "type": "Legendary Creature \u2014 Dragon"
+  },
+  {
+   "name": "Sultai Monument",
+   "rank": 20191,
+   "usd": 0.19,
+   "type": "Artifact"
+  },
+  {
+   "name": "Henry Wu, InGen Geneticist",
+   "rank": 20445,
+   "usd": 1.01,
+   "type": "Legendary Creature \u2014 Human Scientist"
+  },
+  {
+   "name": "Gurmag Nightwatch",
+   "rank": 21590,
+   "usd": 0.11,
+   "type": "Creature \u2014 Human Ranger"
+  },
+  {
+   "name": "Rayami, First of the Fallen",
+   "rank": 21689,
+   "usd": 0.28,
+   "type": "Legendary Creature \u2014 Vampire"
+  },
+  {
+   "name": "Bound // Determined",
+   "rank": 24620,
+   "usd": 0.42,
+   "type": "Instant // Instant"
+  },
+  {
+   "name": "Sultai Soothsayer",
+   "rank": 25297,
+   "usd": 0.17,
+   "type": "Creature \u2014 Snake Shaman"
+  },
+  {
+   "name": "Kheru Lich Lord",
+   "rank": 27246,
+   "usd": 0.18,
+   "type": "Creature \u2014 Zombie Wizard"
+  },
+  {
+   "name": "Abomination of Gudul",
+   "rank": 27517,
+   "usd": 0.05,
+   "type": "Creature \u2014 Horror"
+  },
+  {
+   "name": "Rakshasa Vizier",
+   "rank": 27687,
+   "usd": 0.2,
+   "type": "Creature \u2014 Demon"
+  },
+  {
+   "name": "Fungal Shambler",
+   "rank": 30184,
+   "usd": 0.28,
+   "type": "Creature \u2014 Fungus Beast"
+  },
+  {
+   "name": "Ana Disciple",
+   "rank": 31227,
+   "usd": 0.1,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Anavolver",
+   "rank": 31287,
+   "usd": 0.36,
+   "type": "Creature \u2014 Volver"
+  },
+  {
+   "name": "Ana Battlemage",
+   "rank": 31385,
+   "usd": 0.12,
+   "type": "Creature \u2014 Human Wizard"
+  },
+  {
+   "name": "Savage Gorilla",
+   "rank": 32241,
+   "usd": 0.11,
+   "type": "Creature \u2014 Ape"
+  }
  ]
 }
