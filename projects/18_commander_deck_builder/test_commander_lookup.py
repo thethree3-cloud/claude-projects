@@ -101,8 +101,15 @@ class FormatTests(unittest.TestCase):
 
 class ResolveTests(unittest.TestCase):
     def test_returns_exact_name(self):
-        with mock.patch("commander_lookup.scryfall_prices._request", return_value={"name": "Muldrotha, the Gravetide"}):
-            self.assertEqual(commander_lookup.resolve_commander("muldrotha"), "Muldrotha, the Gravetide")
+        db = mock.Mock()
+        db.find_name.return_value = "Muldrotha, the Gravetide"
+        self.assertEqual(commander_lookup.resolve_commander("muldrotha", db), "Muldrotha, the Gravetide")
+
+    def test_no_match_raises(self):
+        db = mock.Mock()
+        db.find_name.return_value = None
+        with self.assertRaises(LookupError):
+            commander_lookup.resolve_commander("zzzz", db)
 
 
 if __name__ == "__main__":

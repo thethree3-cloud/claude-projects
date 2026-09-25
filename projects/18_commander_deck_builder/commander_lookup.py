@@ -1,9 +1,10 @@
 """Commander lookup: commander name in, ranked cards from other people's decks out.
 
 Pulls EDHREC's aggregate of real decklists for a commander (inclusion %, synergy,
-role), joins each card to its price and type from Scryfall, and filters/ranks.
-No LLM involved: this is the deterministic baseline the deck-building agent
-has to beat.
+role), joins each card to its price and type from the local Scryfall bulk-data
+database (card_db.py), and filters/ranks. The only network calls are EDHREC's
+one page per commander and a daily bulk refresh. No LLM involved: this is the
+deterministic baseline the deck-building agent has to beat.
 
 Usage:
     python commander_lookup.py "Muldrotha, the Gravetide"
@@ -14,25 +15,19 @@ Usage:
 import argparse
 import json
 import sys
-import urllib.error
-import urllib.parse
 
+import card_db
 import edhrec_client
-import scryfall_prices
 
 SORTS = ("inclusion", "synergy")
 
 
-def resolve_commander(query):
-    """Match a possibly-sloppy name to an exact card name via Scryfall fuzzy search."""
-    url = f"{scryfall_prices.API}/cards/named?" + urllib.parse.urlencode({"fuzzy": query})
-    try:
-        card = scryfall_prices._request(url)
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            raise LookupError(f"No card matched '{query}'. Check the spelling.") from exc
-        raise
-    return card["name"]
+def resolve_commander(query, db):
+    """Match a possibly-sloppy name to an exact card name using the local card database."""
+    name = db.find_name(query)
+    if name is None:
+        raise LookupError(f"No card matched '{query}'. Check the spelling.")
+    return name
 
 
 def role_from_type_line(type_line):
@@ -114,18 +109,29 @@ def format_table(commander, rows):
     return "\n".join(lines)
 
 
-def lookup(commander_query, **rank_options):
-    """Full lookup. Returns ``(commander_info, ranked_rows)``."""
-    refresh = rank_options.pop("refresh", False)
-    name = resolve_commander(commander_query)
-    page = edhrec_client.fetch_commander_page(edhrec_client.slugify(name), refresh=refresh)
-    parsed = edhrec_client.parse_commander_page(page)
-    if not parsed["commander"]["legal_commander"]:
-        raise LookupError(f"{name} is not legal as a commander.")
+def lookup(commander_query, db=None, **rank_options):
+    """Full lookup. Returns ``(commander_info, ranked_rows)``.
 
-    info = scryfall_prices.lookup_cards([c["name"] for c in parsed["cards"]], refresh=refresh)
-    rows = build_rows(parsed["cards"], info)
-    return parsed["commander"], rank_rows(rows, **rank_options)
+    ``db`` is an open ``card_db.CardDB``; if omitted, the local database is
+    opened (and downloaded/refreshed if needed) and closed afterwards.
+    """
+    refresh = rank_options.pop("refresh", False)
+    owns_db = db is None
+    if owns_db:
+        db = card_db.open_db(refresh=refresh)
+    try:
+        name = resolve_commander(commander_query, db)
+        page = edhrec_client.fetch_commander_page(edhrec_client.slugify(name), refresh=refresh)
+        parsed = edhrec_client.parse_commander_page(page)
+        if not parsed["commander"]["legal_commander"]:
+            raise LookupError(f"{name} is not legal as a commander.")
+
+        info = db.get_many([c["name"] for c in parsed["cards"]])
+        rows = build_rows(parsed["cards"], info)
+        return parsed["commander"], rank_rows(rows, **rank_options)
+    finally:
+        if owns_db:
+            db.close()
 
 
 def main(argv=None):
@@ -137,7 +143,7 @@ def main(argv=None):
     parser.add_argument("--sort", choices=SORTS, default="inclusion")
     parser.add_argument("--limit", type=int, default=40)
     parser.add_argument("--include-basics", action="store_true")
-    parser.add_argument("--refresh", action="store_true", help="ignore cached data")
+    parser.add_argument("--refresh", action="store_true", help="re-download card data and EDHREC page")
     parser.add_argument("--json", action="store_true", help="output JSON instead of a table")
     args = parser.parse_args(argv)
 
@@ -152,7 +158,7 @@ def main(argv=None):
             include_basics=args.include_basics,
             refresh=args.refresh,
         )
-    except (LookupError, edhrec_client.EdhrecError) as exc:
+    except (LookupError, edhrec_client.EdhrecError, card_db.BulkDataError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 

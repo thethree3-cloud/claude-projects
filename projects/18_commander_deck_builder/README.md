@@ -1,6 +1,6 @@
 # Commander Deck Builder Agent (Project 18)
 
-**Status: spec drafted 2026-09-24. Prototype built 2026-09-25: staples fetcher + commander lookup (no LLM yet).**
+**Status: spec drafted 2026-09-24. Built 2026-09-25: Slice 1 (bulk-data card database), staples fetcher, commander lookup (no LLM yet).**
 
 Give it a commander and a budget; get back a legal, priced, 100-card
 Commander deck built from real popularity data. The LLM makes the judgment
@@ -81,22 +81,44 @@ python commander_lookup.py "Atraxa, Praetors' Voice" --sort synergy --limit 25 -
 Options: `--max-price` (per card, USD), `--min-inclusion` (0-1), `--role`,
 `--sort inclusion|synergy`, `--limit`, `--include-basics`, `--refresh`, `--json`.
 
-How it works: Scryfall fuzzy-matches the name -> EDHREC's commander JSON gives
-inclusion %, synergy, and role for each card across ~25k real decks -> Scryfall
-`/cards/collection` (75 names per request) adds price and type, falling back to
-the cheapest printing when the default printing has no USD (Sol Ring $1.42) ->
-filter and rank. Files: `edhrec_client.py`, `scryfall_prices.py`,
-`commander_lookup.py`, with 28 offline tests (`python -m unittest discover`)
+How it works: the name is fuzzy-matched against the local card database ->
+EDHREC's commander JSON gives inclusion %, synergy, and role for each card
+across ~25k real decks -> each card is joined to its price and type from the
+local database -> filter and rank. Files: `card_db.py`, `edhrec_client.py`,
+`commander_lookup.py`, with offline tests (`python -m unittest discover`)
 including a trimmed real EDHREC page as a format-drift fixture.
 
 Live-verified for Muldrotha (25,251 decks): top cards are Command Tower 87%,
-Sol Ring 85%, Arcane Signet 70%, Spore Frog 59% (+53% synergy). Cold run ~30 s
-(price lookups); cached run under 1 s (EDHREC cached 7 days, prices 24 h, in
-the gitignored `data/cache/`).
+Sol Ring 85%, Arcane Signet 70%, Spore Frog 59% (+53% synergy). A lookup takes
+~0.1 s (cached EDHREC page) or ~0.5 s (new commander, one EDHREC request).
+Before Slice 1 it took ~30 s cold because prices came from live Scryfall calls.
 
-Known limits: prices use live Scryfall calls (Slice 1's bulk data replaces
-that); inclusion is EDHREC's aggregate, not individual decklists; no total-deck
-budget or slot logic yet (Slices 3-5).
+Known limits: inclusion is EDHREC's aggregate, not individual decklists; no
+total-deck budget or slot logic yet (Slices 3-5).
+
+## Slice 1: card database (built 2026-09-25)
+
+`card_db.py` downloads Scryfall's **Default Cards** bulk file (every printing,
+~79 MB gzipped JSONL, via the `jsonl_download_uri` key), streams it, and
+collapses it to **one row per Oracle ID** in SQLite (`data/cache/cards.sqlite`,
+gitignored): name, type line, oracle text, color identity (WUBRG order), cmc,
+EDHREC rank, Commander legality, and USD price.
+
+Price rules (so Sol Ring is never N/A): cheapest non-foil USD among non-promo,
+non-digital printings; else cheapest promo; else cheapest foil/etched. The
+chosen printing is kept (`price_source`, `price_printing`, e.g. "fic #358").
+Tokens, art cards, memorabilia, and digital-only printings are skipped.
+
+Freshness: a database younger than 24 h is used with zero network calls; older
+triggers one metadata request and a re-download only if Scryfall's
+`updated_at` changed. Offline with an existing database falls back to it.
+
+Live-verified: 33,764 cards, 15 MB database, full download + build in 13 s,
+candidate query ("cards in BGU under $1, most popular first") in 0.03 s.
+Sol Ring $1.42, Command Tower $0.24, Arcane Signet $0.42, Eternal Witness $1.47.
+API: `get`, `get_many`, `find_name` (exact, substring, fuzzy), `candidates`
+(color identity + price cap + legality, by popularity). The candidates query is
+the input to Slice 3.
 
 ## Design rules
 
@@ -173,8 +195,8 @@ Score generated decks against ground truth instead of eyeballing:
 
 ## Slices
 
-1. **Data layer** — Default Cards bulk download/cache/parse, Oracle-ID
-   collapse, min-USD pricing; tests with a small fixture file.
+1. **Data layer** *(built: `card_db.py`, 26 tests)* — Default Cards bulk
+   download/cache/parse, Oracle-ID collapse, min-USD pricing.
 2. **EDHREC client** *(prototype built: `edhrec_client.py`)* — fetch + parse per-commander JSON (fix inclusion %
    properly), disk cache, throttle; tests against saved fixtures.
 3. **Candidate pool + slot plan** — filtering, ranking, slot targets; pure
