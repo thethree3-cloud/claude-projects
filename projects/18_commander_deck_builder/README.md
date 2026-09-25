@@ -30,7 +30,7 @@ runtime dependencies) from j4th's services.
 ## Research output: universal staples
 
 `fetch_staples.py` pulls the most popular cards that fit any deck: colorless
-cards plus mono-color cards for each of W/U/B/R/G, ranked by EDHREC
+cards, mono-color cards for each of W/U/B/R/G, and the ten two-color pairs, ranked by EDHREC
 popularity and priced at the cheapest printing. Outputs:
 
 - [`staples/STAPLES.md`](staples/STAPLES.md) — readable tables by price tier
@@ -40,9 +40,13 @@ Findings (2026-09-24): the colorless list is almost all lands and artifacts;
 the core kit (Sol Ring, Command Tower, Arcane Signet, Exotic Orchard, Path of
 Ancestry, Fellwar Stone, Mind Stone) costs under $4 total. Every color has 6+
 staples under $2 in its top 150, but each top-10 mixes $0.30 cards with $50+
-cards, so popularity alone blows budgets. Not yet covered: two- and
-three-color identities. Scope note: these are global EDHREC ranks, not
-per-commander inclusion rates.
+cards, so popularity alone blows budgets. The ten two-color pairs are also
+covered (exact identity: a pair deck combines its pair list, its two mono
+lists, and colorless). Pair lists are dominated by mana fixing: every pair has
+5+ duals, signets, or talismans under $2, plus a few gold removal spells
+(Terminate $0.33, Putrefy $0.31, Assassin's Trophy $1.26, Anguished Unmaking
+$1.59). Not yet covered: three-color identities. Scope note: these are global
+EDHREC ranks, not per-commander inclusion rates.
 
 ## Design rules
 

@@ -2,7 +2,10 @@
 EDHREC popularity (via Scryfall's ``edhrec_rank``) and priced at the cheapest
 USD printing.
 
-Writes staples/staples.json and staples/STAPLES.md. Uses ~50 Scryfall requests
+Groups: colorless, mono-color, and the ten two-color pairs (exact identity, so
+a pair deck combines its pair list with its two mono lists and colorless).
+
+Writes staples/staples.json and staples/STAPLES.md. Uses ~100+ Scryfall requests
 with a delay between each (Scryfall asks for < 10/sec and a User-Agent).
 
 Why cheapest printing: Scryfall's default printing of some very popular cards
@@ -31,6 +34,16 @@ GROUPS = {
     "b": ("id=b", "Black"),
     "r": ("id=r", "Red"),
     "g": ("id=g", "Green"),
+    "wu": ("id=wu", "Azorius (WU)"),
+    "ub": ("id=ub", "Dimir (UB)"),
+    "br": ("id=br", "Rakdos (BR)"),
+    "rg": ("id=rg", "Gruul (RG)"),
+    "gw": ("id=gw", "Selesnya (GW)"),
+    "wb": ("id=wb", "Orzhov (WB)"),
+    "ur": ("id=ur", "Izzet (UR)"),
+    "bg": ("id=bg", "Golgari (BG)"),
+    "rw": ("id=rw", "Boros (RW)"),
+    "gu": ("id=gu", "Simic (GU)"),
 }
 TIERS = [("Under $2", 0, 2), ("$2-10", 2, 10), ("$10+", 10, float("inf"))]
 
