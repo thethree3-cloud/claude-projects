@@ -1,120 +1,77 @@
-"""Fetch universal Commander staples: colorless + each mono color, ranked by
-EDHREC popularity (via Scryfall's ``edhrec_rank``) and priced at the cheapest
-USD printing.
+"""Universal Commander staples: colorless + mono + two/three/four-color identities,
+ranked by EDHREC popularity (``edhrec_rank``) and priced at the cheapest printing.
 
-Groups: colorless, mono-color, the ten two-color pairs, the ten three-color
-identities, and the five four-color identities (exact identity, so a deck
-combines its own list with the lists of every smaller identity inside it, plus
-colorless). Four-color groups hold only 2-12 cards (commanders and the
-Nephilim), so they add no staples of their own.
+Reads the local card database (card_db.py, built from Scryfall bulk data), so
+it makes no per-card API calls. The database refreshes itself daily.
 
-Writes staples/staples.json and staples/STAPLES.md. Uses ~200 Scryfall requests
-with a delay between each (Scryfall asks for < 10/sec and a User-Agent).
+Groups use exact identity, so a deck combines its own list with the lists of
+every smaller identity inside it, plus colorless. Four-color groups hold only
+2-12 cards (commanders and the Nephilim), so they add no staples of their own.
 
-Why cheapest printing: Scryfall's default printing of some very popular cards
-(Sol Ring, Command Tower, Arcane Signet) has no USD price, so a naive price
-filter would silently drop them.
+Writes staples/staples.json and staples/STAPLES.md.
 
 Run:  python fetch_staples.py
 """
 
 import json
-import time
-import urllib.parse
-import urllib.request
 from pathlib import Path
 
-HEADERS = {"User-Agent": "commander-deck-builder/0.1", "Accept": "application/json"}
+import card_db
+
 OUT_DIR = Path(__file__).parent / "staples"
-PAGES = 2  # 175 cards per page
-REPRICE_TOP = 150  # only reprice unpriced cards this deep into each list
-DELAY = 0.5
+LIST_SIZE = 350  # cards kept per group
+TABLE_DEPTH = 150  # how deep into each list the readable tables look
 
 GROUPS = {
-    "colorless": ("id:c", "Colorless"),
-    "w": ("id=w", "White"),
-    "u": ("id=u", "Blue"),
-    "b": ("id=b", "Black"),
-    "r": ("id=r", "Red"),
-    "g": ("id=g", "Green"),
-    "wu": ("id=wu", "Azorius (WU)"),
-    "ub": ("id=ub", "Dimir (UB)"),
-    "br": ("id=br", "Rakdos (BR)"),
-    "rg": ("id=rg", "Gruul (RG)"),
-    "gw": ("id=gw", "Selesnya (GW)"),
-    "wb": ("id=wb", "Orzhov (WB)"),
-    "ur": ("id=ur", "Izzet (UR)"),
-    "bg": ("id=bg", "Golgari (BG)"),
-    "rw": ("id=rw", "Boros (RW)"),
-    "gu": ("id=gu", "Simic (GU)"),
-    "wub": ("id=wub", "Esper (WUB)"),
-    "ubr": ("id=ubr", "Grixis (UBR)"),
-    "brg": ("id=brg", "Jund (BRG)"),
-    "rgw": ("id=rgw", "Naya (RGW)"),
-    "gwu": ("id=gwu", "Bant (GWU)"),
-    "rwb": ("id=rwb", "Mardu (RWB)"),
-    "gur": ("id=gur", "Temur (GUR)"),
-    "wbg": ("id=wbg", "Abzan (WBG)"),
-    "urw": ("id=urw", "Jeskai (URW)"),
-    "bgu": ("id=bgu", "Sultai (BGU)"),
-    "wubr": ("id=wubr", "Non-Green (WUBR)"),
-    "ubrg": ("id=ubrg", "Non-White (UBRG)"),
-    "brgw": ("id=brgw", "Non-Blue (BRGW)"),
-    "rgwu": ("id=rgwu", "Non-Black (RGWU)"),
-    "gwub": ("id=gwub", "Non-Red (GWUB)"),
+    "colorless": ("", "Colorless"),
+    "w": ("W", "White"),
+    "u": ("U", "Blue"),
+    "b": ("B", "Black"),
+    "r": ("R", "Red"),
+    "g": ("G", "Green"),
+    "wu": ("WU", "Azorius (WU)"),
+    "ub": ("UB", "Dimir (UB)"),
+    "br": ("BR", "Rakdos (BR)"),
+    "rg": ("RG", "Gruul (RG)"),
+    "gw": ("GW", "Selesnya (GW)"),
+    "wb": ("WB", "Orzhov (WB)"),
+    "ur": ("UR", "Izzet (UR)"),
+    "bg": ("BG", "Golgari (BG)"),
+    "rw": ("RW", "Boros (RW)"),
+    "gu": ("GU", "Simic (GU)"),
+    "wub": ("WUB", "Esper (WUB)"),
+    "ubr": ("UBR", "Grixis (UBR)"),
+    "brg": ("BRG", "Jund (BRG)"),
+    "rgw": ("RGW", "Naya (RGW)"),
+    "gwu": ("GWU", "Bant (GWU)"),
+    "rwb": ("RWB", "Mardu (RWB)"),
+    "gur": ("GUR", "Temur (GUR)"),
+    "wbg": ("WBG", "Abzan (WBG)"),
+    "urw": ("URW", "Jeskai (URW)"),
+    "bgu": ("BGU", "Sultai (BGU)"),
+    "wubr": ("WUBR", "Non-Green (WUBR)"),
+    "ubrg": ("UBRG", "Non-White (UBRG)"),
+    "brgw": ("BRGW", "Non-Blue (BRGW)"),
+    "rgwu": ("RGWU", "Non-Black (RGWU)"),
+    "gwub": ("GWUB", "Non-Red (GWUB)"),
 }
 TIERS = [("Under $2", 0, 2), ("$2-10", 2, 10), ("$10+", 10, float("inf"))]
 
 
-def get(url):
-    with urllib.request.urlopen(urllib.request.Request(url, headers=HEADERS)) as resp:
-        return json.load(resp)
+def normalize_identity(colors):
+    """Any order of color letters -> the database's WUBRG order ('' = colorless)."""
+    return "".join(c for c in card_db.WUBRG if c in set(colors.upper()))
 
 
-def search(query, unique="cards", pages=PAGES):
-    params = {"q": query, "unique": unique, "order": "edhrec"}
-    url = "https://api.scryfall.com/cards/search?" + urllib.parse.urlencode(params)
-    cards = []
-    for _ in range(pages):
-        page = get(url)
-        cards += page["data"]
-        time.sleep(DELAY)
-        if not page.get("has_more"):
-            break
-        url = page["next_page"]
-    return cards
-
-
-def default_usd(card):
-    prices = card["prices"]
-    usd = prices.get("usd") or prices.get("usd_foil") or prices.get("usd_etched")
-    return float(usd) if usd else None
-
-
-def cheapest_usd(name):
-    """Lowest USD across every printing of a card, or None."""
-    prints = search(f'!"{name}"', unique="prints", pages=1)
-    prices = [float(p["prices"]["usd"]) for p in prints if p["prices"].get("usd")]
-    return min(prices) if prices else None
-
-
-def build_group(base_query):
-    cards = search(f"f:commander -is:funny {base_query}")
-    rows = [
-        {
-            "name": c["name"],
-            "rank": c.get("edhrec_rank"),
-            "usd": default_usd(c),
-            "type": c["type_line"],
-        }
-        for c in cards
-    ]
-    for row in rows[:REPRICE_TOP]:
-        if row["usd"] is None:
-            row["usd"] = cheapest_usd(row["name"])
-            row["repriced"] = True
-            time.sleep(DELAY)
-    return rows
+def build_group(db, identity):
+    """Top cards with exactly this color identity, most popular first."""
+    rows = db.conn.execute(
+        "SELECT name, edhrec_rank, usd, type_line FROM cards "
+        "WHERE color_identity = ? AND legal_commander = 1 AND edhrec_rank IS NOT NULL "
+        "ORDER BY edhrec_rank LIMIT ?",
+        (normalize_identity(identity), LIST_SIZE),
+    ).fetchall()
+    return [{"name": n, "rank": rank, "usd": usd, "type": type_line} for n, rank, usd, type_line in rows]
 
 
 def render_markdown(data):
@@ -132,7 +89,7 @@ def render_markdown(data):
         # Legendary creatures rank high as commanders, not as staples for other decks.
         priced = [
             r
-            for r in data[key][:REPRICE_TOP]
+            for r in data[key][:TABLE_DEPTH]
             if r["usd"] is not None
             and not ("Legendary" in r["type"] and "Creature" in r["type"])
         ]
@@ -147,10 +104,14 @@ def render_markdown(data):
 
 def main():
     OUT_DIR.mkdir(exist_ok=True)
-    data = {}
-    for key, (query, label) in GROUPS.items():
-        data[key] = build_group(query)
-        print(f"{label}: {len(data[key])} cards")
+    db = card_db.open_db()
+    try:
+        data = {}
+        for key, (identity, label) in GROUPS.items():
+            data[key] = build_group(db, identity)
+            print(f"{label}: {len(data[key])} cards")
+    finally:
+        db.close()
     (OUT_DIR / "staples.json").write_text(json.dumps(data, indent=1))
     (OUT_DIR / "STAPLES.md").write_text(render_markdown(data))
     print(f"Wrote {OUT_DIR}/staples.json and STAPLES.md")

@@ -29,9 +29,10 @@ runtime dependencies) from j4th's services.
 
 ## Research output: universal staples
 
-`fetch_staples.py` pulls the most popular cards that fit any deck: colorless
-cards, mono-color cards for each of W/U/B/R/G, the ten two-color pairs, and
-the ten three-color identities, and the five four-color identities, ranked by EDHREC
+`fetch_staples.py` reads the local card database (no API calls, runs in under a
+second) for the most popular cards that fit any deck: colorless cards,
+mono-color cards for each of W/U/B/R/G, the ten two-color pairs, the ten
+three-color identities, and the five four-color identities, ranked by EDHREC
 popularity and priced at the cheapest printing. Outputs:
 
 - [`staples/STAPLES.md`](staples/STAPLES.md) — readable tables by price tier
