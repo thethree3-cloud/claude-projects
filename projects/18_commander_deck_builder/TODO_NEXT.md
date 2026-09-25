@@ -2,8 +2,8 @@
 
 ## Where things stand
 
-Built, tested (50 offline tests), and pushed on branch
-`docs/project-18-commander-deck-builder-spec` (latest `9cbd2d9`):
+Built, tested (55 offline tests), and pushed on branch
+`feat/project-18-commander-deck-builder` (clean, 7 commits off `main`):
 
 - **Slice 1 — `card_db.py`:** Scryfall Default Cards bulk -> SQLite, one row per
   card, cheapest-printing USD, 24 h refresh. `CardDB.candidates(identity,
@@ -13,6 +13,7 @@ Built, tested (50 offline tests), and pushed on branch
   Slice 2, not the finished slice (see below).
 - **`fetch_staples.py`:** universal staples for colorless, mono, pair, triple
   and four-color identities (`staples/STAPLES.md`, `staples/staples.json`).
+  Reads `CardDB` (no API calls, 0.3 s).
 
 No LLM anywhere yet, and no deck is ever assembled yet.
 
@@ -20,7 +21,7 @@ Quick resume:
 
 ```bash
 cd projects/18_commander_deck_builder
-/home/t9/venv/bin/python -m unittest discover -p "test_*.py"     # should be 50 OK
+/home/t9/venv/bin/python -m unittest discover -p "test_*.py"     # should be 55 OK
 /home/t9/venv/bin/python commander_lookup.py "Muldrotha" --limit 10
 ```
 
@@ -103,26 +104,37 @@ curve, Game Changers count vs requested bracket.
 - Budget meaning: total-deck cap only (current plan), or also a per-card cap?
 - Foil/promo printings excluded from price by default — confirm.
 
-## Housekeeping / loose ends
+## Housekeeping (done 2026-09-25)
 
-- [ ] **Branch name:** `docs/project-18-commander-deck-builder-spec` now holds
-      working code. Rename, or just open a PR to `main` from it. Note it also
-      carries the unpushed-until-today Warrior commit `4955755`, so a PR
-      would include that too.
-- [ ] `feat/big-money-movie-backend` is still 1 commit ahead of origin (the
-      Warrior commit) — it was pushed via this branch, not that one.
-- [ ] **Uncommitted changes unrelated to Project 18** are still sitting in the
-      working tree: `.gitignore`, `projects/10_resume_job_matcher/score.py`,
-      `projects/python_fundamentals/01_variables/variables_practice.py`,
-      `projects/01_guidebook_agent/chunk.py` + `test_chunk.py`,
-      `projects/benefits_pdf_practice/`. Decide what to commit or drop.
+- [x] **Branch fixed:** the old `docs/project-18-...-spec` branch carried 23
+      unrelated commits (Big Money Movie, Zero configurators, Warrior). Replaced
+      by `feat/project-18-commander-deck-builder`: only the 7 Project 18
+      commits, based on `main`, identical content, 55 tests pass. Old branch
+      deleted locally and on origin.
+- [x] `feat/big-money-movie-backend` pushed (Warrior `4955755` is now on origin).
+- [x] `fetch_staples.py` converted to read `CardDB` instead of live Scryfall.
+
+**Heads-up:** the working tree is now on the Project 18 branch, which is based
+on `main`, so the Zero tool folders (`case_configurator`, `deep_draw_boxes`,
+`warrior_rackmount`) and other movie-branch files are not checked out here.
+They are safe on `feat/big-money-movie-backend` — `git switch` to it to work
+on them.
+
+## Still open
+
+- [ ] **Open a PR** `feat/project-18-commander-deck-builder` -> `main` (now
+      safe: it holds only Project 18 changes). Not done — your call.
+- [ ] **Uncommitted changes unrelated to Project 18** (yours, left alone):
+      `.gitignore` (adds `.vscode/`, `.venv/`), `projects/10_resume_job_matcher/score.py`
+      (docstring on score bands), `projects/python_fundamentals/01_variables/variables_practice.py`
+      (`Age` -> `age`), `projects/01_guidebook_agent/chunk.py` + `test_chunk.py`
+      (Project 01 walkthrough in progress), `projects/benefits_pdf_practice/`
+      (may hold private benefits data, so check before committing). Decide what
+      to commit, and on which branch.
 - [ ] Optional: upstream PR of the bulk-data fix to `j4th/mtg-mcp-server`
       (`mtg-bulk-fix.patch`). Outward-facing; needs your OK first.
 - [ ] Optional: per-commander "average deck" comparison uses the same EDHREC
       data — sketch it while building the evals.
-- [ ] Refresh `staples/` occasionally (`python fetch_staples.py`, ~200
-      Scryfall requests) — prices drift daily. Could now read from `CardDB`
-      instead of live calls; worth converting when convenient.
 
 ## Known limits to keep in mind
 
