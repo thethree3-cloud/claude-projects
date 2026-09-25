@@ -1,0 +1,553 @@
+{
+ "container": {
+  "json_dict": {
+   "card": {
+    "name": "Muldrotha, the Gravetide",
+    "color_identity": [
+     "B",
+     "G",
+     "U"
+    ],
+    "num_decks": 25251,
+    "legal_commander": true,
+    "is_commander": true
+   },
+   "cardlists": [
+    {
+     "header": "New Cards",
+     "tag": "newcards",
+     "cardviews": [
+      {
+       "id": "3788ada6-34a9-41af-a31c-2d090550e503",
+       "name": "The Master of Lake-town",
+       "sanitized": "the-master-of-lake-town",
+       "slug": "the-master-of-lake-town",
+       "url": "/cards/the-master-of-lake-town",
+       "synergy": 0.005644087644615929,
+       "num_decks": 155,
+       "potential_decks": 3629,
+       "trend_zscore": 10.381990020944961
+      },
+      {
+       "id": "484c7f83-8339-4ae1-8350-68ce1f7d05a3",
+       "name": "Bilbo, Thief in the Night",
+       "sanitized": "bilbo-thief-in-the-night",
+       "slug": "bilbo-thief-in-the-night",
+       "url": "/cards/bilbo-thief-in-the-night",
+       "synergy": 0.019489328519674498,
+       "num_decks": 190,
+       "potential_decks": 6746,
+       "trend_zscore": 3.779190770095892
+      },
+      {
+       "id": "04e64af7-cca1-499e-8951-f386e84c8b5b",
+       "name": "Primal Witchstalker",
+       "sanitized": "primal-witchstalker",
+       "slug": "primal-witchstalker",
+       "url": "/cards/primal-witchstalker",
+       "synergy": 0.014206613410578987,
+       "num_decks": 11,
+       "potential_decks": 583,
+       "trend_zscore": 0.0
+      }
+     ]
+    },
+    {
+     "header": "High Synergy Cards",
+     "tag": "highsynergycards",
+     "cardviews": [
+      {
+       "id": "6d42fd52-34ea-4d1b-80dc-58fb0593bb5b",
+       "name": "Spore Frog",
+       "sanitized": "spore-frog",
+       "slug": "spore-frog",
+       "url": "/cards/spore-frog",
+       "synergy": 0.5272903767215922,
+       "num_decks": 15004,
+       "potential_decks": 25251,
+       "trend_zscore": 2.2433847121440587
+      },
+      {
+       "id": "fd5592ab-6883-4c5a-8d50-d9530d905b19",
+       "name": "Seal of Primordium",
+       "sanitized": "seal-of-primordium",
+       "slug": "seal-of-primordium",
+       "url": "/cards/seal-of-primordium",
+       "synergy": 0.44166542939721615,
+       "num_decks": 12217,
+       "potential_decks": 25251,
+       "trend_zscore": -1.201569435822431
+      },
+      {
+       "id": "98f3be88-24e2-433f-9138-f0cb59d09a0f",
+       "name": "Kaya's Ghostform",
+       "sanitized": "kayas-ghostform",
+       "slug": "kayas-ghostform",
+       "url": "/cards/kayas-ghostform",
+       "synergy": 0.4216358143279379,
+       "num_decks": 11998,
+       "potential_decks": 25251,
+       "trend_zscore": 0.3338867812174355
+      }
+     ]
+    },
+    {
+     "header": "Top Cards",
+     "tag": "topcards",
+     "cardviews": [
+      {
+       "id": "39704000-65d3-4d39-849e-a3b617376bbc",
+       "name": "Eternal Witness",
+       "sanitized": "eternal-witness",
+       "slug": "eternal-witness",
+       "url": "/cards/eternal-witness",
+       "synergy": 0.27837435869575367,
+       "num_decks": 13200,
+       "potential_decks": 25251,
+       "trend_zscore": -0.43875914745836864
+      },
+      {
+       "id": "40489e28-878d-44a2-847f-07beef1aa0f8",
+       "name": "The Gitrog Monster",
+       "sanitized": "the-gitrog-monster",
+       "slug": "the-gitrog-monster",
+       "url": "/cards/the-gitrog-monster",
+       "synergy": 0.2735467730501747,
+       "num_decks": 10715,
+       "potential_decks": 25251,
+       "trend_zscore": 0.6284815498526563
+      },
+      {
+       "id": "cc0c2bab-4392-4e7b-9d14-2901f4ffbae8",
+       "name": "Animate Dead",
+       "sanitized": "animate-dead",
+       "slug": "animate-dead",
+       "url": "/cards/animate-dead",
+       "synergy": 0.29136214117761755,
+       "num_decks": 10511,
+       "potential_decks": 25251,
+       "trend_zscore": 1.2068800738151688
+      }
+     ]
+    },
+    {
+     "header": "Game Changers",
+     "tag": "gamechangers",
+     "cardviews": [
+      {
+       "id": "9f37c5b6-a59c-45cd-9a99-e9357fe9ea1b",
+       "name": "Rhystic Study",
+       "sanitized": "rhystic-study",
+       "slug": "rhystic-study",
+       "url": "/cards/rhystic-study",
+       "synergy": 0.028149684729406488,
+       "num_decks": 5496,
+       "potential_decks": 25251,
+       "trend_zscore": -1.7747042294330253
+      },
+      {
+       "id": "dfb7c4b9-f2f4-4d4e-baf2-86551c8150fe",
+       "name": "Cyclonic Rift",
+       "sanitized": "cyclonic-rift",
+       "slug": "cyclonic-rift",
+       "url": "/cards/cyclonic-rift",
+       "synergy": 0.013967362770625519,
+       "num_decks": 4967,
+       "potential_decks": 25251,
+       "trend_zscore": -0.5148269521089263
+      },
+      {
+       "id": "a24b4cb6-cebb-428b-8654-74347a6a8d63",
+       "name": "Demonic Tutor",
+       "sanitized": "demonic-tutor",
+       "slug": "demonic-tutor",
+       "url": "/cards/demonic-tutor",
+       "synergy": 0.022469888204349864,
+       "num_decks": 4664,
+       "potential_decks": 25251,
+       "trend_zscore": -0.17811674241972122
+      }
+     ]
+    },
+    {
+     "header": "Creatures",
+     "tag": "creatures",
+     "cardviews": [
+      {
+       "id": "cc765da4-4bca-4250-80e4-05575d6fa98c",
+       "name": "World Shaper",
+       "sanitized": "world-shaper",
+       "slug": "world-shaper",
+       "url": "/cards/world-shaper",
+       "synergy": 0.263262950587166,
+       "num_decks": 8359,
+       "potential_decks": 25251,
+       "trend_zscore": -1.4509177854030326
+      },
+      {
+       "id": "d9482aab-6ddf-48e1-84fa-b13d5ff81e69",
+       "name": "Icetill Explorer",
+       "sanitized": "icetill-explorer",
+       "slug": "icetill-explorer",
+       "url": "/cards/icetill-explorer",
+       "synergy": 0.14755898529530898,
+       "num_decks": 5395,
+       "potential_decks": 16451,
+       "trend_zscore": 2.4358115442967083
+      },
+      {
+       "id": "6b8e44d4-db67-4bf4-97c0-ffe6a0eb2954",
+       "name": "Sidisi, Brood Tyrant",
+       "sanitized": "sidisi-brood-tyrant",
+       "slug": "sidisi-brood-tyrant",
+       "url": "/cards/sidisi-brood-tyrant",
+       "synergy": 0.21927144366516438,
+       "num_decks": 8201,
+       "potential_decks": 25251,
+       "trend_zscore": -0.14532892618982066
+      }
+     ]
+    },
+    {
+     "header": "Instants",
+     "tag": "instants",
+     "cardviews": [
+      {
+       "id": "4f616706-ec97-4923-bb1e-11a69fbaa1f8",
+       "name": "Counterspell",
+       "sanitized": "counterspell",
+       "slug": "counterspell",
+       "url": "/cards/counterspell",
+       "synergy": -0.0381401518499902,
+       "num_decks": 8264,
+       "potential_decks": 25251,
+       "trend_zscore": -1.4950367903944153
+      },
+      {
+       "id": "3caa9c55-5e3b-436b-84a9-b7ccebf63799",
+       "name": "Entomb",
+       "sanitized": "entomb",
+       "slug": "entomb",
+       "url": "/cards/entomb",
+       "synergy": 0.21020708528682924,
+       "num_decks": 7724,
+       "potential_decks": 25251,
+       "trend_zscore": -1.4924817580086898
+      },
+      {
+       "id": "aaf258fc-3ba4-4b83-bdbf-10a07e0b6c03",
+       "name": "Assassin's Trophy",
+       "sanitized": "assassins-trophy",
+       "slug": "assassins-trophy",
+       "url": "/cards/assassins-trophy",
+       "synergy": -0.09843724659979364,
+       "num_decks": 7016,
+       "potential_decks": 25251,
+       "trend_zscore": 0.4247928900810104
+      }
+     ]
+    },
+    {
+     "header": "Sorceries",
+     "tag": "sorceries",
+     "cardviews": [
+      {
+       "id": "76878b19-2916-4f3f-bee5-20846bc9e2db",
+       "name": "Buried Alive",
+       "sanitized": "buried-alive",
+       "slug": "buried-alive",
+       "url": "/cards/buried-alive",
+       "synergy": 0.2361377290554686,
+       "num_decks": 8386,
+       "potential_decks": 25251,
+       "trend_zscore": 0.038784083922027486
+      },
+      {
+       "id": "cdb6432f-3f56-4c92-b09a-2a5b64620c04",
+       "name": "Life from the Loam",
+       "sanitized": "life-from-the-loam",
+       "slug": "life-from-the-loam",
+       "url": "/cards/life-from-the-loam",
+       "synergy": 0.12237944617399446,
+       "num_decks": 7349,
+       "potential_decks": 25251,
+       "trend_zscore": 0.051104373864739386
+      },
+      {
+       "id": "368b6903-5fc4-43e7-bd44-46b8107c8bb4",
+       "name": "Reanimate",
+       "sanitized": "reanimate",
+       "slug": "reanimate",
+       "url": "/cards/reanimate",
+       "synergy": 0.022265115770088245,
+       "num_decks": 6603,
+       "potential_decks": 25251,
+       "trend_zscore": 0.9040054663289396
+      }
+     ]
+    },
+    {
+     "header": "Utility Artifacts",
+     "tag": "utilityartifacts",
+     "cardviews": [
+      {
+       "id": "6edbedf9-273f-4d7f-80a2-705858bd4d6d",
+       "name": "Perpetual Timepiece",
+       "sanitized": "perpetual-timepiece",
+       "slug": "perpetual-timepiece",
+       "url": "/cards/perpetual-timepiece",
+       "synergy": 0.22975399595323678,
+       "num_decks": 6746,
+       "potential_decks": 25251,
+       "trend_zscore": -0.046233341228500716
+      },
+      {
+       "id": "03f7e9fc-8e59-45c1-90fc-1d04d929b292",
+       "name": "Swiftfoot Boots",
+       "sanitized": "swiftfoot-boots",
+       "slug": "swiftfoot-boots",
+       "url": "/cards/swiftfoot-boots",
+       "synergy": 0.013272051136839158,
+       "num_decks": 6340,
+       "potential_decks": 25251,
+       "trend_zscore": -0.5973206988603387
+      },
+      {
+       "id": "39e83502-2ffd-4169-94e3-116701323ed5",
+       "name": "Hedge Shredder",
+       "sanitized": "hedge-shredder",
+       "slug": "hedge-shredder",
+       "url": "/cards/hedge-shredder",
+       "synergy": 0.08885077384746645,
+       "num_decks": 5994,
+       "potential_decks": 25251,
+       "trend_zscore": 0.9895272502509853
+      }
+     ]
+    },
+    {
+     "header": "Enchantments",
+     "tag": "enchantments",
+     "cardviews": [
+      {
+       "id": "6dfc7060-e374-486f-8029-d3fdfe4b61e7",
+       "name": "Seal of Removal",
+       "sanitized": "seal-of-removal",
+       "slug": "seal-of-removal",
+       "url": "/cards/seal-of-removal",
+       "synergy": 0.2909386492620722,
+       "num_decks": 7992,
+       "potential_decks": 25251,
+       "trend_zscore": -0.031874377729143255
+      },
+      {
+       "id": "a201d1bc-e3fe-4f59-bd48-3683996ac308",
+       "name": "Ripples of Undeath",
+       "sanitized": "ripples-of-undeath",
+       "slug": "ripples-of-undeath",
+       "url": "/cards/ripples-of-undeath",
+       "synergy": 0.11491944476482682,
+       "num_decks": 6690,
+       "potential_decks": 25251,
+       "trend_zscore": 1.0026092320486422
+      },
+      {
+       "id": "40ed0cef-8ff6-4169-a9f3-7dd5cf56b79f",
+       "name": "Teval's Judgment",
+       "sanitized": "tevals-judgment",
+       "slug": "tevals-judgment",
+       "url": "/cards/tevals-judgment",
+       "synergy": 0.07159122607876961,
+       "num_decks": 4304,
+       "potential_decks": 20635,
+       "trend_zscore": -0.37111080401146734
+      }
+     ]
+    },
+    {
+     "header": "Battles",
+     "tag": "battles",
+     "cardviews": [
+      {
+       "id": "981f091a-17f8-412e-9752-69070ebed4ea",
+       "name": "Invasion of Amonkhet",
+       "sanitized": "invasion-of-amonkhet",
+       "slug": "invasion-of-amonkhet",
+       "url": "/cards/invasion-of-amonkhet",
+       "cards": [
+        {
+         "name": "Invasion of Amonkhet",
+         "url": "invasion-of-amonkhet"
+        },
+        {
+         "name": "Lazotep Convert",
+         "url": "invasion-of-amonkhet"
+        }
+       ],
+       "synergy": 0.04208549113858226,
+       "num_decks": 1336,
+       "potential_decks": 25251,
+       "trend_zscore": -0.6380457525413702
+      }
+     ]
+    },
+    {
+     "header": "Planeswalkers",
+     "tag": "planeswalkers",
+     "cardviews": [
+      {
+       "id": "f2df3258-c053-48a8-974f-d80899b2cd93",
+       "name": "Ashiok, Dream Render",
+       "sanitized": "ashiok-dream-render",
+       "slug": "ashiok-dream-render",
+       "url": "/cards/ashiok-dream-render",
+       "synergy": 0.22557220673950487,
+       "num_decks": 6600,
+       "potential_decks": 25251,
+       "trend_zscore": -0.761424064100389
+      },
+      {
+       "id": "6adb7d73-4482-4930-8497-cffd169b57e2",
+       "name": "Jace, Wielder of Mysteries",
+       "sanitized": "jace-wielder-of-mysteries",
+       "slug": "jace-wielder-of-mysteries",
+       "url": "/cards/jace-wielder-of-mysteries",
+       "synergy": 0.13030755803525118,
+       "num_decks": 4099,
+       "potential_decks": 25251,
+       "trend_zscore": -1.3303732959397712
+      },
+      {
+       "id": "3462a3d0-5552-49fa-9eb7-100960c55891",
+       "name": "Oko, Thief of Crowns",
+       "sanitized": "oko-thief-of-crowns",
+       "slug": "oko-thief-of-crowns",
+       "url": "/cards/oko-thief-of-crowns",
+       "synergy": 0.10264734808464279,
+       "num_decks": 3376,
+       "potential_decks": 25251,
+       "trend_zscore": -0.1776238381465428
+      }
+     ]
+    },
+    {
+     "header": "Utility Lands",
+     "tag": "utilitylands",
+     "cardviews": [
+      {
+       "id": "55b5b094-9d2d-4d96-b90c-78fecdae725a",
+       "name": "Bojuka Bog",
+       "sanitized": "bojuka-bog",
+       "slug": "bojuka-bog",
+       "url": "/cards/bojuka-bog",
+       "synergy": 0.04913660052393898,
+       "num_decks": 7894,
+       "potential_decks": 25251,
+       "trend_zscore": -0.1370921985468892
+      },
+      {
+       "id": "435e9678-9ff3-4e5d-8061-3f806e1c2ed2",
+       "name": "Command Beacon",
+       "sanitized": "command-beacon",
+       "slug": "command-beacon",
+       "url": "/cards/command-beacon",
+       "synergy": 0.1848642578803839,
+       "num_decks": 7585,
+       "potential_decks": 25251,
+       "trend_zscore": -0.09752091087384185
+      },
+      {
+       "id": "9e1a9e38-6ffc-490f-b0be-23ba4e8204c6",
+       "name": "Urborg, Tomb of Yawgmoth",
+       "sanitized": "urborg-tomb-of-yawgmoth",
+       "slug": "urborg-tomb-of-yawgmoth",
+       "url": "/cards/urborg-tomb-of-yawgmoth",
+       "synergy": 0.058439655497766335,
+       "num_decks": 5689,
+       "potential_decks": 25251,
+       "trend_zscore": -0.4141918259583886
+      }
+     ]
+    },
+    {
+     "header": "Mana Artifacts",
+     "tag": "manaartifacts",
+     "cardviews": [
+      {
+       "id": "8ee443cc-e17a-493b-9c93-1f9e141a30e4",
+       "name": "Sol Ring",
+       "sanitized": "sol-ring",
+       "slug": "sol-ring",
+       "url": "/cards/sol-ring",
+       "synergy": 0.034742763809468724,
+       "num_decks": 21368,
+       "potential_decks": 25251,
+       "trend_zscore": 0.0
+      },
+      {
+       "id": "c6b6117c-faab-4bbb-b851-07bd8061ef03",
+       "name": "Arcane Signet",
+       "sanitized": "arcane-signet",
+       "slug": "arcane-signet",
+       "url": "/cards/arcane-signet",
+       "synergy": -0.0026252456935528246,
+       "num_decks": 17801,
+       "potential_decks": 25251,
+       "trend_zscore": 0.0
+      },
+      {
+       "id": "57c4bd1f-757c-4b62-a87d-73da94f904f3",
+       "name": "Lotus Petal",
+       "sanitized": "lotus-petal",
+       "slug": "lotus-petal",
+       "url": "/cards/lotus-petal",
+       "synergy": 0.20356430056428215,
+       "num_decks": 7234,
+       "potential_decks": 25251,
+       "trend_zscore": 0.0
+      }
+     ]
+    },
+    {
+     "header": "Lands",
+     "tag": "lands",
+     "cardviews": [
+      {
+       "id": "dce15387-4114-4b3e-91aa-5b42b45c44ac",
+       "name": "Forest",
+       "sanitized": "forest",
+       "slug": "forest",
+       "url": "/cards/forest",
+       "synergy": 0.025820076364295508,
+       "num_decks": 23788,
+       "potential_decks": 25251,
+       "trend_zscore": 0.0
+      },
+      {
+       "id": "b7387103-1df1-4fd0-9e91-1544509792c7",
+       "name": "Swamp",
+       "sanitized": "swamp",
+       "slug": "swamp",
+       "url": "/cards/swamp",
+       "synergy": 0.03361484716845209,
+       "num_decks": 23666,
+       "potential_decks": 25251,
+       "trend_zscore": 0.0
+      },
+      {
+       "id": "f3cc07cd-cc79-4745-b0b7-eade60175cc3",
+       "name": "Island",
+       "sanitized": "island",
+       "slug": "island",
+       "url": "/cards/island",
+       "synergy": 0.02457461632002711,
+       "num_decks": 23591,
+       "potential_decks": 25251,
+       "trend_zscore": 0.0
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

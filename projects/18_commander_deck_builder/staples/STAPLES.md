@@ -213,3 +213,43 @@ Regenerate with `python fetch_staples.py`.
 | Under $2 | Opulent Palace $0.37; Foreboding Landscape $0.22; Villainous Wealth $0.35; Kheru Goldkeeper $0.30; Sultai Charm $0.33; Awaken the Honored Dead $0.42; Emergent Ultimatum $0.43; Death Begets Life $0.56 |
 | $2-10 | - |
 | $10+ | Zagoth Triome $21.22 |
+
+## Non-Green (WUBR)
+
+| Tier | Top cards (price) |
+|---|---|
+| Under $2 | Yore-Tiller Nephilim $1.15 |
+| $2-10 | - |
+| $10+ | - |
+
+## Non-White (UBRG)
+
+| Tier | Top cards (price) |
+|---|---|
+| Under $2 | Glint-Eye Nephilim $0.21 |
+| $2-10 | - |
+| $10+ | - |
+
+## Non-Blue (BRGW)
+
+| Tier | Top cards (price) |
+|---|---|
+| Under $2 | - |
+| $2-10 | Dune-Brood Nephilim $2.51 |
+| $10+ | - |
+
+## Non-Black (RGWU)
+
+| Tier | Top cards (price) |
+|---|---|
+| Under $2 | - |
+| $2-10 | Ink-Treader Nephilim $7.13 |
+| $10+ | - |
+
+## Non-Red (GWUB)
+
+| Tier | Top cards (price) |
+|---|---|
+| Under $2 | Witch-Maw Nephilim $1.30 |
+| $2-10 | - |
+| $10+ | - |

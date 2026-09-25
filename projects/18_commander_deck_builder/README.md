@@ -1,6 +1,6 @@
 # Commander Deck Builder Agent (Project 18)
 
-**Status: spec drafted 2026-09-24. Not started.**
+**Status: spec drafted 2026-09-24. Prototype built 2026-09-25: staples fetcher + commander lookup (no LLM yet).**
 
 Give it a commander and a budget; get back a legal, priced, 100-card
 Commander deck built from real popularity data. The LLM makes the judgment
@@ -31,7 +31,7 @@ runtime dependencies) from j4th's services.
 
 `fetch_staples.py` pulls the most popular cards that fit any deck: colorless
 cards, mono-color cards for each of W/U/B/R/G, the ten two-color pairs, and
-the ten three-color identities, ranked by EDHREC
+the ten three-color identities, and the five four-color identities, ranked by EDHREC
 popularity and priced at the cheapest printing. Outputs:
 
 - [`staples/STAPLES.md`](staples/STAPLES.md) — readable tables by price tier
@@ -52,9 +52,51 @@ legendary creatures, which rank as commanders rather than staples. The
 readable tables exclude legendary creatures (the JSON keeps them). What
 remains is mana fixing (tri-lands, Charms, banners, Landscapes, all under $1)
 and gold removal/wincons like Crackling Doom $0.37 and Cruel Ultimatum $0.50.
-Not yet covered: four- and five-color identities (those decks lean on the
-colorless, mono, and fixing lists above). Scope note: these are global
+The five four-color identities hold only 2-12 cards each (commanders plus
+the Nephilim), so four- and five-color decks rely entirely on the smaller
+lists above. Scope note: these are global
 EDHREC ranks, not per-commander inclusion rates.
+
+### Per-commander data check (EDHREC)
+
+Verified 2026-09-25 that `json.edhrec.com/pages/commanders/<slug>.json` works
+(HTTP 200, ~110 KB for Muldrotha, 25,251 decks). Cards are grouped by role
+(Creatures, Instants, Sorceries, Mana Artifacts, Utility Lands, High Synergy,
+Top Cards, Game Changers, ...). Each card has `num_decks`, `potential_decks`,
+and `synergy`, so **inclusion % = num_decks / potential_decks** (Eternal
+Witness: 13,200 / 25,251 = 52%). This is the field j4th's server mis-parsed
+as 0%. Slice 2 should compute inclusion this way.
+
+## Commander lookup (built 2026-09-25)
+
+Commander name in, ranked cards from other people's decks out. No LLM: this is
+the deterministic baseline the agent has to beat.
+
+```
+python commander_lookup.py "Muldrotha, the Gravetide"
+python commander_lookup.py "muldrotha" --max-price 1 --role "Mana Artifact"
+python commander_lookup.py "Atraxa, Praetors' Voice" --sort synergy --limit 25 --json
+```
+
+Options: `--max-price` (per card, USD), `--min-inclusion` (0-1), `--role`,
+`--sort inclusion|synergy`, `--limit`, `--include-basics`, `--refresh`, `--json`.
+
+How it works: Scryfall fuzzy-matches the name -> EDHREC's commander JSON gives
+inclusion %, synergy, and role for each card across ~25k real decks -> Scryfall
+`/cards/collection` (75 names per request) adds price and type, falling back to
+the cheapest printing when the default printing has no USD (Sol Ring $1.42) ->
+filter and rank. Files: `edhrec_client.py`, `scryfall_prices.py`,
+`commander_lookup.py`, with 28 offline tests (`python -m unittest discover`)
+including a trimmed real EDHREC page as a format-drift fixture.
+
+Live-verified for Muldrotha (25,251 decks): top cards are Command Tower 87%,
+Sol Ring 85%, Arcane Signet 70%, Spore Frog 59% (+53% synergy). Cold run ~30 s
+(price lookups); cached run under 1 s (EDHREC cached 7 days, prices 24 h, in
+the gitignored `data/cache/`).
+
+Known limits: prices use live Scryfall calls (Slice 1's bulk data replaces
+that); inclusion is EDHREC's aggregate, not individual decklists; no total-deck
+budget or slot logic yet (Slices 3-5).
 
 ## Design rules
 
@@ -133,7 +175,7 @@ Score generated decks against ground truth instead of eyeballing:
 
 1. **Data layer** — Default Cards bulk download/cache/parse, Oracle-ID
    collapse, min-USD pricing; tests with a small fixture file.
-2. **EDHREC client** — fetch + parse per-commander JSON (fix inclusion %
+2. **EDHREC client** *(prototype built: `edhrec_client.py`)* — fetch + parse per-commander JSON (fix inclusion %
    properly), disk cache, throttle; tests against saved fixtures.
 3. **Candidate pool + slot plan** — filtering, ranking, slot targets; pure
    code, no LLM yet. A "greedy top-N by popularity within budget" baseline
