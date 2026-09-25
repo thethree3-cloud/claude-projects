@@ -27,6 +27,23 @@ Researched 2026-09-24 (GitHub search, then a live test of
 bulk data once, never make per-card live calls. Borrow patterns (not
 runtime dependencies) from j4th's services.
 
+## Research output: universal staples
+
+`fetch_staples.py` pulls the most popular cards that fit any deck: colorless
+cards plus mono-color cards for each of W/U/B/R/G, ranked by EDHREC
+popularity and priced at the cheapest printing. Outputs:
+
+- [`staples/STAPLES.md`](staples/STAPLES.md) — readable tables by price tier
+- `staples/staples.json` — top 350 per group, the seed for the candidate pool
+
+Findings (2026-09-24): the colorless list is almost all lands and artifacts;
+the core kit (Sol Ring, Command Tower, Arcane Signet, Exotic Orchard, Path of
+Ancestry, Fellwar Stone, Mind Stone) costs under $4 total. Every color has 6+
+staples under $2 in its top 150, but each top-10 mixes $0.30 cards with $50+
+cards, so popularity alone blows budgets. Not yet covered: two- and
+three-color identities. Scope note: these are global EDHREC ranks, not
+per-commander inclusion rates.
+
 ## Design rules
 
 1. **The LLM never supplies a fact.** Names, color identity, legality,
