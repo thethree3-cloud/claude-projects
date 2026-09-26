@@ -44,6 +44,10 @@ The prototype works but is missing:
 Goal: `build_baseline.py --commander X --budget N` writes a valid 100-card
 deck using only plain code. This is the bar the LLM version must beat.
 
+- [ ] **Card images (small `card_db.py` change, do first):** add `image_url` (Scryfall
+      `normal`) and `image_url_back` (double-faced cards, from `card_faces`) columns,
+      taken from the same printing that supplied the price so the picture matches
+      the price shown. Rebuild takes ~13 s. See "Card images" below.
 - [ ] **Candidate pool:** EDHREC list ∩ `CardDB` (color identity, Commander
       legal, priced, not the commander itself).
 - [ ] **Role classification by function**, not card type (EDHREC roles are
@@ -93,8 +97,31 @@ curve, Game Changers count vs requested bracket.
 
 - [ ] CLI `build.py --commander ... --budget ...` + markdown report.
 - [ ] Streamlit page (commander autocomplete, budget slider, deck table,
-      download button). Use the `developing-with-streamlit` skill.
+      download button, **card image grid with prices** via `st.image`). Use the `developing-with-streamlit` skill.
 - [ ] Optional: expose as an MCP tool (Project 06 pattern).
+
+## Card images (question from 2026-09-25: yes, it can show them)
+
+- Every printing in Scryfall's bulk file already carries `image_uris` (small
+  146x204, normal 488x680, large, png, art_crop) on Scryfall's own image
+  servers. Free, no API key, no extra calls.
+- `card_db.py` does not store them yet -> add the columns (Slice 3 task above).
+- Double-faced cards keep images on `card_faces`; store front + back URLs.
+- **Flip control (Alan, 2026-09-25):** two-faced cards get a flip button that swaps
+  front/back, like Moxfield/Scryfall. v1: per-card `st.session_state` flag +
+  `st.button`, swapping `image_url` / `image_url_back`. Later: animated 3D flip
+  as a small custom HTML/CSS component (`st.components.v2`). Only cards with a
+  real second face get the button (transform, modal_dfc, reversible_card);
+  split, adventure, and old flip cards are a single image, so no button.
+- Caveat: the printing that supplied the price can be an unusual art version
+  (showcase / full-art / Secret Lair). Acceptable; alternative is the default
+  printing's image, at the cost of the picture not matching the price.
+- Show them in the Streamlit deck grid (Slice 7) and as image links in the
+  markdown report. The LLM step never needs images.
+- **Scryfall image rules:** use their image links or unaltered copies, don't
+  crop or cover the artwork, and credit Scryfall. Keep the existing
+  User-Agent; don't hammer the image host (cache or let the browser load them).
+- Test: fixture with a DFC and a single-face card; assert the right URL per face.
 
 ## Open decisions (from the README, still unanswered)
 
