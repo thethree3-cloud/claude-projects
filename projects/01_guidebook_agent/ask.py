@@ -1,7 +1,21 @@
+"""Answer questions about the employee handbook, grounded in its text.
+
+  0. rewrite -- a follow-up ("how much notice?") is rewritten into a
+                standalone question using the last few turns
+  1. route   -- Claude picks up to 3 table-of-contents sections
+  2. extract -- those sections' pages are pulled from the PDF
+  3. answer  -- Claude answers only from that text and reports which
+                sections it actually used; only those are shown as sources
+
+    python ask.py "What is the policy on smoking?"
+"""
+
 import csv
 import difflib
 import os
+import re
 import sys
+import threading
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -14,6 +28,14 @@ TOC_CSV = BASE_DIR / "data" / "table_of_contents.csv"
 ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 MODEL = "claude-haiku-4-5-20251001"
 FUZZY_MATCH_CUTOFF = 0.6
+HISTORY_TURNS = 3     # question/answer pairs the follow-up rewrite sees
+HISTORY_CHARS = 600   # per message, so long answers don't swamp the prompt
+_SOURCE_TAG = re.compile(r" ?\[S\d+\]")
+_USED_LINE = re.compile(r"^\s*`?USED:\s*(?P<ids>[^`\n]*)`?\s*$", re.MULTILINE | re.IGNORECASE)
+
+# PyMuPDF isn't thread-safe, and Streamlit runs each browser session (and
+# run_eval.py each worker) in its own thread. One PDF call at a time.
+_PDF_LOCK = threading.Lock()
 
 _client = None
 
@@ -30,10 +52,18 @@ def get_client():
 
 
 def compute_ranges(rows, doc_page_count):
+    """ToC rows -> sections with inclusive page ranges.
+
+    Sections in this handbook start mid-page, so a section can run onto the
+    page where the next one starts: end = the next section's start page, not
+    start - 1. (With start - 1, "Workers' Compensation" lost its second page,
+    where the C-1 form and HR phone number are -- found by run_eval.py.) The
+    one-page overlap costs a little extra context and never cuts text off.
+    """
     sections = []
     for i, row in enumerate(rows):
         start = int(row["start_page"])
-        end = int(rows[i + 1]["start_page"]) - 1 if i + 1 < len(rows) else doc_page_count
+        end = int(rows[i + 1]["start_page"]) if i + 1 < len(rows) else doc_page_count
         end = max(start, end)
         sections.append({"subject": row["subject"], "start": start, "end": end})
     return sections
@@ -92,15 +122,87 @@ def route(question, sections):
 
 
 def extract_pages(start_page, end_page):
-    doc = fitz.open(PDF_PATH)
-    text = "\n".join(doc[p - 1].get_text() for p in range(start_page, end_page + 1))
-    doc.close()
-    return text
+    with _PDF_LOCK, fitz.open(PDF_PATH) as doc:
+        return "\n".join(doc[p - 1].get_text() for p in range(start_page, end_page + 1))
+
+
+def render_page_png(page_number, dpi=110):
+    """One 1-based PDF page -> PNG bytes, for showing a source page in the UI."""
+    with _PDF_LOCK, fitz.open(PDF_PATH) as doc:
+        return doc[page_number - 1].get_pixmap(dpi=dpi).tobytes("png")
+
+
+def page_count():
+    with _PDF_LOCK, fitz.open(PDF_PATH) as doc:
+        return doc.page_count
+
+
+def format_history(history, max_turns=HISTORY_TURNS, max_chars=HISTORY_CHARS):
+    """Last few chat messages -> a compact transcript for the rewrite prompt.
+    Long answers are clipped; the rewrite only needs the gist of each turn."""
+    lines = []
+    for message in history[-max_turns * 2:]:
+        text = " ".join(message["content"].split())
+        if len(text) > max_chars:
+            text = text[:max_chars] + "..."
+        lines.append(f"{message['role'].capitalize()}: {text}")
+    return "\n".join(lines)
+
+
+def standalone_question(question, history):
+    """Rewrite a follow-up ("how much notice do I need?") into a question
+    that makes sense on its own, so the router can find the right section.
+    A first question skips the API call entirely."""
+    if not history:
+        return question
+    response = get_client().messages.create(
+        model=MODEL,
+        max_tokens=150,
+        temperature=0.0,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    "Here is a conversation between an employee and an HR assistant:\n\n"
+                    f"{format_history(history)}\n\n"
+                    f"Latest question: {question}\n\n"
+                    "Rewrite the latest question so it can be understood without the "
+                    "conversation, filling in anything it refers back to. If it already "
+                    "stands on its own, return it unchanged. Reply with only the question."
+                ),
+            }
+        ],
+    )
+    return response.content[0].text.strip() or question
+
+
+def split_used_sources(text, source_count):
+    """Pull the trailing "USED: S1, S3" line off an answer.
+
+    Returns (answer_without_that_line, [0-based indexes]). If the model left
+    the line out, fall back to every source -- showing too many beats
+    silently showing none.
+    """
+    match = _USED_LINE.search(text)
+    body = text[:match.start()] if match else text
+    # The prompt says not to show [S1] tags, but strip any that slip through.
+    body = _SOURCE_TAG.sub("", body).strip()
+    if not match:
+        return body, list(range(source_count))
+    if match["ids"].strip().upper() == "NONE":
+        return body, []
+    used = []
+    for number in re.findall(r"\d+", match["ids"]):
+        index = int(number) - 1
+        if 0 <= index < source_count and index not in used:
+            used.append(index)
+    return body, used
 
 
 def answer(question, sections_with_text):
     context = "\n\n".join(
-        f"=== {s['subject']} ===\n{s['text']}" for s in sections_with_text
+        f"=== [S{i}] {s['subject']} (pages {s['start']}-{s['end']}) ===\n{s['text']}"
+        for i, s in enumerate(sections_with_text, start=1)
     )
     response = get_client().messages.create(
         model=MODEL,
@@ -110,47 +212,69 @@ def answer(question, sections_with_text):
             {
                 "role": "user",
                 "content": (
-                    "Here are section(s) of an employee handbook:\n\n"
+                    "Here are section(s) of an employee handbook, each tagged "
+                    "[S1], [S2], ...\n\n"
                     f"{context}\n\n"
                     f"Question: {question}\n\n"
                     "Answer using only the text above. If the answer isn't in "
-                    "this text, say so."
+                    "this text, say so and suggest contacting Human Resources. "
+                    "Don't start with a heading, and don't write the [S1]-style "
+                    "tags in the answer -- name the section instead.\n\n"
+                    "End with one final line listing the sections your answer "
+                    "actually used, like `USED: S1, S3`, or `USED: NONE` if none "
+                    "of them answered the question."
                 ),
             }
         ],
     )
-    return response.content[0].text.strip()
+    return split_used_sources(response.content[0].text, len(sections_with_text))
 
 
-def answer_question(question):
-    """Pure (no printing) entry point -- routes, extracts, and answers.
+NO_MATCH = ("I couldn't find a section of the handbook that covers that. "
+            "For anything else, please contact Human Resources.")
 
-    Kept print-free so it's safe to call from contexts where stdout must
-    stay clean, like an MCP server using stdio transport (see Project 06).
+
+def answer_question_full(question, history=()):
+    """Pure (no printing) entry point -- rewrites follow-ups, routes,
+    extracts, and answers.
+
+    Returns {"answer", "sources", "searched_as"}; each source carries its
+    page range so a UI can show the actual pages.
     """
-    doc = fitz.open(PDF_PATH)
-    page_count = doc.page_count
-    doc.close()
-
-    sections = load_sections(page_count)
-    subjects, unmatched = route(question, sections)
+    searched_as = standalone_question(question, list(history))
+    sections = load_sections(page_count())
+    subjects, _unmatched = route(searched_as, sections)
 
     if not subjects:
-        return "No matching section found in the table of contents."
+        return {"answer": NO_MATCH, "sources": [], "searched_as": searched_as}
 
     by_subject = {s["subject"]: s for s in sections}
     matched = [by_subject[subj] for subj in subjects]
     sections_with_text = [
         {**s, "text": extract_pages(s["start"], s["end"])} for s in matched
     ]
+    body, used = answer(searched_as, sections_with_text)
+    return {
+        "answer": body,
+        "sources": [matched[i] for i in used],
+        "searched_as": searched_as,
+    }
 
-    routed_line = "Routed to: " + ", ".join(
-        f"{s['subject']} (pages {s['start']}-{s['end']})" for s in matched
-    )
-    reply = f"{routed_line}\n\n{answer(question, sections_with_text)}"
-    if unmatched:
-        reply += f"\n\n(router suggested unmatched subjects, ignoring: {unmatched!r})"
+
+def format_reply(result):
+    """Result dict -> markdown with a sources list."""
+    reply = result["answer"]
+    if result["sources"]:
+        reply += "\n\nSources:\n" + "\n".join(
+            f"- {s['subject']} (pages {s['start']}-{s['end']})" for s in result["sources"]
+        )
     return reply
+
+
+def answer_question(question, history=()):
+    """String-returning wrapper, kept print-free so it's safe to call where
+    stdout must stay clean, like the Project 06 MCP server (stdio transport)."""
+    return format_reply(answer_question_full(question, history))
 
 
 def main():
