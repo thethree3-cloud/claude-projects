@@ -69,10 +69,16 @@ class BuildDeckTests(unittest.TestCase):
         self.assertNotIn("Pricey Bomb", [c["name"] for c in deck["cards"]])
         self.assertLessEqual(deck["spent"], 10)
 
+    def build_no_upgrade(self, pool, budget=100, owned_mode=False):
+        deck = build_deck.build_deck(COMMANDER, pool, budget, owned_mode, upgrade=False)
+        self.assertEqual(build_deck.check_deck(COMMANDER, deck, budget), [])
+        return deck
+
     def test_fair_share_cap_stops_early_pricey_lands(self):
         pool = big_pool() + [card("Fancy Land", "land", 15.0, inclusion=0.95)]
-        deck = self.build(pool, budget=30)
+        deck = self.build_no_upgrade(pool, budget=30)
         self.assertNotIn("Fancy Land", [c["name"] for c in deck["cards"]])
+
 
     def test_owned_cards_free_and_preferred_within_a_role(self):
         pool = big_pool() + [card("My Removal", "removal", 20.0, inclusion=0.05, owned=True)]
@@ -100,6 +106,55 @@ class BuildDeckTests(unittest.TestCase):
         deck = self.build(big_pool(), budget=0)
         self.assertEqual(deck["cards"], [])
         self.assertEqual(sum(deck["basics"].values()), 99)
+
+
+class UpgradePassTests(unittest.TestCase):
+    def build(self, pool, budget, owned_mode=False):
+        deck = build_deck.build_deck(COMMANDER, pool, budget, owned_mode)
+        self.assertEqual(build_deck.check_deck(COMMANDER, deck, budget), [])
+        return deck
+
+    def names(self, deck):
+        return [c["name"] for c in deck["cards"]]
+
+    def test_leftover_buys_capped_card_in_same_role(self):
+        pool = big_pool() + [card("Fancy Land", "land", 15.0, inclusion=0.95)]
+        deck = self.build(pool, budget=30)
+        self.assertIn("Fancy Land", self.names(deck))
+        [swap] = [u for u in deck["upgrades"] if u["in"] == "Fancy Land"]
+        self.assertEqual(swap["role"], "land")
+        self.assertEqual(sum(c["role"] == "land" for c in deck["cards"]), 10)  # land count unchanged
+
+    def test_no_swap_when_leftover_too_small(self):
+        pool = big_pool() + [card("Fancy Land", "land", 15.0, inclusion=0.95)]
+        deck = self.build(pool, budget=12)
+        self.assertNotIn("Fancy Land", self.names(deck))
+        self.assertLessEqual(deck["spent"], 12)
+
+    def test_best_gain_first_and_role_counts_kept(self):
+        # Both are capped out during the build at $20; the leftover (~$12.80) buys only the bigger gain.
+        pool = big_pool() + [card("Great Draw", "draw", 8.0, inclusion=0.99),
+                             card("Good Ramp", "ramp", 6.0, inclusion=0.85)]
+        deck = self.build(pool, budget=20)
+        self.assertEqual([u["in"] for u in deck["upgrades"]], ["Great Draw"])
+        roles = [c["role"] for c in deck["cards"]]
+        self.assertEqual(roles.count("wipe"), 2)
+        self.assertEqual(len(deck["cards"]) + sum(deck["basics"].values()), 99)
+
+    def test_owned_listed_cards_never_swapped_out(self):
+        pool = big_pool() + [card("My Ramp", "ramp", 0.10, inclusion=0.01, owned=True),
+                             card("Better Ramp", "ramp", 1.0, inclusion=0.99)]
+        deck = self.build(pool, budget=100, owned_mode=True)
+        self.assertIn("My Ramp", self.names(deck))
+        self.assertIn("Better Ramp", self.names(deck))  # replaced a bought card instead
+
+    def test_upgrade_pass_directly_respects_leftover(self):
+        chosen = [card("Old", "draw", 1.0, inclusion=0.1)]
+        pool = chosen + [card("New", "draw", 4.0, inclusion=0.9)]
+        self.assertEqual(build_deck.upgrade_pass(chosen, pool, leftover=2.99), [])
+        swaps = build_deck.upgrade_pass(chosen, pool, leftover=3.0)
+        self.assertEqual((swaps[0]["out"], swaps[0]["in"], swaps[0]["extra"]), ("Old", "New", 3.0))
+        self.assertEqual(chosen[0]["name"], "New")
 
 
 class BasicsTests(unittest.TestCase):

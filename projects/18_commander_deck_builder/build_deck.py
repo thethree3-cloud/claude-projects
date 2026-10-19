@@ -13,6 +13,13 @@ at most ``FAIR_SHARE_MULT`` x the money left per open slot, so popular but
 pricey cards early (lands are picked first) can't eat the whole budget.
 Basic lands are free (everyone has them).
 
+Upgrade pass (on by default, ``--no-upgrade`` to skip): the cap above leaves
+some money unspent, so afterwards the builder swaps cards for more popular
+ones in the same role while the leftover covers the price difference. The
+best swap (biggest inclusion gain) goes first, repeated until none fit. Role
+counts and land count never change; in owned mode your EDHREC-listed cards
+are never swapped out.
+
 Owned mode (``--owned``): cards in your collection cost $0 and are picked
 first within each job. Owned cards that EDHREC doesn't list for this
 commander are used only if the deck can't be filled otherwise.
@@ -136,8 +143,41 @@ def _basics_split(identity, spells, count):
     return {BASIC_BY_COLOR[c]: n for c, n in split.items() if n}
 
 
-def build_deck(commander, pool, budget, owned_mode=False):
-    """Pick 99 cards. Returns ``{"cards": [...], "basics": {...}, "warnings": [...]}``."""
+def upgrade_pass(chosen, pool, leftover, owned_mode=False):
+    """Swap chosen cards for more popular same-role cards using leftover money.
+
+    Mutates ``chosen``. Returns the swaps made, best first:
+    ``[{"out": name, "in": name, "role": ..., "gain": float, "extra": float}]``.
+    """
+    swaps = []
+    while True:
+        names = {c["name"] for c in chosen}
+        best = None
+        for out in chosen:
+            if owned_mode and out["owned"] and out["listed"]:
+                continue  # never trade away a card you own that the commander wants
+            for new in pool:
+                if new["name"] in names or not new["listed"] or new["role"] != out["role"]:
+                    continue
+                gain = new["inclusion"] - out["inclusion"]
+                extra = new["cost"] - out["cost"]
+                if gain <= 0 or extra > leftover + 1e-9:
+                    continue
+                key = (gain, -extra)
+                if best is None or key > best[0]:
+                    best = (key, out, new)
+        if best is None:
+            return swaps
+        _, out, new = best
+        chosen[chosen.index(out)] = new
+        leftover -= new["cost"] - out["cost"]
+        swaps.append({"out": out["name"], "in": new["name"], "role": new["role"],
+                      "gain": round(new["inclusion"] - out["inclusion"], 4),
+                      "extra": round(new["cost"] - out["cost"], 2)})
+
+
+def build_deck(commander, pool, budget, owned_mode=False, upgrade=True):
+    """Pick 99 cards. Returns ``{"cards", "basics", "warnings", "spent", "upgrades"}``."""
     identity = commander["color_identity"]
     nonbasic_target = min(NONBASIC_BY_COLORS[len(identity)], LAND_TARGET)
     spell_target = DECK_SIZE - 1 - LAND_TARGET
@@ -192,8 +232,17 @@ def build_deck(commander, pool, budget, owned_mode=False):
     if short:
         warnings.append(f"{short} spell slots couldn't be filled within budget; extra basic lands used instead.")
 
+    upgrades = upgrade_pass(chosen, pool, budget - spent, owned_mode) if upgrade else []
+    spent += sum(u["extra"] for u in upgrades)
+
     basics_count = DECK_SIZE - 1 - len(chosen)
-    return {"cards": chosen, "basics": _basics_split(identity, spells(), basics_count), "warnings": warnings, "spent": round(spent, 2)}
+    return {
+        "cards": chosen,
+        "basics": _basics_split(identity, spells(), basics_count),
+        "warnings": warnings,
+        "spent": round(spent, 2),
+        "upgrades": upgrades,
+    }
 
 
 def check_deck(commander, deck, budget):
@@ -239,6 +288,10 @@ def format_report(commander, deck, budget, owned_mode):
     lines.append(f"Basic lands (free): {', '.join(f'{n} {b}' for b, n in sorted(deck['basics'].items()))}.")
     for w in deck["warnings"]:
         lines.append(f"Note: {w}")
+    if deck.get("upgrades"):
+        lines += ["", f"## Upgrades with leftover money ({len(deck['upgrades'])})", ""]
+        for u in deck["upgrades"]:
+            lines.append(f"- {u['in']} replaces {u['out']} ({u['role']}, +{u['gain']:.0%} inclusion, {u['extra']:+.2f} USD)")
 
     for role in ROLES:
         group = [c for c in cards if c["role"] == role]
@@ -263,6 +316,7 @@ def main(argv=None):
     parser.add_argument("--budget", type=float, required=True, help="max USD to spend on cards you don't own")
     parser.add_argument("--owned", action="store_true", help="use cards from your collection first ($0)")
     parser.add_argument("--binder", help="with --owned: only this binder")
+    parser.add_argument("--no-upgrade", action="store_true", help="skip the leftover-money upgrade pass")
     parser.add_argument("--out", type=Path, help="write the import list to this file")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
@@ -292,7 +346,7 @@ def main(argv=None):
         return 1
 
     pool = candidate_pool(commander, page["cards"], db, owned)
-    deck = build_deck(commander, pool, args.budget, owned_mode=args.owned)
+    deck = build_deck(commander, pool, args.budget, owned_mode=args.owned, upgrade=not args.no_upgrade)
     problems = check_deck(commander, deck, args.budget)
     if problems:
         print("Error: built deck failed checks: " + "; ".join(problems), file=sys.stderr)

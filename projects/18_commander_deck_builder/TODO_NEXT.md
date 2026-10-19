@@ -59,9 +59,16 @@ Slice 4. 107 tests.
 Kestia $100 --owned: $87.51 spent, 3 owned cards used (Eidolon, Courser,
 Archetype); $0 --owned: the 26 legal binder cards + 73 basics, with
 warnings (honest: a draft binder isn't a deck).
-Still open from the list below: card images, leftover-budget upgrade pass
-(~$12 unspent on Kestia $100), staples fallback for thin EDHREC pages,
-tutors as a role.
+**Upgrade pass added 2026-10-18** (on by default, `--no-upgrade` skips):
+after the build, swap a chosen card for a more popular same-role card while
+the leftover covers the difference; biggest inclusion gain first, repeated.
+Role and land counts never change; owned EDHREC-listed cards are never
+swapped out. Kestia --owned: $50 -> $49.38 spent (was $47.64), $100 ->
+$99.84 (was $87.51, swaps in Hall of Heliod's Generosity + Temple Garden);
+$250 still leaves ~$70 because the most-played cards are already in.
+112 tests.
+Still open from the list below: card images, staples fallback for thin
+EDHREC pages, tutors as a role.
 
 - [ ] **Card images (small `card_db.py` change, do first):** add `image_url` (Scryfall
       `normal`) and `image_url_back` (double-faced cards, from `card_faces`) columns,
