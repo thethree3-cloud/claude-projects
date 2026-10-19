@@ -130,11 +130,23 @@ curve, Game Changers count vs requested bracket.
 
 ## Slice 5 — LLM selection
 
-- [ ] Claude picks per slot from the candidate pool only (tool-only card
-      access), with a one-line reason per pick.
-- [ ] Validator loop: failures fed back, bounded retries; never present an
-      invalid deck as done.
-- [ ] Decide model (Sonnet vs Haiku; cost per deck is an eval axis).
+- [x] Claude picks from the candidate pool only (2026-10-18, `llm_deck.py`):
+      the pool (same as the baseline's: legal, in identity, priced or owned)
+      goes in as an id table (role, inclusion, price/owned, rules text); the
+      structured answer can only name ids, so cards can't be invented.
+      One-line reason per pick + a strategy. Code adds basics and prices it.
+- [x] Validator loop: unknown/repeated ids + every validator error go back
+      to Claude (its answer passed back unchanged, card table cached), at
+      most 3 attempts; on failure nothing is shown or written as a deck.
+- [x] First real run - Kestia $100 --owned, `claude-opus-5-5` effort
+      medium: **valid on attempt 1, ~35 s, ~$0.18**. vs baseline: $97.45 vs
+      $99.28, avg EDHREC inclusion 38% vs 40%, 60 of ~78 nonbasic cards
+      shared; Claude picked 2 owned cards EDHREC doesn't list for Kestia
+      (Karametra's Favor, Stratus Walk - aura cantrips that fit Kestia) which
+      the baseline only uses as filler. One run proves the loop, not that it
+      "beats" the baseline - that's Slice 6.
+- [ ] Decide model (Opus 5.5 default now; `--model` takes
+      claude-sonnet-5-5 / claude-haiku-5-5; cost per deck is an eval axis).
 
 ## Slice 6 — evals
 
