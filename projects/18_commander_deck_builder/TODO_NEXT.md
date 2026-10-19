@@ -145,16 +145,31 @@ curve, Game Changers count vs requested bracket.
       (Karametra's Favor, Stratus Walk - aura cantrips that fit Kestia) which
       the baseline only uses as filler. One run proves the loop, not that it
       "beats" the baseline - that's Slice 6.
-- [ ] Decide model (Opus 5.5 default now; `--model` takes
-      claude-sonnet-5-5 / claude-haiku-5-5; cost per deck is an eval axis).
+- [x] Model decided by the Slice 6 eval: **Opus 5.5 stays default** (only
+      model that spends the budget and tracks real decks; Haiku is 25x
+      cheaper if cost ever matters more). Also: `min_picks` - Claude must
+      pick >= 62 cards (or all the budget can buy), found by the eval's null
+      check (an empty pick list was a "legal" deck of 99 basics).
 
-## Slice 6 — evals
+## Slice 6 — evals (done 2026-10-19)
 
-- [ ] Fixed test set of ~10 commanders (mono / 2 / 3 / 4-color) x budgets
-      ($50 / $150 / $500).
-- [ ] Metrics: validity rate first try, Jaccard overlap with EDHREC's average
-      deck, budget accuracy (never over), cost per deck.
-- [ ] Results table in the README (baseline vs LLM).
+- [x] `eval_decks.py`: 10 commanders x $50/$150/$500 = 30 cases (approved),
+      free code metrics (approved): valid first try (headline, Wilson 95%
+      CI), valid within 3, budget used, Jaccard vs EDHREC average deck
+      (`edhrec_client.fetch_average_deck`), mean inclusion, role minimums;
+      plus $/deck and s/deck. Rows written per case (resume-safe),
+      errors.jsonl sidecar, served-model recorded, traces gitignored.
+      Oracle / null / API-error checks are unit tests.
+- [x] Full run, 30 cases x Opus/Sonnet/Haiku + baseline: results table in
+      README "Evals". Opus 93% valid first try, 100% after retries, 96%
+      budget used, 52% avg-deck overlap (baseline 59%), $0.20/deck. Measured
+      spend $8.75 (estimate from pilot: ~$8.14).
+- [ ] Not measured: does Claude's deck *play* better? Needs a blind pairwise
+      judge (different model than the one judged) or human review.
+- [ ] Errors sidecar doesn't record usage of failed attempts (one truncated
+      Haiku attempt is missing from the spend total).
+- [ ] Haiku once ran past 32k output tokens: lower `MAX_TOKENS` or effort
+      for Haiku if it becomes a choice.
 
 ## Slice 7 — interface
 

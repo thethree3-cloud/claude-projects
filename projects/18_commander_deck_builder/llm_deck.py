@@ -116,7 +116,19 @@ def card_table(pool):
     return "\n".join(lines), by_id
 
 
-def first_prompt(commander, budget, commander_cost, table):
+def min_picks(pool, money):
+    """Fewest picks to demand: the 62 spell slots, or as many cards as the money can buy at all."""
+    spell_slots = build_deck.DECK_SIZE - 1 - build_deck.LAND_TARGET
+    affordable, total = 0, 0.0
+    for cost in sorted(c["cost"] for c in pool if c["role"] != "land"):
+        if total + cost > money + 1e-9:
+            break
+        total += cost
+        affordable += 1
+    return min(spell_slots, affordable)
+
+
+def first_prompt(commander, budget, commander_cost, table, minimum=None):
     spell_slots = build_deck.DECK_SIZE - 1 - build_deck.LAND_TARGET
     return PROMPT.format(
         name=commander["name"],
@@ -124,7 +136,7 @@ def first_prompt(commander, budget, commander_cost, table):
         budget=budget,
         commander_cost=commander_cost,
         money=budget - commander_cost,
-        min_picks=spell_slots,
+        min_picks=spell_slots if minimum is None else minimum,
         max_picks=build_deck.DECK_SIZE - 1,
         land_lo=34,
         land_hi=38,
@@ -137,11 +149,12 @@ def first_prompt(commander, budget, commander_cost, table):
 # ---------------------------------------------------------------------------
 
 
-def assemble(commander, by_id, picks, commander_cost=0.0):
+def assemble(commander, by_id, picks, commander_cost=0.0, minimum=0):
     """Turn picks into a deck dict (same shape as ``build_deck``). Returns ``(deck, problems)``.
 
     Problems here are things the validator can't see: unknown ids, repeated
-    ids, too many picks. Basics fill the deck to 99 cards.
+    ids, too many or too few picks (an empty pick list would otherwise be a
+    "legal" deck of 99 basic lands). Basics fill the deck to 99 cards.
     """
     problems, cards, seen = [], [], set()
     for p in picks:
@@ -154,6 +167,8 @@ def assemble(commander, by_id, picks, commander_cost=0.0):
             continue
         seen.add(p.id)
         cards.append({**card, "reason": p.reason.strip()})
+    if len(cards) < minimum:
+        problems.append(f"Only {len(cards)} cards picked; pick at least {minimum} (the budget allows that many).")
     if len(cards) > build_deck.DECK_SIZE - 1:
         problems.append(f"{len(cards)} cards picked; at most {build_deck.DECK_SIZE - 1} fit next to the commander.")
         cards = cards[: build_deck.DECK_SIZE - 1]
@@ -221,35 +236,43 @@ def build_with_claude(commander, pool, budget, db, client, owned=frozenset(), co
     """Ask Claude for a deck, validate, feed errors back. Returns a result dict with ``ok``."""
     table, by_id = card_table(pool)
     money = budget - commander_cost
+    minimum = min_picks(pool, money)
     messages = [{
         "role": "user",
         "content": [{
             "type": "text",
-            "text": first_prompt(commander, budget, commander_cost, table),
+            "text": first_prompt(commander, budget, commander_cost, table, minimum),
             "cache_control": {"type": "ephemeral"},  # retries re-send this; cache it
         }],
     }]
     usage, attempts = {}, []
+    transcript = [{"role": "user", "content": messages[0]["content"][0]["text"]}]
     for attempt in range(1, max_attempts + 1):
         log(f"Attempt {attempt}: asking {model} for a deck...")
         message = _call(client, model, messages, effort)
         _add_usage(usage, message.usage)
+        transcript.append({"role": "assistant", "content": "".join(
+            b.text for b in message.content if b.type == "text"), "model": getattr(message, "model", None)})
         picks = _parse(message)
-        deck, problems = assemble(commander, by_id, picks.picks, commander_cost)
+        deck, problems = assemble(commander, by_id, picks.picks, commander_cost, minimum)
         text = build_deck.import_text(commander, deck)
         check = validate_text(text, db, budget=budget, owned=owned)
         errors = problems + check["errors"]
-        attempts.append({"attempt": attempt, "errors": errors, "picks": len(picks.picks)})
+        attempts.append({"attempt": attempt, "errors": errors, "picks": len(picks.picks),
+                         "served_model": getattr(message, "model", None)})
         if not errors:
             deck["warnings"] = check["warnings"]
             return {"ok": True, "deck": deck, "strategy": picks.strategy, "text": text, "stats": check["stats"],
-                    "attempts": attempts, "usage": usage, "cost_usd": estimated_cost(usage, model), "model": model}
+                    "attempts": attempts, "usage": usage, "cost_usd": estimated_cost(usage, model), "model": model,
+                    "transcript": transcript}
         log(f"  {len(errors)} problem(s): {errors[0]}" + (" ..." if len(errors) > 1 else ""))
         picks_cost = deck["spent"] - commander_cost
         messages.append({"role": "assistant", "content": message.content})  # passed back unchanged
-        messages.append({"role": "user", "content": FEEDBACK.format(
-            errors="\n".join(f"- {e}" for e in errors), cost=picks_cost, money=money)})
-    return {"ok": False, "attempts": attempts, "usage": usage, "cost_usd": estimated_cost(usage, model), "model": model}
+        feedback = FEEDBACK.format(errors="\n".join(f"- {e}" for e in errors), cost=picks_cost, money=money)
+        messages.append({"role": "user", "content": feedback})
+        transcript.append({"role": "user", "content": feedback})
+    return {"ok": False, "attempts": attempts, "usage": usage, "cost_usd": estimated_cost(usage, model), "model": model,
+            "transcript": transcript}
 
 
 # ---------------------------------------------------------------------------

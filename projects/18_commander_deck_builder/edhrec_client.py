@@ -91,6 +91,33 @@ def fetch_commander_page(slug, cache_dir=CACHE_DIR, max_age_days=CACHE_MAX_AGE_D
     return page
 
 
+AVERAGE_DECK_URL = "https://json.edhrec.com/pages/average-decks"
+
+
+def fetch_average_deck(slug, cache_dir=CACHE_DIR, max_age_days=CACHE_MAX_AGE_DAYS):
+    """Card names in EDHREC's average deck for a commander (commander and basics excluded)."""
+    cache_file = Path(cache_dir) / f"edhrec_avg_{slug}.json"
+    if cache_file.exists() and time.time() - cache_file.stat().st_mtime < max_age_days * 86400:
+        page = json.loads(cache_file.read_text())
+    else:
+        try:
+            req = urllib.request.Request(f"{AVERAGE_DECK_URL}/{slug}.json", headers=HEADERS)
+            with urllib.request.urlopen(req) as resp:
+                page = json.load(resp)
+        except urllib.error.HTTPError as exc:
+            raise EdhrecError(f"No EDHREC average deck for '{slug}' (HTTP {exc.code}).") from exc
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(json.dumps(page))
+    try:
+        deck = page["deck"]
+        commanders = set(deck.get("commander") or [])
+        groups = deck["cards"].values()
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise EdhrecError("Unexpected EDHREC average-deck format (EDHREC may have changed).") from exc
+    names = {entry[0] for group in groups for entry in group if entry}
+    return sorted(names - commanders - BASIC_LANDS)
+
+
 def parse_commander_page(page):
     """Turn raw EDHREC JSON into ``{"commander": {...}, "cards": [...]}``.
 

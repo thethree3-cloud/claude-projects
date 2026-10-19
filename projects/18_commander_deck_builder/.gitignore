@@ -1,0 +1,2 @@
+# Eval transcripts are large (full card table per case); results.jsonl + RESULTS.md are kept.
+evals/runs/*/traces/

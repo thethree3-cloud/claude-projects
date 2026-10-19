@@ -175,16 +175,52 @@ Hard failures (block the deck):
 Soft warnings: land count outside 34-38, ramp/draw/removal below target,
 mana curve too top-heavy, Game Changers count vs requested bracket.
 
-## Evals
+## Evals (Slice 6, run 2026-10-19)
 
-Score generated decks against ground truth instead of eyeballing:
-- **Validity rate:** % of runs that pass the validator first try (target
-  100% after retry).
-- **Popularity overlap:** Jaccard overlap with EDHREC's average deck for
-  the same commander.
-- **Budget accuracy:** |total - budget| and never over.
-- **Fixed test set:** ~10 commanders across mono/2/3/4-color and budget
-  tiers ($50 / $150 / $500), run on every prompt change.
+`eval_decks.py` scores Claude-built decks (`llm_deck.py`) against the no-LLM
+baseline (`build_deck.py`) on a fixed set: 10 commanders (mono to five-color,
+a planeswalker commander, a double-faced card, colorless) x $50 / $150 /
+$500 = **30 cases, one run per model**. All metrics are free code checks:
+
+| Variant | Cases | Valid 1st try (95% CI) | Valid | Budget used | Avg-deck overlap | Inclusion | Roles OK | $/deck | s/deck |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| baseline (no LLM) | 30 | 100% (89%-100%) | 100% | 89% | 59% | 38% | 93% | $0.000 | 0.0 |
+| claude-opus-5-5 | 30 | 93% (79%-98%) | 100% | 96% | 52% | 37% | 63% | $0.198 | 39.2 |
+| claude-sonnet-5-5 | 30 | 73% (56%-86%) | 100% | 65% | 39% | 34% | 30% | $0.085 | 19.8 |
+| claude-haiku-5-5 | 30 (+1 err) | 83% (66%-93%) | 100% | 62% | 32% | 32% | 73% | $0.008 | 43.5 |
+
+- **Valid 1st try:** passes the validator with no feedback. **Valid:** within
+  3 tries; every model reached 100% - no invalid deck was ever produced.
+- **Budget used:** cost to buy / budget (going over is a validator failure).
+- **Avg-deck overlap:** Jaccard overlap of nonbasic cards with EDHREC's
+  average deck. **Inclusion:** mean EDHREC inclusion of the deck's cards.
+- **Roles OK:** lands 34-38, ramp >= 8, draw >= 8, removal >= 5.
+
+What the numbers say:
+- **The safety loop works.** 90 Claude decks, 0 invalid ones shown. First-try
+  failures were over-budget sums (Opus 2 of 2 failed cases, Sonnet 7 of 8,
+  Haiku 2 of 5) or bad ids (Haiku 3 invented + 1 repeated, Sonnet 1
+  invented, e.g. `c96x`) - exactly what the id-only pick list and validator
+  exist to catch.
+- **Claude does not beat the baseline on these metrics.** Overlap and
+  inclusion reward copying EDHREC popularity, which is what the baseline does
+  by design, so they favor it; Opus comes closest (52% vs 59% overlap,
+  37% vs 38% inclusion) and spends the budget best (96%).
+- **Model choice: Opus.** It is the only model that uses the budget and
+  matches real decks; Sonnet and Haiku leave ~35-40% of the money unspent
+  and drift from real decklists. Haiku is 25x cheaper per deck than Opus,
+  so it would be the pick only if cost per deck mattered more than quality.
+- **"Roles OK" is a rule of thumb, not a quality score.** Most of Opus's
+  misses are "fewer than 8 draw cards", including all three Krenko decks
+  (fast goblin decks run little draw - every model missed there).
+- Not measured: whether Claude's decks *play* better. That needs a judge
+  (pairwise, blind) or human review - the next step if this matters.
+
+Run cost: **$8.75 measured** for all 90 Claude decks (Opus $5.95, Sonnet
+$2.55, Haiku $0.25), pilot included; ~12 minutes with 4 cases in parallel.
+One Haiku case hit the 32k output limit, was logged as an error and re-run
+(its usage isn't in the total). Raw rows: `evals/runs/<variant>/results.jsonl`;
+table: `evals/RESULTS.md` (`python eval_decks.py --summary`).
 
 ## Interface
 

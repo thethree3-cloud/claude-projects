@@ -105,6 +105,19 @@ class AssembleTests(LlmDeckCase):
         self.assertTrue(any("Unknown id 'c999'" in p for p in problems))
 
 
+class MinPicksTests(LlmDeckCase):
+    def test_min_picks_is_62_or_what_the_budget_can_buy(self):
+        self.assertEqual(llm_deck.min_picks(self.pool, 98.0), 62)
+        self.assertEqual(llm_deck.min_picks(self.pool, 10.0), 20)  # $0.50 cards
+        self.assertEqual(llm_deck.min_picks(self.pool, 0.0), 0)
+
+    def test_too_few_picks_is_a_problem(self):
+        _, by_id = llm_deck.card_table(self.pool)
+        picks = [llm_deck.Pick(id=i, reason="r") for i in self.spell_ids(10)]
+        _, problems = llm_deck.assemble(self.commander, by_id, picks, minimum=62)
+        self.assertTrue(any("Only 10 cards picked; pick at least 62" in p for p in problems))
+
+
 class LoopTests(LlmDeckCase):
     def test_valid_first_try(self):
         result, client = self.run_build([message(self.spell_ids(62))])
