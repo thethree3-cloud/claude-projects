@@ -7,11 +7,13 @@ or synergy), then slots are filled most-popular-first within the budget:
 
     nonbasic lands -> wipes -> removal -> ramp -> draw -> synergy -> basics
 
-Budget: a card is affordable only if (1) after buying it, enough money is
-left to fill every remaining slot at ``RESERVE_PER_SLOT``, and (2) it costs
+Budget: a card is affordable only if (1) after buying it, the money left
+still covers the cheapest way to fill every open spell slot (land slots can
+always fall back to free basics), and (2) it costs
 at most ``FAIR_SHARE_MULT`` x the money left per open slot, so popular but
 pricey cards early (lands are picked first) can't eat the whole budget.
-Basic lands are free (everyone has them).
+Basic lands are free (everyone has them). The budget covers the commander
+too, unless you own it.
 
 Upgrade pass (on by default, ``--no-upgrade`` to skip): the cap above leaves
 some money unspent, so afterwards the builder swaps cards for more popular
@@ -46,7 +48,6 @@ LAND_TARGET = 37
 # Minimums for the 62 spells (wipes exactly: extra wipes hurt your own board); the rest = best remaining.
 ROLE_TARGETS = {"wipe": 2, "removal": 8, "ramp": 10, "draw": 10}
 NONBASIC_BY_COLORS = {0: 5, 1: 5, 2: 10, 3: 15, 4: 17, 5: 20}
-RESERVE_PER_SLOT = 0.25  # money kept back per unfilled slot so the budget can't run dry
 FAIR_SHARE_MULT = 4  # one card may cost at most this many times the money left per open slot
 BASIC_BY_COLOR = {"W": "Plains", "U": "Island", "B": "Swamp", "R": "Mountain", "G": "Forest"}
 ROLES = ("land", "ramp", "draw", "removal", "wipe", "synergy")
@@ -176,54 +177,89 @@ def upgrade_pass(chosen, pool, leftover, owned_mode=False):
                       "extra": round(new["cost"] - out["cost"], 2)})
 
 
-def build_deck(commander, pool, budget, owned_mode=False, upgrade=True):
-    """Pick 99 cards. Returns ``{"cards", "basics", "warnings", "spent", "upgrades"}``."""
+def build_deck(commander, pool, budget, owned_mode=False, upgrade=True, commander_cost=0.0):
+    """Pick 99 cards. ``spent`` includes ``commander_cost`` (0 if you own the commander).
+
+    Returns ``{"cards", "basics", "warnings", "spent", "upgrades"}``.
+    """
     identity = commander["color_identity"]
     nonbasic_target = min(NONBASIC_BY_COLORS[len(identity)], LAND_TARGET)
     spell_target = DECK_SIZE - 1 - LAND_TARGET
     chosen, warnings = [], []
-    spent = 0.0
+    spent = commander_cost
 
     def rank(cards):
         # Owned-and-listed first in owned mode, then by popularity; unlisted owned cards last.
         return sorted(cards, key=lambda c: (not c["listed"], not (owned_mode and c["owned"]), -c["inclusion"], c["name"]))
 
     def open_paid_slots():
-        # Basics are free, so only nonbasic land + spell slots need money kept back.
+        # Basics are free, so only nonbasic land + spell slots share the money.
         lands = sum(c["role"] == "land" for c in chosen)
         spells = len(chosen) - lands
         return max(nonbasic_target - lands, 0) + max(spell_target - spells, 0)
 
-    def take(cards, limit, listed_only=True):
+    def min_fill_cost(slots, exclude):
+        """Cheapest possible cost of filling ``slots`` spell slots with cards not yet chosen."""
+        if slots <= 0:
+            return 0.0
+        names = {c["name"] for c in chosen} | {exclude["name"]}
+        costs = sorted(
+            c["cost"] for c in pool
+            if c["role"] not in ("land", "wipe") and c["name"] not in names
+            and (c["listed"] or (owned_mode and c["owned"]))
+        )
+        return sum(costs[:slots])
+
+    def take(cards, limit, listed_only=True, capped=True, cheapest_first=False):
+        """Add up to ``limit`` cards. ``cheapest_first`` is the last resort when the
+        budget can't fill every slot: most cards for the money, no reserve."""
         nonlocal spent
         taken = 0
-        for c in rank(cards):
+        order = sorted(cards, key=lambda c: (c["cost"], -c["inclusion"])) if cheapest_first else rank(cards)
+        for c in order:
             if taken >= limit:
                 break
             if c in chosen or (listed_only and not c["listed"]):
                 continue
-            if c["cost"]:
+            if cheapest_first:
+                if c["cost"] > budget - spent:
+                    continue
+            elif c["cost"]:
                 left, slots = budget - spent, open_paid_slots()
-                if c["cost"] > left - RESERVE_PER_SLOT * (slots - 1) or c["cost"] > FAIR_SHARE_MULT * left / slots:
+                open_spells = spell_target - len(spells()) - (c["role"] != "land")
+                if c["cost"] > left - min_fill_cost(open_spells, c):
+                    continue
+                if capped and c["cost"] > FAIR_SHARE_MULT * left / slots:
                     continue
             chosen.append(c)
             spent += c["cost"]
             taken += 1
         return taken
 
+    def spells():
+        return [c for c in chosen if c["role"] != "land"]
+
     take([c for c in pool if c["role"] == "land"], nonbasic_target)
+    # Land slots left open become free basics, so they no longer share the money.
+    nonbasic_target = len(chosen)
     for role, target in ROLE_TARGETS.items():
         got = take([c for c in pool if c["role"] == role], target)
         if got < target:
             warnings.append(f"Only {got} of {target} {role} cards fit (pool or budget).")
 
-    def spells():
-        return [c for c in chosen if c["role"] != "land"]
-
     fill = [c for c in pool if c["role"] not in ("land", "wipe")]
     take(fill, spell_target - len(spells()))
 
     short = spell_target - len(spells())
+    if short:
+        # Fill empty slots before any upgrade: affordable cards without the fair-share cap.
+        short -= take(fill, short, capped=False)
+    if short:
+        # The budget can't cover every slot even with the cheapest cards: buy as many as it can.
+        added = take(fill, short, cheapest_first=True)
+        if added:
+            warnings.append(f"Budget too small to fill every slot well; {added} cards were picked cheapest-first.")
+        short -= added
     if short and owned_mode:
         added = take(fill, short, listed_only=False)
         if added:
@@ -280,7 +316,7 @@ def format_report(commander, deck, budget, owned_mode):
     lines = [
         f"# {commander['name']} - ${budget:.0f} budget{' (using your cards)' if owned_mode else ''}",
         "",
-        f"Cost to buy: ${deck['spent']:.2f} of ${budget:.2f}.",
+        f"Cost to buy: ${deck['spent']:.2f} of ${budget:.2f} (commander included).",
     ]
     if owned_mode:
         value = sum(c["usd"] or 0 for c in owned)
@@ -345,14 +381,26 @@ def main(argv=None):
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
+    from validate_deck import validate_text  # here, not at the top: validate_deck imports this module
+
+    commander_cost = 0.0 if commander["name"] in owned else (commander["usd"] or 0.0)
+    if commander_cost > args.budget:
+        print(f"Error: {commander['name']} alone costs ${commander_cost:.2f}, over the ${args.budget:.2f} budget.",
+              file=sys.stderr)
+        return 1
     pool = candidate_pool(commander, page["cards"], db, owned)
-    deck = build_deck(commander, pool, args.budget, owned_mode=args.owned, upgrade=not args.no_upgrade)
+    deck = build_deck(commander, pool, args.budget, owned_mode=args.owned, upgrade=not args.no_upgrade,
+                      commander_cost=commander_cost)
     problems = check_deck(commander, deck, args.budget)
+    text = import_text(commander, deck)
+    # Every deck goes through the full validator before it is shown.
+    check = validate_text(text, db, budget=args.budget, owned=owned)
+    problems += check["errors"]
     if problems:
         print("Error: built deck failed checks: " + "; ".join(problems), file=sys.stderr)
         return 1
+    deck["warnings"] += [f"Validator: {w}" for w in check["warnings"]]
 
-    text = import_text(commander, deck)
     if args.out:
         args.out.write_text(text + "\n")
     if args.json:

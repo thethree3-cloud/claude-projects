@@ -102,6 +102,32 @@ class BuildDeckTests(unittest.TestCase):
         self.assertTrue(any("EDHREC doesn't list" in w for w in deck["warnings"]))
         self.assertTrue(any("extra basic lands" in w for w in deck["warnings"]))
 
+    def test_unfilled_land_slots_dont_hold_back_spell_money(self):
+        # Five colors want 20 nonbasics, but only cheap spells fit; the 15 open
+        # land slots become free basics and must not starve the spell slots.
+        five = {"name": "Five", "color_identity": "WUBRG"}
+        pool = [card(f"Land {i}", "land", 0.10, 0.9) for i in range(5)]
+        pool += [card(f"Pricey Land {i}", "land", 5.0, 0.8) for i in range(15)]
+        for role, n in (("wipe", 3), ("removal", 10), ("ramp", 12), ("draw", 12), ("synergy", 40)):
+            pool += [card(f"{role} {i}", role, 0.30, 0.5) for i in range(n)]
+        deck = build_deck.build_deck(five, pool, budget=25, upgrade=False)
+        self.assertEqual(build_deck.check_deck(five, deck, 25), [])
+        self.assertEqual(sum(c["role"] != "land" for c in deck["cards"]), 62)
+        self.assertFalse(any("couldn't be filled" in w for w in deck["warnings"]))
+
+    def test_commander_cost_counts_against_budget(self):
+        deck = self.build(big_pool(), budget=10)
+        with_cmd = build_deck.build_deck(COMMANDER, big_pool(), 10, commander_cost=4.0)
+        self.assertEqual(build_deck.check_deck(COMMANDER, with_cmd, 10), [])
+        self.assertLess(with_cmd["spent"] - 4.0, deck["spent"])
+
+    def test_budget_too_small_for_every_slot_buys_as_many_as_it_can(self):
+        # 62 spell slots at $1 each, but only $20: buy 20 cards, not none.
+        pool = [card(f"spell {i}", "synergy", 1.0, 0.5) for i in range(70)]
+        deck = self.build(pool, budget=20)
+        self.assertEqual(len(deck["cards"]), 20)
+        self.assertTrue(any("cheapest-first" in w for w in deck["warnings"]))
+
     def test_zero_budget_still_makes_100_cards(self):
         deck = self.build(big_pool(), budget=0)
         self.assertEqual(deck["cards"], [])

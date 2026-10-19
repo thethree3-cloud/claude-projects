@@ -100,8 +100,33 @@ card exists in the DB (catches hallucinated names); total price <= budget.
 Soft warnings: land count outside 34-38, low ramp/draw/removal, top-heavy
 curve, Game Changers count vs requested bracket.
 
-- [ ] `validate_deck.py` with a test per failure mode.
-- [ ] Run it against the Slice 3 baseline decks first — should be 100% pass.
+- [x] `validate_deck.py` with a test per failure mode (2026-10-18). Reads
+      plain decklist text (Moxfield/Archidekt: "1 Sol Ring", "1x ... (CMM) 1",
+      section headers, stops at Sideboard), so it checks any deck, not just
+      the builder's. Errors: unknown card (with "did you mean"), commander
+      eligibility (legendary creature, Grist-style "creature in addition to
+      its other types", "can be your commander"), 100 cards, singleton (basics
+      / "any number of" / "up to N" from rules text), color identity incl.
+      basics, banned, budget (commander included, owned + basics free),
+      Game Changers vs `--bracket`. Warnings: lands outside 34-38, ramp < 8,
+      draw < 8, removal < 5, average mana value > 4, unpriced cards. Exit 0/1.
+      `build_deck.py` now runs it on every deck before showing it.
+- [x] Run against baseline decks: 10 commanders (mono to 5-color, Grist,
+      Esika, colorless Karn) x $50/$150/$500 = **30/30 pass**. Getting there
+      the validator found real bugs:
+      - builder didn't count the commander's price (Kestia $100 was really
+        $102.18) -> budget now includes the commander unless owned
+      - validator rejected Grist (too-strict commander rule)
+      - validator's own "any number of cards named" pattern was wrong
+      - builder kept money back for land slots that became free basics, and
+        a flat $0.25/slot reserve was both too high (cheap pools bought
+        nothing) and too low -> reserve is now the real cheapest cost to fill
+        the open spell slots; empty slots are filled before upgrades; when a
+        budget can't fill every slot, a cheapest-first pass buys as many as
+        it can (Esika $50: commander is $16.45, 55 cards cheapest-first).
+- [ ] Partner commanders / backgrounds (validator and builder are single-commander).
+- [ ] Fuzzy name match picked "Amnesia" for "esika" (`CardDB.find_name`):
+      prefer legendary cards / word-start matches when resolving commanders.
 
 ## Slice 5 — LLM selection
 
