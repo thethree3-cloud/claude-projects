@@ -92,9 +92,13 @@ class Collection:
         )
         return [dict(r) for r in rows]
 
-    def names(self):
-        """Set of owned card names (the deck builder's owned pool)."""
-        return {r[0] for r in self.conn.execute("SELECT DISTINCT card_name FROM owned")}
+    def names(self, binder=None):
+        """Set of owned card names (the deck builder's owned pool), optionally one binder's."""
+        if binder is None:
+            rows = self.conn.execute("SELECT DISTINCT card_name FROM owned")
+        else:
+            rows = self.conn.execute("SELECT DISTINCT card_name FROM owned WHERE binder = ?", (binder,))
+        return {r[0] for r in rows}
 
     def find(self, name):
         """Every pocket holding a card, matched case-insensitively."""

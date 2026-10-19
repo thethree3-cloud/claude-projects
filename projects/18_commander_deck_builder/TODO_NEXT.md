@@ -136,10 +136,22 @@ Order, Survival, Underworld Breach...).
 - [ ] Quantity is 1 per pocket from a scan (a photo can't see copies stacked
       behind the front card) - set real counts with `set-qty`, or add a
       "count per pocket" prompt later if it gets tedious.
-- [ ] **Grade a pool for a commander:** deterministic facts first (color
-      identity, legality, Game Changer, EDHREC inclusion/synergy, price);
-      Claude only writes the one-line "why". Bracket rule: 0 Game Changers
-      for brackets 1-2, at most 3 for bracket 3, any for 4-5.
+- [x] **Grade a pool for a commander** (2026-10-18): `grade_pool.py`. Tier
+      from data only: Not legal (color identity incl. activation costs, or
+      banned) / Core (>=40% EDHREC inclusion) / Strong (>=15%) / Playable (on
+      EDHREC's lists) / Filler (legal, not listed). Game Changers flagged vs
+      `--bracket`; summary gives lowest bracket the pool allows (0 / <=3 /
+      more). Claude (`claude-opus-5-5`, low effort, one call, structured
+      output) writes one reason per legal card; reasons for cards not sent
+      are ignored; `--no-llm` skips it. `--binder` limits to one binder.
+      **First real run - Kestia, the Cultivator (picked by checking 14
+      commanders against EDHREC; best fit for the BNG binder):** 26 of 45
+      legal, 1 Core (Eidolon of Countless Battles 53%), 2 Strong (Courser,
+      Archetype of Courage), 23 Filler, 19 Not legal; caught Akroan Phalanx
+      (R activation) and Graverobber Spider (B activation). Reasons checked by
+      hand: accurate, honest about weak cards. ~16 s.
+- [ ] Grader eval: hand-label a few pools' reasons (correct / wrong rules
+      claim) to track the reason accuracy, not just eyeballing.
 - [ ] Later: Slice 3 builder takes `--owned` to prefer owned cards and only
       spend the budget on the gaps.
 - Parked (separate product, not this portfolio project): life counter,
