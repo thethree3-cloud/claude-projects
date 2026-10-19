@@ -6,6 +6,9 @@ calls are ever needed. Price is the cheapest USD across real printings, so
 staples whose default printing has no USD price (Sol Ring, Command Tower) are
 never N/A.
 
+Game Changers come from Scryfall's own ``game_changer`` flag (the official
+WotC list used by the Commander brackets), so no hand-maintained list.
+
 Price rules, in order of preference:
   1. cheapest non-foil USD among non-promo, non-digital printings
   2. cheapest non-foil USD among promo printings
@@ -33,6 +36,7 @@ BULK_NAME = "default-cards.jsonl.gz"
 MAX_AGE_HOURS = 24
 CHUNK = 1024 * 1024
 WUBRG = "WUBRG"
+SCHEMA_VERSION = "2"  # bump when the cards table changes; ensure_db rebuilds locally
 
 # Layouts that are not real cards (no place in a Commander deck).
 EXCLUDED_LAYOUTS = {
@@ -60,6 +64,7 @@ CREATE TABLE cards (
     cmc REAL NOT NULL,
     edhrec_rank INTEGER,
     legal_commander INTEGER NOT NULL,
+    game_changer INTEGER NOT NULL,  -- on the official WotC Game Changers list
     usd REAL,
     price_source TEXT,              -- non_promo | promo | foil
     price_printing TEXT             -- e.g. "cmm #1"
@@ -198,6 +203,7 @@ def aggregate_cards(lines):
                 "legal_commander": int(
                     (card.get("legalities") or {}).get("commander") in ("legal", "restricted")
                 ),
+                "game_changer": int(bool(card.get("game_changer"))),
                 "usd": None,
                 "price_source": None,
                 "price_printing": None,
@@ -206,6 +212,8 @@ def aggregate_cards(lines):
         # Rank and legality are card-level; any printing carrying them will do.
         if row["edhrec_rank"] is None and card.get("edhrec_rank") is not None:
             row["edhrec_rank"] = card["edhrec_rank"]
+        if card.get("game_changer"):
+            row["game_changer"] = 1
 
         current = (row["usd"], row["price_source"]) if row["usd"] is not None else None
         for candidate in _price_candidates(card):
@@ -235,7 +243,7 @@ def build_db(bulk_path, db_path, updated_at=""):
         columns = [
             "oracle_id", "name", "name_lower", "front_name_lower", "type_line",
             "oracle_text", "color_identity", "cmc", "edhrec_rank", "legal_commander",
-            "usd", "price_source", "price_printing",
+            "game_changer", "usd", "price_source", "price_printing",
         ]  # fmt: skip
         conn.executemany(
             f"INSERT INTO cards ({', '.join(columns)}) VALUES ({', '.join('?' * len(columns))})",
@@ -245,6 +253,7 @@ def build_db(bulk_path, db_path, updated_at=""):
             "updated_at": updated_at,
             "built_at": str(time.time()),
             "card_count": str(len(cards)),
+            "schema_version": SCHEMA_VERSION,
         }
         conn.executemany("INSERT INTO meta VALUES (?, ?)", meta.items())
         conn.commit()
@@ -313,6 +322,11 @@ class CardDB:
         close = difflib.get_close_matches(query.lower(), lowered, n=1, cutoff=cutoff)
         return lowered[close[0]] if close else None
 
+    def game_changers(self):
+        """Names of every card on the official Game Changers list, A-Z."""
+        rows = self.conn.execute("SELECT name FROM cards WHERE game_changer = 1 ORDER BY name")
+        return [r[0] for r in rows]
+
     def candidates(self, color_identity, *, max_price=None, commander_legal=True, limit=None):
         """Cards inside ``color_identity`` (e.g. "BGU"), most popular first."""
         sql = "SELECT * FROM cards WHERE 1=1"
@@ -341,6 +355,14 @@ def _db_age_hours(db_path):
     return (time.time() - Path(db_path).stat().st_mtime) / 3600
 
 
+def _schema_version(db_path):
+    db = CardDB(db_path)
+    try:
+        return db.meta().get("schema_version")
+    finally:
+        db.close()
+
+
 def ensure_db(data_dir=DATA_DIR, max_age_hours=MAX_AGE_HOURS, refresh=False, log=print):
     """Return the path to an up-to-date database, downloading/building only if needed.
 
@@ -352,7 +374,19 @@ def ensure_db(data_dir=DATA_DIR, max_age_hours=MAX_AGE_HOURS, refresh=False, log
     db_path = data_dir / DB_NAME
     bulk_path = data_dir / BULK_NAME
 
-    if db_path.exists() and not refresh and _db_age_hours(db_path) < max_age_hours:
+    if db_path.exists() and bulk_path.exists() and _schema_version(db_path) != SCHEMA_VERSION:
+        log("Card database format changed; rebuilding from the cached bulk file...")
+        db = CardDB(db_path)
+        try:
+            updated_at = db.meta().get("updated_at", "")
+        finally:
+            db.close()
+        build_db(bulk_path, db_path, updated_at=updated_at)
+        refresh_check = True  # the rebuild reset the file age; still ask Scryfall
+    else:
+        refresh_check = False
+
+    if db_path.exists() and not refresh and not refresh_check and _db_age_hours(db_path) < max_age_hours:
         return db_path
 
     try:

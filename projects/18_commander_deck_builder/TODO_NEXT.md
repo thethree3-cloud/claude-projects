@@ -100,6 +100,36 @@ curve, Game Changers count vs requested bracket.
       download button, **card image grid with prices** via `st.image`). Use the `developing-with-streamlit` skill.
 - [ ] Optional: expose as an MCP tool (Project 06 pattern).
 
+## Binder scan — build from cards you own (added 2026-10-18)
+
+Idea from Alan's notes (`Downloads/magic/magic_1a.txt`, `magic_2.txt`):
+photo of a binder page -> card names -> grade each card for a commander and
+bracket. Folded into Project 18 so the deck builder can use an **owned-card
+pool** instead of only cards to buy. The notes' code was not reused: broken
+Scryfall URLs, retired model, hand-typed Game Changers list that was wrong
+(had Sol Ring, Craterhoof, Sylvan Library, banned Mana Crypt; missed Natural
+Order, Survival, Underworld Breach...).
+
+- [x] **Game Changers from Scryfall:** `card_db.py` stores Scryfall's
+      `game_changer` flag (53 cards on 2026-10-18); `CardDB.game_changers()`.
+      Schema version 2 — an old database rebuilds from the cached bulk file.
+- [ ] **`scan_binder.py`:** image -> Claude vision -> raw names (JSON) ->
+      each name through `CardDB.find_name` (catches misreads; unknown names
+      reported, never guessed) -> list of owned cards. Test first on 3-5 real
+      binder photos (sleeves, glare, angle) and record the read accuracy.
+- [ ] **Owned collection:** small SQLite table (card, quantity, binder,
+      page, slot) so scans add up across pages.
+- [ ] **Grade a pool for a commander:** deterministic facts first (color
+      identity, legality, Game Changer, EDHREC inclusion/synergy, price);
+      Claude only writes the one-line "why". Bracket rule: 0 Game Changers
+      for brackets 1-2, at most 3 for bracket 3, any for 4-5.
+- [ ] Later: Slice 3 builder takes `--owned` to prefer owned cards and only
+      spend the budget on the gaps.
+- Parked (separate product, not this portfolio project): life counter,
+  Android app, paid release. **Check before ever charging:** the WotC Fan
+  Content Policy requires fan content to be free, and Scryfall's API terms
+  restrict paywalling their data.
+
 ## Card images (question from 2026-09-25: yes, it can show them)
 
 - Every printing in Scryfall's bulk file already carries `image_uris` (small
@@ -127,7 +157,8 @@ curve, Game Changers count vs requested bracket.
 
 - Model for the selection step (Sonnet vs Haiku).
 - Commander Spellbook combos in v1, or later?
-- Bracket support (Game Changers list) in v1, or later?
+- Bracket support in v1, or later? (Game Changers data is now in `card_db.py`;
+  only the deck-level bracket rules are left to decide.)
 - Budget meaning: total-deck cap only (current plan), or also a per-card cap?
 - Foil/promo printings excluded from price by default — confirm.
 

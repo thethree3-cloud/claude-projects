@@ -1,6 +1,7 @@
 import gzip
 import json
 import os
+import sqlite3
 import tempfile
 import time
 import unittest
@@ -66,6 +67,9 @@ SAMPLE = [
     printing("mul", "Muldrotha, the Gravetide", type_line="Legendary Creature — Elemental Avatar",
              color_identity=["B", "G", "U"], cmc=6, edhrec_rank=1137, prices=prices("0.80")),
     printing("lotus", "Black Lotus", legalities={"commander": "banned"}, prices=prices("9000")),
+    # Game Changer flag is card-level; only one printing needs to carry it.
+    printing("rhy", "Rhystic Study", color_identity=["U"], prices=prices("30.00")),
+    printing("rhy", "Rhystic Study", color_identity=["U"], set="pcy", game_changer=True, prices=prices("40.00")),
     printing("cheap_u", "Cheap Blue Spell", color_identity=["U"], edhrec_rank=50, prices=prices("0.20")),
     printing("pricey_u", "Pricey Blue Spell", color_identity=["U"], edhrec_rank=10, prices=prices("40.00")),
     # Not real cards: token, no oracle id, memorabilia, digital-only.
@@ -142,6 +146,10 @@ class AggregateTests(unittest.TestCase):
         self.assertEqual(self.cards["mul"]["color_identity"], "UBG")
         self.assertEqual(self.cards["sol"]["color_identity"], "")
 
+    def test_game_changer_flag_from_any_printing(self):
+        self.assertEqual(self.cards["rhy"]["game_changer"], 1)
+        self.assertEqual(self.cards["sol"]["game_changer"], 0)
+
     def test_commander_legality(self):
         self.assertEqual(self.cards["lotus"]["legal_commander"], 0)
         self.assertEqual(self.cards["sol"]["legal_commander"], 1)
@@ -169,6 +177,10 @@ class BuildAndQueryTests(TempDirCase):
     def test_get_many_omits_unknown(self):
         found = self.db.get_many(["Sol Ring", "Nope", "Command Tower"])
         self.assertEqual(sorted(found), ["Command Tower", "Sol Ring"])
+
+    def test_game_changers_listed(self):
+        self.assertEqual(self.db.game_changers(), ["Rhystic Study"])
+        self.assertEqual(self.db.get("Rhystic Study")["game_changer"], 1)
 
     def test_find_name_exact_substring_and_typo(self):
         self.assertEqual(self.db.find_name("Sol Ring"), "Sol Ring")
@@ -258,6 +270,16 @@ class EnsureDbTests(TempDirCase):
         db = card_db.CardDB(path)
         self.addCleanup(db.close)
         self.assertEqual(db.meta()["updated_at"], self.META["updated_at"])
+
+    def test_old_schema_rebuilds_from_cached_bulk_even_offline(self):
+        db_path = self.make_db("x", age_hours=1)
+        conn = sqlite3.connect(db_path)
+        conn.execute("DELETE FROM meta WHERE key = 'schema_version'")
+        conn.commit()
+        conn.close()
+        with mock.patch("card_db.fetch_bulk_metadata", side_effect=OSError("offline")):
+            path = self.ensure()
+        self.assertEqual(card_db._schema_version(path), card_db.SCHEMA_VERSION)
 
     def test_offline_with_existing_db_uses_it(self):
         path = self.make_db("x", age_hours=48)
