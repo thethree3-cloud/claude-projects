@@ -171,71 +171,21 @@ curve, Game Changers count vs requested bracket.
 - [ ] Haiku once ran past 32k output tokens: lower `MAX_TOKENS` or effort
       for Haiku if it becomes a choice.
 
-## Slice 7 — interface
+## Slice 7 — interface (done 2026-10-19)
 
-- [ ] CLI `build.py --commander ... --budget ...` + markdown report.
-- [ ] Streamlit page (commander autocomplete, budget slider, deck table,
-      download button, **card image grid with prices** via `st.image`). Use the `developing-with-streamlit` skill.
-- [ ] Optional: expose as an MCP tool (Project 06 pattern).
-
-## Binder scan — build from cards you own (added 2026-10-18)
-
-Idea from Alan's notes (`Downloads/magic/magic_1a.txt`, `magic_2.txt`):
-photo of a binder page -> card names -> grade each card for a commander and
-bracket. Folded into Project 18 so the deck builder can use an **owned-card
-pool** instead of only cards to buy. The notes' code was not reused: broken
-Scryfall URLs, retired model, hand-typed Game Changers list that was wrong
-(had Sol Ring, Craterhoof, Sylvan Library, banned Mana Crypt; missed Natural
-Order, Survival, Underworld Breach...).
-
-- [x] **Game Changers from Scryfall:** `card_db.py` stores Scryfall's
-      `game_changer` flag (53 cards on 2026-10-18); `CardDB.game_changers()`.
-      Schema version 2 — an old database rebuilds from the cached bulk file.
-- [x] **`scan_binder.py`** (2026-10-18): photo -> upright + downscaled to
-      2576 px -> `claude-opus-5-5` (effort low, structured output via
-      `output_config.format`, server-side refusal fallback) -> names in slot
-      order -> each checked with `CardDB` (exact / corrected / unknown, never
-      guessed). `--truth` scores against an answer key.
-      **Result: 45/45 (100%)** on Alan's 5 real pages (Born of the Gods; angled
-      shot, foils, glare, a dated prerelease promo), ~20 s for all 5.
-      Answer key: `fixtures/binder_truth.json`. Photos stay in
-      `Downloads/magic` (not committed - public repo).
-- [ ] Harder test photos: other sets/old frames, sleeved cards with heavy
-      glare, double-faced cards, non-English. Try `claude-haiku-5-5` /
-      `claude-sonnet-5-5` with `--model` for cost per page.
-- [x] **Owned collection** (2026-10-18): `collection.py`, own SQLite file
-      `data/collection.sqlite` (gitignored; the card DB is rebuilt daily so
-      it can't live there). One row per pocket (binder, page, slot); saving a
-      page replaces it, so re-scans never double-count; unknown cards are
-      skipped and listed. `scan_binder.py --binder NAME [--page N]` saves
-      each image as consecutive pages. CLI: `list`, `find`, `binders`,
-      `set-qty`, `remove-page`. Alan's 5 pages saved as "Born of the Gods"
-      pages 1-5 (45 cards).
-- [ ] Quantity is 1 per pocket from a scan (a photo can't see copies stacked
-      behind the front card) - set real counts with `set-qty`, or add a
-      "count per pocket" prompt later if it gets tedious.
-- [x] **Grade a pool for a commander** (2026-10-18): `grade_pool.py`. Tier
-      from data only: Not legal (color identity incl. activation costs, or
-      banned) / Core (>=40% EDHREC inclusion) / Strong (>=15%) / Playable (on
-      EDHREC's lists) / Filler (legal, not listed). Game Changers flagged vs
-      `--bracket`; summary gives lowest bracket the pool allows (0 / <=3 /
-      more). Claude (`claude-opus-5-5`, low effort, one call, structured
-      output) writes one reason per legal card; reasons for cards not sent
-      are ignored; `--no-llm` skips it. `--binder` limits to one binder.
-      **First real run - Kestia, the Cultivator (picked by checking 14
-      commanders against EDHREC; best fit for the BNG binder):** 26 of 45
-      legal, 1 Core (Eidolon of Countless Battles 53%), 2 Strong (Courser,
-      Archetype of Courage), 23 Filler, 19 Not legal; caught Akroan Phalanx
-      (R activation) and Graverobber Spider (B activation). Reasons checked by
-      hand: accurate, honest about weak cards. ~16 s.
-- [ ] Grader eval: hand-label a few pools' reasons (correct / wrong rules
-      claim) to track the reason accuracy, not just eyeballing.
-- [ ] Later: Slice 3 builder takes `--owned` to prefer owned cards and only
-      spend the budget on the gaps.
-- Parked (separate product, not this portfolio project): life counter,
-  Android app, paid release. **Check before ever charging:** the WotC Fan
-  Content Policy requires fan content to be free, and Scryfall's API terms
-  restrict paywalling their data.
+- [x] CLIs already existed (`build_deck.py`, `llm_deck.py`, `validate_deck.py`,
+      `grade_pool.py`); no separate `build.py` needed.
+- [x] Card images: `card_db.py` schema 3 stores `image_url` / `image_url_back`
+      from the printing that sets the price (backs only for transform /
+      modal_dfc / reversible; split, adventure, flip = one image).
+- [x] `streamlit_app.py` + `deck_service.py` (tested): commander search,
+      budget, owned/binder, code-only or Claude + model, metrics, strategy,
+      reasons, warnings, download, list tab, image grid by role with Flip
+      (`st.fragment`, session-state set). Smoke-tested headlessly with
+      `streamlit.testing` (real Kestia build, flip on/off, never-valid
+      Claude path shows no deck).
+- [ ] Animated 3D flip (custom component) - only if the simple swap feels flat.
+- [ ] Optional: MCP tool (Project 06 pattern); hosted demo.
 
 ## Card images (question from 2026-09-25: yes, it can show them)
 

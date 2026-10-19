@@ -13,7 +13,9 @@ Price rules, in order of preference:
   1. cheapest non-foil USD among non-promo, non-digital printings
   2. cheapest non-foil USD among promo printings
   3. cheapest foil/etched USD
-The chosen printing is recorded in ``price_source`` and ``price_printing``.
+The chosen printing is recorded in ``price_source`` and ``price_printing``,
+and its Scryfall image links (``image_url``, plus ``image_url_back`` for
+two-faced cards) are stored too, so the picture matches the price shown.
 
 Usage:
     db = card_db.open_db()          # downloads/builds on first use, refreshes daily
@@ -36,7 +38,7 @@ BULK_NAME = "default-cards.jsonl.gz"
 MAX_AGE_HOURS = 24
 CHUNK = 1024 * 1024
 WUBRG = "WUBRG"
-SCHEMA_VERSION = "2"  # bump when the cards table changes; ensure_db rebuilds locally
+SCHEMA_VERSION = "3"  # bump when the cards table changes; ensure_db rebuilds locally
 
 # Layouts that are not real cards (no place in a Commander deck).
 EXCLUDED_LAYOUTS = {
@@ -67,7 +69,9 @@ CREATE TABLE cards (
     game_changer INTEGER NOT NULL,  -- on the official WotC Game Changers list
     usd REAL,
     price_source TEXT,              -- non_promo | promo | foil
-    price_printing TEXT             -- e.g. "cmm #1"
+    price_printing TEXT,            -- e.g. "cmm #1"
+    image_url TEXT,                 -- Scryfall "normal" image of that printing
+    image_url_back TEXT             -- back face, two-faced cards only
 );
 CREATE INDEX idx_cards_name ON cards(name_lower);
 CREATE INDEX idx_cards_front ON cards(front_name_lower);
@@ -144,6 +148,17 @@ def _color_identity(card):
     return "".join(c for c in WUBRG if c in colors)
 
 
+def _images(card):
+    """(front, back) Scryfall "normal" image links. Back only for two-faced cards
+    (transform, modal_dfc, reversible); split / adventure / flip cards are one image."""
+    if card.get("image_uris"):
+        return card["image_uris"].get("normal"), None
+    faces = [f.get("image_uris") or {} for f in card.get("card_faces") or []]
+    if faces and faces[0].get("normal"):
+        return faces[0]["normal"], faces[1].get("normal") if len(faces) > 1 else None
+    return None, None
+
+
 def _price_candidates(card):
     """Yield (usd, source) for every USD price this printing offers."""
     prices = card.get("prices") or {}
@@ -207,6 +222,8 @@ def aggregate_cards(lines):
                 "usd": None,
                 "price_source": None,
                 "price_printing": None,
+                "image_url": None,
+                "image_url_back": None,
             }
 
         # Rank and legality are card-level; any printing carrying them will do.
@@ -215,12 +232,17 @@ def aggregate_cards(lines):
         if card.get("game_changer"):
             row["game_changer"] = 1
 
+        if row["image_url"] is None:
+            row["image_url"], row["image_url_back"] = _images(card)  # until a priced printing wins
         current = (row["usd"], row["price_source"]) if row["usd"] is not None else None
         for candidate in _price_candidates(card):
             if _better_price(candidate, current):
                 current = candidate
                 row["usd"], row["price_source"] = candidate
                 row["price_printing"] = f"{card.get('set', '?')} #{card.get('collector_number', '?')}"
+                front, back = _images(card)
+                if front:
+                    row["image_url"], row["image_url_back"] = front, back
     return cards
 
 
@@ -243,7 +265,7 @@ def build_db(bulk_path, db_path, updated_at=""):
         columns = [
             "oracle_id", "name", "name_lower", "front_name_lower", "type_line",
             "oracle_text", "color_identity", "cmc", "edhrec_rank", "legal_commander",
-            "game_changer", "usd", "price_source", "price_printing",
+            "game_changer", "usd", "price_source", "price_printing", "image_url", "image_url_back",
         ]  # fmt: skip
         conn.executemany(
             f"INSERT INTO cards ({', '.join(columns)}) VALUES ({', '.join('?' * len(columns))})",

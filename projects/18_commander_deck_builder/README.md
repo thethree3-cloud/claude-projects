@@ -224,11 +224,20 @@ table: `evals/RESULTS.md` (`python eval_decks.py --summary`).
 
 ## Interface
 
-- **v1:** CLI (`build.py --commander "Muldrotha, the Gravetide" --budget 150`)
-  writing a decklist file plus a markdown report.
-- **v2:** Streamlit page (commander autocomplete, budget slider, deck table
-  with prices, download button).
-- **v3 (optional):** expose as an MCP tool, matching Project 06's pattern.
+- **CLI:** `build_deck.py` (no LLM) and `llm_deck.py` (Claude) write a
+  Moxfield/Archidekt import list (`--out`) plus a markdown report;
+  `validate_deck.py` checks any decklist; `grade_pool.py` grades your
+  collection for a commander.
+- **Streamlit page (Slice 7):** `streamlit run streamlit_app.py`. Commander
+  search (3,445 eligible cards), budget, "use my collection" with a binder
+  filter, code-only or Claude (model picker). Shows cost, lands, average
+  mana value, owned cards used and the validator verdict, Claude's strategy
+  and per-card reasons, warnings, a download button, a sortable list, and a
+  **card image grid by role with a Flip button on two-faced cards** (the
+  flip reruns only the grid). An invalid Claude deck is never shown. Logic
+  lives in `deck_service.py` (unit-tested); images are Scryfall links from
+  the printing that sets the price (`card_db.py` schema 3).
+- **Later (optional):** expose as an MCP tool, matching Project 06's pattern.
 
 ## Slices
 
@@ -271,5 +280,13 @@ version something to beat in the evals.
 
 ## Setup
 
-Not yet built. Will use the shared venv at `/home/t9/venv/`; no API keys
-needed except `ANTHROPIC_API_KEY` for step 5.
+Uses the shared venv at `/home/t9/venv/`. The first run downloads Scryfall
+bulk data (~79 MB) into `data/cache/` and refreshes it daily. Only the
+Claude features (binder scanning, grader reasons, Claude decks, evals) need
+`ANTHROPIC_API_KEY` in the repo-root `.env`.
+
+```bash
+cd projects/18_commander_deck_builder
+/home/t9/venv/bin/python -m unittest discover -p "test_*.py"
+/home/t9/venv/bin/streamlit run streamlit_app.py
+```

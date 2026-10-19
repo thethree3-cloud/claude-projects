@@ -116,6 +116,8 @@ def candidate_pool(commander, edhrec_cards, db, owned=frozenset()):
             "cost": 0.0 if is_owned else card["usd"],
             "color_identity": card["color_identity"],
             "listed": listed,
+            "image_url": card.get("image_url"),
+            "image_url_back": card.get("image_url_back"),
         })
 
     info = db.get_many([c["name"] for c in edhrec_cards])

@@ -41,7 +41,8 @@ def prices(usd=None, foil=None):
 SAMPLE = [
     # Sol Ring: default printing has no USD; cheapest non-promo wins over a cheaper promo/digital.
     printing("sol", "Sol Ring", set="frc", edhrec_rank=None, prices=prices(None, "5.00")),
-    printing("sol", "Sol Ring", set="cmm", collector_number="1", edhrec_rank=1, prices=prices("1.50")),
+    printing("sol", "Sol Ring", set="cmm", collector_number="1", edhrec_rank=1, prices=prices("1.50"),
+             image_uris={"normal": "https://img/cmm/1.jpg"}),
     printing("sol", "Sol Ring", set="c21", prices=prices("2.00")),
     printing("sol", "Sol Ring", set="sld", promo=True, prices=prices("0.90")),
     printing("sol", "Sol Ring", set="arena", digital=True, prices=prices("0.10")),
@@ -59,8 +60,10 @@ SAMPLE = [
         oracle_text=None,
         color_identity=["G", "W"],
         card_faces=[
-            {"type_line": "Legendary Creature — God", "oracle_text": "Vigilance"},
-            {"type_line": "Legendary Artifact", "oracle_text": "Reveal cards"},
+            {"type_line": "Legendary Creature — God", "oracle_text": "Vigilance",
+             "image_uris": {"normal": "https://img/esika-front.jpg"}},
+            {"type_line": "Legendary Artifact", "oracle_text": "Reveal cards",
+             "image_uris": {"normal": "https://img/esika-back.jpg"}},
         ],
         prices=prices("0.60"),
     ),
@@ -149,6 +152,17 @@ class AggregateTests(unittest.TestCase):
     def test_game_changer_flag_from_any_printing(self):
         self.assertEqual(self.cards["rhy"]["game_changer"], 1)
         self.assertEqual(self.cards["sol"]["game_changer"], 0)
+
+    def test_image_from_the_priced_printing(self):
+        sol = self.cards["sol"]
+        self.assertEqual(sol["price_printing"], "cmm #1")
+        self.assertEqual(sol["image_url"], "https://img/cmm/1.jpg")
+        self.assertIsNone(sol["image_url_back"])
+
+    def test_two_faced_card_has_back_image(self):
+        esika = self.cards["esika"]
+        self.assertEqual((esika["image_url"], esika["image_url_back"]),
+                         ("https://img/esika-front.jpg", "https://img/esika-back.jpg"))
 
     def test_commander_legality(self):
         self.assertEqual(self.cards["lotus"]["legal_commander"], 0)
