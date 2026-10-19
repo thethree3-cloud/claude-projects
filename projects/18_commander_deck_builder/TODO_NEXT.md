@@ -113,10 +113,18 @@ Order, Survival, Underworld Breach...).
 - [x] **Game Changers from Scryfall:** `card_db.py` stores Scryfall's
       `game_changer` flag (53 cards on 2026-10-18); `CardDB.game_changers()`.
       Schema version 2 — an old database rebuilds from the cached bulk file.
-- [ ] **`scan_binder.py`:** image -> Claude vision -> raw names (JSON) ->
-      each name through `CardDB.find_name` (catches misreads; unknown names
-      reported, never guessed) -> list of owned cards. Test first on 3-5 real
-      binder photos (sleeves, glare, angle) and record the read accuracy.
+- [x] **`scan_binder.py`** (2026-10-18): photo -> upright + downscaled to
+      2576 px -> `claude-opus-5-5` (effort low, structured output via
+      `output_config.format`, server-side refusal fallback) -> names in slot
+      order -> each checked with `CardDB` (exact / corrected / unknown, never
+      guessed). `--truth` scores against an answer key.
+      **Result: 45/45 (100%)** on Alan's 5 real pages (Born of the Gods; angled
+      shot, foils, glare, a dated prerelease promo), ~20 s for all 5.
+      Answer key: `fixtures/binder_truth.json`. Photos stay in
+      `Downloads/magic` (not committed - public repo).
+- [ ] Harder test photos: other sets/old frames, sleeved cards with heavy
+      glare, double-faced cards, non-English. Try `claude-haiku-5-5` /
+      `claude-sonnet-5-5` with `--model` for cost per page.
 - [ ] **Owned collection:** small SQLite table (card, quantity, binder,
       page, slot) so scans add up across pages.
 - [ ] **Grade a pool for a commander:** deterministic facts first (color
