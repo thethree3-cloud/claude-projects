@@ -8,6 +8,8 @@ Usage:
     python scan_binder.py page1.jpg page2.jpg
     python scan_binder.py ~/Downloads/magic/*.jpeg --truth fixtures/binder_truth.json
     python scan_binder.py page1.jpg --json
+    python scan_binder.py p1.jpg p2.jpg --binder "Born of the Gods"   # save as pages 1, 2
+    python scan_binder.py p7.jpg --binder "Born of the Gods" --page 7
 """
 
 import argparse
@@ -24,6 +26,7 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel, ValidationError
 
 import card_db
+from collection import Collection
 
 MODEL = "claude-opus-5-5"
 MAX_EDGE = 2576  # largest long edge the model uses; bigger photos are downscaled
@@ -224,6 +227,8 @@ def main(argv=None):
     parser.add_argument("--truth", type=Path, help="JSON answer key: {image file name: [names in slot order]}")
     parser.add_argument("--model", default=MODEL)
     parser.add_argument("--json", action="store_true", help="print JSON instead of a list")
+    parser.add_argument("--binder", help="save the scanned cards to your collection under this binder name")
+    parser.add_argument("--page", type=int, default=1, help="page number of the first image (default 1)")
     args = parser.parse_args(argv)
 
     truth = json.loads(args.truth.read_text()) if args.truth else {}
@@ -234,12 +239,13 @@ def main(argv=None):
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
+    collection = Collection() if args.binder else None
     pages, correct, total = [], 0, 0
-    for path in args.images:
+    for page_no, path in enumerate(args.images, start=args.page):
         try:
             page = scan_page(path, db, client, args.model)
         except ScanError as exc:
-            print(f"Error: {exc}", file=sys.stderr)
+            print(f"Error: {exc} (page {page_no} not saved)", file=sys.stderr)
             continue
         score = score_page(page["cards"], truth[page["image"]]) if page["image"] in truth else None
         if score:
@@ -249,7 +255,16 @@ def main(argv=None):
         pages.append(page)
         if not args.json:
             print_page(page, score)
+        if collection:
+            result = collection.save_page(args.binder, page_no, page["cards"], source_image=page["image"])
+            page["saved"] = {"binder": args.binder, "page": page_no, "cards": len(result["saved"])}
+            if not args.json:
+                print(f"  saved to '{args.binder}' page {page_no}: {len(result['saved'])} cards")
+                for c in result["skipped"]:
+                    print(f"  not saved (unknown card): slot {c['slot']} read as {c['read']!r}")
 
+    if collection:
+        collection.close()
     if args.json:
         print(json.dumps(pages, indent=2))
     elif total:

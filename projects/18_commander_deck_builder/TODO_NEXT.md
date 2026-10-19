@@ -125,8 +125,17 @@ Order, Survival, Underworld Breach...).
 - [ ] Harder test photos: other sets/old frames, sleeved cards with heavy
       glare, double-faced cards, non-English. Try `claude-haiku-5-5` /
       `claude-sonnet-5-5` with `--model` for cost per page.
-- [ ] **Owned collection:** small SQLite table (card, quantity, binder,
-      page, slot) so scans add up across pages.
+- [x] **Owned collection** (2026-10-18): `collection.py`, own SQLite file
+      `data/collection.sqlite` (gitignored; the card DB is rebuilt daily so
+      it can't live there). One row per pocket (binder, page, slot); saving a
+      page replaces it, so re-scans never double-count; unknown cards are
+      skipped and listed. `scan_binder.py --binder NAME [--page N]` saves
+      each image as consecutive pages. CLI: `list`, `find`, `binders`,
+      `set-qty`, `remove-page`. Alan's 5 pages saved as "Born of the Gods"
+      pages 1-5 (45 cards).
+- [ ] Quantity is 1 per pocket from a scan (a photo can't see copies stacked
+      behind the front card) - set real counts with `set-qty`, or add a
+      "count per pocket" prompt later if it gets tedious.
 - [ ] **Grade a pool for a commander:** deterministic facts first (color
       identity, legality, Game Changer, EDHREC inclusion/synergy, price);
       Claude only writes the one-line "why". Bracket rule: 0 Game Changers
