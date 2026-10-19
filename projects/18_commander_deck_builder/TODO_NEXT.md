@@ -44,6 +44,25 @@ The prototype works but is missing:
 Goal: `build_baseline.py --commander X --budget N` writes a valid 100-card
 deck using only plain code. This is the bar the LLM version must beat.
 
+**Built 2026-10-18 as `build_deck.py` (with owned mode from the start):**
+`build_deck.py COMMANDER --budget N [--owned [--binder X]] [--out file]`.
+Candidate pool = EDHREC list ∩ CardDB (legal, in identity, priced or owned);
+one role per card from rules text (land / wipe / removal incl. removal auras
+/ ramp / draw / synergy); order nonbasic lands -> wipes (exactly 2) ->
+removal 8 -> ramp 10 -> draw 10 -> best remaining; basics free, split by
+spell colors. Budget: reserve $0.25 per open slot + fair-share cap (one card
+<= 4x money left per open slot) - without the cap, Kestia $100 spent $52 on
+lands first. Owned mode: owned cards $0 and first within each role; owned
+cards EDHREC doesn't list only fill gaps (warned). `check_deck` = quick
+checks (100 cards, singleton, identity, budget); the full validator is
+Slice 4. 107 tests.
+Kestia $100 --owned: $87.51 spent, 3 owned cards used (Eidolon, Courser,
+Archetype); $0 --owned: the 26 legal binder cards + 73 basics, with
+warnings (honest: a draft binder isn't a deck).
+Still open from the list below: card images, leftover-budget upgrade pass
+(~$12 unspent on Kestia $100), staples fallback for thin EDHREC pages,
+tutors as a role.
+
 - [ ] **Card images (small `card_db.py` change, do first):** add `image_url` (Scryfall
       `normal`) and `image_url_back` (double-faced cards, from `card_faces`) columns,
       taken from the same printing that supplied the price so the picture matches
