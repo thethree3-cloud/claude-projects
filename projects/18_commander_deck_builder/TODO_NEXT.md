@@ -125,8 +125,14 @@ curve, Game Changers count vs requested bracket.
         budget can't fill every slot, a cheapest-first pass buys as many as
         it can (Esika $50: commander is $16.45, 55 cards cheapest-first).
 - [ ] Partner commanders / backgrounds (validator and builder are single-commander).
-- [ ] Fuzzy name match picked "Amnesia" for "esika" (`CardDB.find_name`):
-      prefer legendary cards / word-start matches when resolving commanders.
+- [x] Fuzzy name match picked "Amnesia" for "esika" (`CardDB.find_name`).
+      Fixed: `CardDB.find_commander` searches only cards that can be commanders
+      (exact -> starts with -> word start -> substring -> typo on full or short
+      name; ties go to the most-played card; punctuation counts as a space).
+      `resolve_commander` = exact card name, else commander match, else any card.
+      Known limit: "krenko" picks Tin Street Kingpin over Mob Boss because
+      `edhrec_rank` measures how many decks play a card, not how often it's the
+      commander.
 
 ## Slice 5 — LLM selection
 

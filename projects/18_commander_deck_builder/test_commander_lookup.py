@@ -100,13 +100,31 @@ class FormatTests(unittest.TestCase):
 
 
 class ResolveTests(unittest.TestCase):
-    def test_returns_exact_name(self):
+    def test_exact_name_wins_even_if_not_a_commander(self):
         db = mock.Mock()
-        db.find_name.return_value = "Muldrotha, the Gravetide"
-        self.assertEqual(commander_lookup.resolve_commander("muldrotha", db), "Muldrotha, the Gravetide")
+        db.get.return_value = {"name": "Sol Ring"}
+        self.assertEqual(commander_lookup.resolve_commander("sol ring", db), "Sol Ring")
+        db.find_commander.assert_not_called()
+
+    def test_commander_match_wins(self):
+        db = mock.Mock()
+        db.get.return_value = None
+        db.find_commander.return_value = "Esika, God of the Tree // The Prismatic Bridge"
+        self.assertEqual(commander_lookup.resolve_commander("esika", db),
+                         "Esika, God of the Tree // The Prismatic Bridge")
+        db.find_name.assert_not_called()
+
+    def test_falls_back_to_any_card(self):
+        db = mock.Mock()
+        db.get.return_value = None
+        db.find_commander.return_value = None
+        db.find_name.return_value = "Sol Ring"
+        self.assertEqual(commander_lookup.resolve_commander("sol ring", db), "Sol Ring")
 
     def test_no_match_raises(self):
         db = mock.Mock()
+        db.get.return_value = None
+        db.find_commander.return_value = None
         db.find_name.return_value = None
         with self.assertRaises(LookupError):
             commander_lookup.resolve_commander("zzzz", db)

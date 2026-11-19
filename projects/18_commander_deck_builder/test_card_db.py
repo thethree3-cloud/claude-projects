@@ -306,5 +306,77 @@ class EnsureDbTests(TempDirCase):
                 self.ensure()
 
 
+COMMANDER_SAMPLE = [
+    printing("esika", "Esika, God of the Tree // The Prismatic Bridge", layout="modal_dfc",
+             type_line=None, oracle_text=None, color_identity=["G", "W"], edhrec_rank=900,
+             card_faces=[{"type_line": "Legendary Creature — God", "oracle_text": "Vigilance"},
+                         {"type_line": "Legendary Artifact", "oracle_text": "Reveal cards"}]),
+    # More popular than Esika and also starts with "esika", but not a commander.
+    printing("chariot", "Esika's Chariot", type_line="Legendary Artifact — Vehicle", edhrec_rank=40),
+    # The old fuzzy winner for "esika".
+    printing("amnesia", "Amnesia", type_line="Sorcery", edhrec_rank=5000),
+    printing("atx1", "Atraxa, Praetors' Voice", type_line="Legendary Creature — Phyrexian Angel Horror",
+             edhrec_rank=100),
+    printing("atx2", "Atraxa, Grand Unifier", type_line="Legendary Creature — Phyrexian Angel",
+             edhrec_rank=300),
+    printing("mul", "Muldrotha, the Gravetide", type_line="Legendary Creature — Elemental Avatar",
+             edhrec_rank=1137),
+    printing("grist", "Grist, the Hunger Tide", type_line="Legendary Planeswalker — Grist",
+             oracle_text="As long as Grist isn't on the battlefield, it's a 1/1 Insect creature in addition to its other types.",
+             edhrec_rank=700),
+    printing("banned", "Banned Legend", type_line="Legendary Creature — Human",
+             legalities={"commander": "banned"}),
+    printing("sol", "Sol Ring", edhrec_rank=1),
+    printing("urd", "The Ur-Dragon", type_line="Legendary Creature — Dragon Avatar", edhrec_rank=2000),
+    printing("urdrago", "Ur-Drago", type_line="Legendary Creature — Elemental", edhrec_rank=9000),
+]
+
+
+class FindCommanderTests(TempDirCase):
+    def setUp(self):
+        super().setUp()
+        bulk = self.dir / "bulk.jsonl.gz"
+        write_bulk(bulk, COMMANDER_SAMPLE)
+        card_db.build_db(bulk, self.dir / "cards.sqlite")
+        self.db = card_db.CardDB(self.dir / "cards.sqlite")
+        self.addCleanup(self.db.close)
+
+    def test_commander_names_only_legal_commanders_most_played_first(self):
+        self.assertEqual(self.db.commander_names(), [
+            "Atraxa, Praetors' Voice", "Atraxa, Grand Unifier", "Grist, the Hunger Tide",
+            "Esika, God of the Tree // The Prismatic Bridge", "Muldrotha, the Gravetide",
+            "The Ur-Dragon", "Ur-Drago",
+        ])
+
+    def test_punctuation_counts_as_space(self):
+        self.assertEqual(self.db.find_commander("ur dragon"), "The Ur-Dragon")
+        self.assertEqual(self.db.find_commander("atraxa praetors voice"), "Atraxa, Praetors' Voice")
+
+    def test_esika_is_not_amnesia_or_the_chariot(self):
+        self.assertEqual(self.db.find_commander("esika"), "Esika, God of the Tree // The Prismatic Bridge")
+
+    def test_exact_and_front_face_names(self):
+        self.assertEqual(self.db.find_commander("atraxa, grand unifier"), "Atraxa, Grand Unifier")
+        self.assertEqual(self.db.find_commander("Esika, God of the Tree"),
+                         "Esika, God of the Tree // The Prismatic Bridge")
+
+    def test_ties_go_to_most_played(self):
+        self.assertEqual(self.db.find_commander("atraxa"), "Atraxa, Praetors' Voice")
+
+    def test_word_start_beats_mid_word(self):
+        # "tide" starts a word in neither name, but "hunger" does in Grist's.
+        self.assertEqual(self.db.find_commander("hunger"), "Grist, the Hunger Tide")
+        self.assertEqual(self.db.find_commander("gravetide"), "Muldrotha, the Gravetide")
+
+    def test_typo_and_extra_spaces(self):
+        self.assertEqual(self.db.find_commander("  muldrota  "), "Muldrotha, the Gravetide")
+
+    def test_non_commanders_and_nonsense_give_none(self):
+        self.assertIsNone(self.db.find_commander("sol ring"))
+        self.assertIsNone(self.db.find_commander("banned legend"))
+        self.assertIsNone(self.db.find_commander("zzzzqqq"))
+        self.assertIsNone(self.db.find_commander("   "))
+
+
 if __name__ == "__main__":
     unittest.main()

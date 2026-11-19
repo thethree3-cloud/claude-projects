@@ -23,8 +23,14 @@ SORTS = ("inclusion", "synergy")
 
 
 def resolve_commander(query, db):
-    """Match a possibly-sloppy name to an exact card name using the local card database."""
-    name = db.find_name(query)
+    """Match a possibly-sloppy name to an exact card name using the local card database.
+
+    An exact card name always wins. Otherwise cards that can be a commander are
+    tried first, then any card, so a non-commander name still resolves and gets a
+    clear "not a commander" error later.
+    """
+    exact = db.get(query)
+    name = exact["name"] if exact else (db.find_commander(query) or db.find_name(query))
     if name is None:
         raise LookupError(f"No card matched '{query}'. Check the spelling.")
     return name

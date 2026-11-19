@@ -25,6 +25,7 @@ Usage:
 import difflib
 import gzip
 import json
+import re
 import sqlite3
 import time
 import urllib.request
@@ -294,6 +295,16 @@ def identity_fits(card_identity, allowed_identity):
     return set(card_identity) <= set(allowed_identity)
 
 
+def can_be_commander(card):
+    """Legendary creature, a legendary card that is a creature off the battlefield
+    (Grist, the Hunger Tide), or one whose text says it can be your commander."""
+    front = card["type_line"].split(" // ")[0]
+    text = card["oracle_text"]
+    if "can be your commander" in text:
+        return True
+    return "Legendary" in front and ("Creature" in front or "creature in addition to its other types" in text)
+
+
 class CardDB:
     """Read-only access to the local card table."""
 
@@ -343,6 +354,56 @@ class CardDB:
             return contains[0]
         close = difflib.get_close_matches(query.lower(), lowered, n=1, cutoff=cutoff)
         return lowered[close[0]] if close else None
+
+    def commander_names(self):
+        """Every card that can lead a Commander deck, most-played first."""
+        rows = self.conn.execute(
+            "SELECT name, type_line, oracle_text FROM cards "
+            "WHERE legal_commander = 1 AND (type_line LIKE '%Legendary%' "
+            "OR oracle_text LIKE '%can be your commander%') "
+            "ORDER BY edhrec_rank IS NULL, edhrec_rank, name"
+        )
+        return [r["name"] for r in rows if can_be_commander(r)]
+
+    def find_commander(self, query, cutoff=0.6):
+        """Like ``find_name``, but only cards that can be a commander are considered.
+
+        Order: exact name -> name starts with the query -> a word in the name
+        starts with it -> substring -> fuzzy. Ties go to the most-played card,
+        so "esika" is Esika, God of the Tree (not the fuzzy hit "Amnesia").
+        Returns the exact name or None.
+        """
+        def norm(text):
+            # Punctuation counts as a space: "ur dragon" finds "The Ur-Dragon".
+            return " ".join(re.sub(r"[,'\-]", " ", text.lower()).split())
+
+        q = norm(query)
+        if not q:
+            return None
+        names = self.commander_names()  # already most-played first
+        lowered = {n.lower(): n for n in names}
+        if query.lower().strip() in lowered:
+            return lowered[query.lower().strip()]
+        fronts = {norm(n.split(" // ")[0]): n for n in names}
+        if q in fronts:
+            return fronts[q]
+        normed = [(norm(n), n) for n in names]
+        tests = (
+            lambda low: low.startswith(q),
+            lambda low: (" " + low).find(" " + q) >= 0,  # a word starts with the query
+            lambda low: q in low,
+        )
+        for test in tests:
+            hits = [n for low, n in normed if test(low)]
+            if hits:
+                return hits[0]
+        # Typos: compare against full names and short names ("Muldrotha" from
+        # "Muldrotha, the Gravetide"), since people usually type the short one.
+        keys = dict(lowered)
+        for n in names:
+            keys.setdefault(n.lower().split(",")[0].split(" // ")[0], n)
+        close = difflib.get_close_matches(q, keys, n=1, cutoff=cutoff)
+        return keys[close[0]] if close else None
 
     def game_changers(self):
         """Names of every card on the official Game Changers list, A-Z."""

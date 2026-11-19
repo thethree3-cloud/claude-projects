@@ -38,6 +38,7 @@ from pathlib import Path
 
 import card_db
 from build_deck import card_role
+from card_db import can_be_commander  # noqa: F401  (re-exported for older imports)
 from collection import Collection
 
 DECK_SIZE = 100
@@ -95,16 +96,6 @@ def copy_limit(card):
         return None
     word = match.group(2).lower()
     return int(word) if word.isdigit() else _NUMBER_WORDS.get(word, 1)
-
-
-def can_be_commander(card):
-    """Legendary creature, a legendary card that is a creature off the battlefield
-    (Grist, the Hunger Tide), or one whose text says it can be your commander."""
-    front = card["type_line"].split(" // ")[0]
-    text = card["oracle_text"]
-    if "can be your commander" in text:
-        return True
-    return "Legendary" in front and ("Creature" in front or "creature in addition to its other types" in text)
 
 
 def validate(entries, db, commander_name=None, budget=None, owned=frozenset(), bracket=None):

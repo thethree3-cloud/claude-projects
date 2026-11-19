@@ -9,17 +9,12 @@ import build_deck
 import card_db
 import edhrec_client
 import llm_deck
-from validate_deck import can_be_commander, validate_text
+from validate_deck import validate_text
 
 
 def commander_names(db):
     """Every card that can lead a Commander deck, most-played first."""
-    rows = db.conn.execute(
-        "SELECT name, type_line, oracle_text FROM cards "
-        "WHERE legal_commander = 1 AND (type_line LIKE '%Legendary%' OR oracle_text LIKE '%can be your commander%') "
-        "ORDER BY edhrec_rank IS NULL, edhrec_rank, name"
-    )
-    return [r["name"] for r in rows if can_be_commander(r)]
+    return db.commander_names()
 
 
 def prepare(commander_name, db, owned=frozenset()):
