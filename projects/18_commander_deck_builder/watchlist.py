@@ -47,6 +47,8 @@ MIN_TRACK_USD = 0.25  # cheaper cards aren't snapshotted (unless watched): their
 WINDOWS = {"week": "top/week", "year": "top/year",  # EDHREC's "year" page is the past 2 years
            "commanders_week": "commanders/week"}
 RADAR_COMMANDERS = 10  # rising commanders whose pages the radar reads
+SCRYFALL_CHECK_HOURS = 6  # the CLI asks Scryfall for a new daily file this often (one small request;
+                          # the ~80 MB download only happens when Scryfall has published a new one)
 NEW_CARD_DAYS = 30  # cards first printed this recently are new-set hype, hidden from spec signals by default
 
 # Compact on purpose (~16k priced cards a day): small integer card ids, dates
@@ -537,7 +539,9 @@ def main(argv=None):
     sub.add_parser("list", help="your watched cards")
     args = parser.parse_args(argv)
 
-    db = card_db.open_db(log=lambda m: print(m, file=sys.stderr))
+    # Check Scryfall every few hours (not the app's 24 h), so a new day's prices are
+    # snapshotted soon after Scryfall publishes them instead of up to a day late.
+    db = card_db.open_db(max_age_hours=SCRYFALL_CHECK_HOURS, log=lambda m: print(m, file=sys.stderr))
     wl = WatchList()
     try:
         date, new = wl.snapshot(db)  # every command keeps history going

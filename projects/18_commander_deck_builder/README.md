@@ -405,7 +405,9 @@ A **Watch list** page (top menu of the app; also `python watchlist.py`):
   prices), so risers appear from the second day. The same job also saves
   EDHREC's weekly top list daily (for popularity speed). A user crontab (set up
   2026-11-18) runs `python watchlist.py snapshot` hourly and when WSL starts;
-  it saves once per Scryfall date and the other runs exit fast, so a day is
+  it asks Scryfall for a new daily file every 6 hours (one small request; the
+  download only happens when there is a new file), saves once per Scryfall
+  date, and the other runs exit fast, so a day is
   only missed if WSL never runs that day. Log: `data/watchlist_cron.log`.
   See the jobs with `crontab -l`; remove them with `crontab -e`.
 - **My watch list:** add cards from the form, the **Watch** star on any card
