@@ -192,6 +192,18 @@ class BuildAndQueryTests(TempDirCase):
         found = self.db.get_many(["Sol Ring", "Nope", "Command Tower"])
         self.assertEqual(sorted(found), ["Command Tower", "Sol Ring"])
 
+    def test_every_real_printing_is_stored_newest_first(self):
+        sol = self.db.printings("sol ring")
+        # frc, cmm, c21, sld promo; the digital (arena) printing is left out.
+        self.assertEqual(sorted(p["set_code"] for p in sol), ["c21", "cmm", "frc", "sld"])
+        by_set = {p["set_code"]: p for p in sol}
+        self.assertEqual((by_set["cmm"]["usd"], by_set["cmm"]["image_url"]), (1.50, "https://img/cmm/1.jpg"))
+        self.assertEqual((by_set["frc"]["usd"], by_set["frc"]["usd_foil"]), (None, 5.00))
+        self.assertEqual(by_set["sld"]["promo"], 1)
+        esika = self.db.printings("Esika, God of the Tree")  # front-face name works
+        self.assertEqual(esika[0]["image_url_back"], "https://img/esika-back.jpg")
+        self.assertEqual(self.db.printings("Nope"), [])
+
     def test_game_changers_listed(self):
         self.assertEqual(self.db.game_changers(), ["Rhystic Study"])
         self.assertEqual(self.db.get("Rhystic Study")["game_changer"], 1)
@@ -219,6 +231,22 @@ class BuildAndQueryTests(TempDirCase):
         db = card_db.CardDB(self.db_path)
         self.addCleanup(db.close)
         self.assertEqual(db.count(), 1)
+
+
+class PrintingRowTests(unittest.TestCase):
+    def test_treatment_and_fields(self):
+        card = printing("x", "Fancy", set="abc", collector_number="7", border_color="borderless",
+                        frame_effects=["showcase", "legendary"], full_art=True, released_at="2025-02-01",
+                        rarity="mythic", artist="Some Artist", finishes=["nonfoil", "foil"],
+                        scryfall_uri="https://scryfall.com/card/abc/7/fancy?utm_source=api",
+                        prices={"usd": "2.50", "usd_foil": "9.00", "usd_etched": None})
+        row = card_db.printing_row(card, "x")
+        self.assertEqual(row["treatment"], "borderless, showcase")  # full art is implied by borderless
+        self.assertEqual((row["usd"], row["usd_foil"], row["usd_etched"]), (2.5, 9.0, None))
+        self.assertEqual(row["finishes"], "nonfoil,foil")
+        self.assertEqual(row["scryfall_url"], "https://scryfall.com/card/abc/7/fancy")
+        self.assertEqual((row["rarity"], row["artist"], row["released_at"]), ("mythic", "Some Artist", "2025-02-01"))
+        self.assertEqual(card_db.printing_row(printing("y", "Plain"), "y")["treatment"], "")
 
 
 class BuildFailureTests(TempDirCase):

@@ -117,6 +117,12 @@ Freshness: a database younger than 24 h is used with zero network calls; older
 triggers one metadata request and a re-download only if Scryfall's
 `updated_at` changed. Offline with an existing database falls back to it.
 
+Since schema 4 (2026-11-18) it also keeps a `printings` table: every real
+printing (101,184) with set, number, date, rarity, artist, look, normal /
+foil / etched prices, images and Scryfall link, for the card page
+(`CardDB.printings(name)`). The database is now ~54 MB; rebuilding from the
+cached bulk file takes ~9 s and happens automatically on a schema change.
+
 Live-verified: 33,764 cards, 15 MB database, full download + build in 13 s,
 candidate query ("cards in BGU under $1, most popular first") in 0.03 s.
 Sol Ring $1.42, Command Tower $0.24, Arcane Signet $0.42, Eternal Witness $1.47.
@@ -349,6 +355,16 @@ python build_deck.py krenko --budget 150 --combos
   (`flip_card.py`, a Streamlit components-v2 element; the flip runs in the
   browser with no rerun). An invalid Claude deck is never shown. Logic lives
   in `deck_service.py` (unit-tested).
+- **Card page** (added 2026-11-18): click any card name in the deck to open
+  its page: picture (flips if two-faced), rules text, color identity,
+  legality, Game Changer flag, and **every printing** with its picture,
+  set, number, year, rarity, look (borderless / showcase / extended art...),
+  normal / foil / etched prices, artist and a Scryfall link. Sort by newest,
+  oldest or cheapest; hide promos; show only priced. The printing the deck
+  builder prices from is marked. Same tab, so the deck and sidebar settings
+  stay (`persist_state`); the List tab's "All printings" link opens it in a
+  new tab. Pages: `streamlit_app.py` (entry, `st.navigation`) ->
+  `app_pages/builder.py`, `app_pages/card.py` (`?name=Sol Ring`).
 - **MCP server:** `mcp_server.py` (FastMCP over stdio, Project 06's
   pattern) with `find_commander`, `commander_cards`, `build_commander_deck`
   (code-only builder, validated), `validate_commander_deck` and

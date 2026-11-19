@@ -39,7 +39,7 @@ BULK_NAME = "default-cards.jsonl.gz"
 MAX_AGE_HOURS = 24
 CHUNK = 1024 * 1024
 WUBRG = "WUBRG"
-SCHEMA_VERSION = "3"  # bump when the cards table changes; ensure_db rebuilds locally
+SCHEMA_VERSION = "4"  # bump when the cards table changes; ensure_db rebuilds locally
 
 # Layouts that are not real cards (no place in a Commander deck).
 EXCLUDED_LAYOUTS = {
@@ -76,8 +76,33 @@ CREATE TABLE cards (
 );
 CREATE INDEX idx_cards_name ON cards(name_lower);
 CREATE INDEX idx_cards_front ON cards(front_name_lower);
+CREATE TABLE printings (            -- every real printing, for the card page
+    oracle_id TEXT NOT NULL,
+    set_code TEXT NOT NULL,
+    set_name TEXT,
+    collector_number TEXT,
+    released_at TEXT,               -- YYYY-MM-DD
+    rarity TEXT,
+    artist TEXT,
+    finishes TEXT,                  -- e.g. "nonfoil,foil"
+    treatment TEXT,                 -- e.g. "borderless, showcase" ('' for a plain printing)
+    promo INTEGER NOT NULL,
+    usd REAL,
+    usd_foil REAL,
+    usd_etched REAL,
+    image_url TEXT,
+    image_url_back TEXT,
+    scryfall_url TEXT
+);
+CREATE INDEX idx_printings_oracle ON printings(oracle_id);
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
 """
+
+PRINTING_COLUMNS = [
+    "oracle_id", "set_code", "set_name", "collector_number", "released_at", "rarity", "artist",
+    "finishes", "treatment", "promo", "usd", "usd_foil", "usd_etched", "image_url", "image_url_back",
+    "scryfall_url",
+]  # fmt: skip
 
 
 class BulkDataError(Exception):
@@ -183,6 +208,49 @@ def _better_price(new, current):
     return new_key < cur_key
 
 
+def _price(value):
+    return float(value) if value else None
+
+
+def _treatment(card):
+    """Short label for how a printing looks: "borderless, showcase", "full art"..."""
+    parts = []
+    if card.get("border_color") == "borderless":
+        parts.append("borderless")
+    for effect in card.get("frame_effects") or []:
+        if effect in ("showcase", "extendedart", "etched", "inverted", "shatteredglass"):
+            parts.append("extended art" if effect == "extendedart" else effect)
+    if card.get("full_art") and "borderless" not in parts:
+        parts.append("full art")
+    if card.get("textless"):
+        parts.append("textless")
+    return ", ".join(dict.fromkeys(parts))
+
+
+def printing_row(card, oid):
+    """One ``printings`` row for a Scryfall printing."""
+    prices = card.get("prices") or {}
+    front, back = _images(card)
+    return {
+        "oracle_id": oid,
+        "set_code": card.get("set", "?"),
+        "set_name": card.get("set_name"),
+        "collector_number": card.get("collector_number"),
+        "released_at": card.get("released_at"),
+        "rarity": card.get("rarity"),
+        "artist": card.get("artist") or ((card.get("card_faces") or [{}])[0].get("artist")),
+        "finishes": ",".join(card.get("finishes") or []),
+        "treatment": _treatment(card),
+        "promo": int(bool(card.get("promo"))),
+        "usd": _price(prices.get("usd")),
+        "usd_foil": _price(prices.get("usd_foil")),
+        "usd_etched": _price(prices.get("usd_etched")),
+        "image_url": front,
+        "image_url_back": back,
+        "scryfall_url": (card.get("scryfall_uri") or "").split("?")[0] or None,
+    }
+
+
 def _is_real_printing(card):
     if card.get("layout") in EXCLUDED_LAYOUTS:
         return False
@@ -191,8 +259,11 @@ def _is_real_printing(card):
     return not card.get("digital", False)
 
 
-def aggregate_cards(lines):
-    """Collapse printings (JSONL lines) to one dict per Oracle ID."""
+def aggregate_cards(lines, printings=None):
+    """Collapse printings (JSONL lines) to one dict per Oracle ID.
+
+    If ``printings`` is a list, a ``printing_row`` for every real printing is
+    appended to it (for the card page)."""
     cards = {}
     for line in lines:
         line = line.strip()
@@ -202,6 +273,8 @@ def aggregate_cards(lines):
         oid = _oracle_id(card)
         if not oid or not _is_real_printing(card):
             continue
+        if printings is not None:
+            printings.append(printing_row(card, oid))
 
         row = cards.get(oid)
         if row is None:
@@ -253,8 +326,9 @@ def build_db(bulk_path, db_path, updated_at=""):
     tmp_path = db_path.with_suffix(".building")
     tmp_path.unlink(missing_ok=True)
     try:
+        printings = []
         with gzip.open(bulk_path, "rt", encoding="utf-8") as lines:
-            cards = aggregate_cards(lines)
+            cards = aggregate_cards(lines, printings)
     except (OSError, EOFError, json.JSONDecodeError) as exc:
         raise BulkDataError(f"Could not read bulk file {bulk_path}: {exc}") from exc
     if not cards:
@@ -271,6 +345,10 @@ def build_db(bulk_path, db_path, updated_at=""):
         conn.executemany(
             f"INSERT INTO cards ({', '.join(columns)}) VALUES ({', '.join('?' * len(columns))})",
             [tuple(row[c] for c in columns) for row in cards.values()],
+        )
+        conn.executemany(
+            f"INSERT INTO printings ({', '.join(PRINTING_COLUMNS)}) VALUES ({', '.join('?' * len(PRINTING_COLUMNS))})",
+            [tuple(p[c] for c in PRINTING_COLUMNS) for p in printings],
         )
         meta = {
             "updated_at": updated_at,
@@ -527,6 +605,18 @@ class CardDB:
     def find_partner(self, card, query, cutoff=0.6):
         """Best match for ``query`` among the cards that can pair with ``card``."""
         return best_match(query, self.partner_names(card), cutoff)
+
+    def printings(self, name):
+        """Every real printing of a card (newest first), as dicts; [] if unknown."""
+        card = self.get(name)
+        if card is None:
+            return []
+        rows = self.conn.execute(
+            "SELECT * FROM printings WHERE oracle_id = ? "
+            "ORDER BY released_at DESC, set_code, collector_number",
+            (card["oracle_id"],),
+        )
+        return [dict(r) for r in rows]
 
     def game_changers(self):
         """Names of every card on the official Game Changers list, A-Z."""
