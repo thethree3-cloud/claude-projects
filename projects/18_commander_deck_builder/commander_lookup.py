@@ -10,6 +10,7 @@ Usage:
     python commander_lookup.py "Muldrotha, the Gravetide"
     python commander_lookup.py "Muldrotha" --max-price 5 --role "Mana Artifact"
     python commander_lookup.py "Atraxa, Praetors' Voice" --sort synergy --limit 25
+    python commander_lookup.py thrasios --partner tymna
 """
 
 import argparse
@@ -34,6 +35,53 @@ def resolve_commander(query, db):
     if name is None:
         raise LookupError(f"No card matched '{query}'. Check the spelling.")
     return name
+
+
+def resolve_pair(query, db, partner=None):
+    """Commander card rows: ``[commander]`` or ``[commander, partner]``.
+
+    ``partner`` is matched only among cards that can legally pair with the
+    commander (a Background, a matching Partner, a Doctor...), so "giants" finds
+    "Raised by Giants" for Halsin. Raises LookupError with the reason otherwise.
+    """
+    first = db.get(resolve_commander(query, db))
+    if partner is None:
+        if not card_db.can_be_commander(first):
+            hint = " (a Background needs a commander with \"Choose a Background\")" \
+                if ("background",) in card_db.pairing(first) else ""
+            raise LookupError(f"{first['name']} can't be a commander on its own{hint}.")
+        return [first]
+    exact = db.get(partner)
+    name = exact["name"] if exact else db.find_partner(first, partner)
+    if name is None:
+        options = db.partner_names(first)
+        hint = f" Options include: {', '.join(options[:5])}." if options else f" {first['name']} has no partner ability."
+        raise LookupError(f"No card that can pair with {first['name']} matched '{partner}'.{hint}")
+    second = db.get(name)
+    problem = card_db.pair_problem(first, second)
+    if problem:
+        raise LookupError(problem[0].upper() + problem[1:] + ".")
+    if ("background",) in card_db.pairing(first):
+        first, second = second, first  # the creature leads, the Background is second
+    return [first, second]
+
+
+def load_commanders(query, db, partner=None, owned=frozenset(), fetch=None):
+    """Everything a builder needs about the commander(s), from one call.
+
+    Returns ``{"commander", "cards", "commander_cost", "sources", "num_decks"}``: the commander
+    dict (combined for a pair, see ``card_db.combine_commanders``), EDHREC's
+    cards for it, what the commander(s) cost you (owned ones are $0), and which
+    EDHREC pages were used.
+    """
+    members = resolve_pair(query, db, partner)
+    data = edhrec_client.commander_cards([c["name"] for c in members], fetch)
+    if not data["commander"]["legal_commander"] or not all(c["legal_commander"] for c in members):
+        raise LookupError(f"{data['commander']['name']} is not legal as a commander.")
+    cost = sum(0.0 if c["name"] in owned else (c["usd"] or 0.0) for c in members)
+    return {"commander": card_db.combine_commanders(members), "cards": data["cards"],
+            "commander_cost": round(cost, 2), "sources": data["sources"],
+            "num_decks": data["commander"].get("num_decks", 0)}
 
 
 def role_from_type_line(type_line):
@@ -95,7 +143,8 @@ def rank_rows(
 def format_table(commander, rows):
     """Render the ranked rows as a markdown report."""
     lines = [
-        f"# {commander['name']} — top cards from {commander['num_decks']:,} decks",
+        f"# {commander['name']} — top cards from {commander['num_decks']:,} decks"
+        + (f" (EDHREC pages: {', '.join(commander['sources'])})" if len(commander.get("sources", [])) > 1 else ""),
         f"Color identity: {''.join(commander['color_identity']) or 'C'}",
         "",
         "| # | Card | Role | Inclusion | Synergy | Price | Notes |",
@@ -115,7 +164,7 @@ def format_table(commander, rows):
     return "\n".join(lines)
 
 
-def lookup(commander_query, db=None, **rank_options):
+def lookup(commander_query, db=None, partner=None, **rank_options):
     """Full lookup. Returns ``(commander_info, ranked_rows)``.
 
     ``db`` is an open ``card_db.CardDB``; if omitted, the local database is
@@ -126,15 +175,14 @@ def lookup(commander_query, db=None, **rank_options):
     if owns_db:
         db = card_db.open_db(refresh=refresh)
     try:
-        name = resolve_commander(commander_query, db)
-        page = edhrec_client.fetch_commander_page(edhrec_client.slugify(name), refresh=refresh)
-        parsed = edhrec_client.parse_commander_page(page)
-        if not parsed["commander"]["legal_commander"]:
-            raise LookupError(f"{name} is not legal as a commander.")
-
-        info = db.get_many([c["name"] for c in parsed["cards"]])
-        rows = build_rows(parsed["cards"], info)
-        return parsed["commander"], rank_rows(rows, **rank_options)
+        fetch = lambda slug: edhrec_client.fetch_commander_page(slug, refresh=refresh)  # noqa: E731
+        loaded = load_commanders(commander_query, db, partner, fetch=fetch)
+        commander = loaded["commander"]
+        info = db.get_many([c["name"] for c in loaded["cards"]])
+        rows = build_rows(loaded["cards"], info)
+        header = {"name": commander["name"], "color_identity": list(commander["color_identity"]),
+                  "num_decks": loaded["num_decks"], "sources": loaded["sources"]}
+        return header, rank_rows(rows, **rank_options)
     finally:
         if owns_db:
             db.close()
@@ -143,6 +191,7 @@ def lookup(commander_query, db=None, **rank_options):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("commander", help="commander card name (fuzzy match is fine)")
+    parser.add_argument("--partner", help="second commander: a partner, Background, Doctor... (fuzzy)")
     parser.add_argument("--max-price", type=float, help="max USD per card")
     parser.add_argument("--min-inclusion", type=float, default=0.0, help="0-1, e.g. 0.25")
     parser.add_argument("--role", help='e.g. "Creature", "Mana Artifact", "Utility Land"')
@@ -156,6 +205,7 @@ def main(argv=None):
     try:
         commander, rows = lookup(
             args.commander,
+            partner=args.partner,
             sort=args.sort,
             max_price=args.max_price,
             min_inclusion=args.min_inclusion,

@@ -3,7 +3,8 @@
 Run:
     /home/t9/venv/bin/streamlit run streamlit_app.py
 
-Pick a commander and a budget, optionally use your scanned collection, then
+Pick a commander (and a second one for partners / Backgrounds / Doctors) and
+a budget, optionally use your scanned collection, then
 build with the no-LLM baseline or with Claude. Every deck is checked by the
 full validator before it is shown. Card images come from Scryfall.
 """
@@ -11,6 +12,7 @@ full validator before it is shown. Card images come from Scryfall.
 import streamlit as st
 
 import deck_service
+import edhrec_client
 import llm_deck
 from collection import Collection
 from scan_binder import ScanError, make_client
@@ -40,6 +42,15 @@ def load_commanders():
         db.close()
 
 
+@st.cache_data(ttl="1d", max_entries=50)
+def load_partners(commander):
+    db = deck_service.open_db()
+    try:
+        return deck_service.partner_names(commander, db)
+    finally:
+        db.close()
+
+
 @st.cache_data(ttl="1m")
 def load_collection():
     col = Collection()
@@ -50,10 +61,10 @@ def load_collection():
 
 
 @st.cache_data(ttl="1h", max_entries=20, show_spinner="Fetching EDHREC data...")
-def load_prep(commander, owned):
+def load_prep(commander, partner, owned):
     db = deck_service.open_db()
     try:
-        return deck_service.prepare(commander, db, frozenset(owned))
+        return deck_service.prepare(commander, db, frozenset(owned), partner)
     finally:
         db.close()
 
@@ -92,6 +103,14 @@ with st.sidebar:
         if "Kestia, the Cultivator" in commanders else 0, key="commander",
         help="Type to search. Ordered by how often the card is played.",
     )
+    partners = load_partners(commander)
+    partner = None
+    if partners:
+        partner = st.selectbox(
+            "Second commander", partners, index=None, key=f"partner-{commander}",
+            placeholder="None (build with one commander)",
+            help="Cards that can share the command zone with this one: partners, Backgrounds or Doctors.",
+        )
     budget = st.number_input("Budget (USD, commander included)", min_value=0, max_value=5000, value=100,
                              step=10, key="budget")
     use_owned = st.toggle("Use my collection (owned cards cost $0)", key="use_owned",
@@ -103,7 +122,7 @@ with st.sidebar:
                                    required=True)
     model = st.selectbox("Claude model", MODELS, key="model", disabled=builder != "Claude",
                          help="Opus won the eval (see README). Roughly $0.20 / $0.09 / $0.01 per deck.")
-    build = st.button("Build deck", type="primary", icon=":material/construction:", width="stretch")
+    build = st.button("Build deck", type="primary", icon=":material/construction:", width="stretch", key="build")
     st.caption("Card images and prices from Scryfall; deck data from EDHREC. Unofficial fan project, "
                "not affiliated with Wizards of the Coast.")
 
@@ -116,7 +135,7 @@ st.title("Commander deck builder")
 if build:
     owned = owned_names(binder) if use_owned else ()
     try:
-        prep = load_prep(commander, owned)
+        prep = load_prep(commander, partner, owned)
         db = deck_service.open_db()
         try:
             if builder == "Claude":
@@ -126,7 +145,7 @@ if build:
                 result = deck_service.build_code(prep, budget, db, frozenset(owned), owned_mode=use_owned)
         finally:
             db.close()
-    except (LookupError, ScanError, OSError) as exc:
+    except (LookupError, ScanError, OSError, edhrec_client.EdhrecError) as exc:
         st.error(f"Couldn't build the deck: {exc}", icon=":material/error:")
         result = None
     if result is not None:
@@ -174,7 +193,7 @@ for e in check["errors"]:
 
 with st.container(horizontal=True):
     st.download_button("Download import list", result["text"] + "\n",
-                       file_name=f"{deck_service.edhrec_client.slugify(cmd['name'])}_{result['budget']}.txt",
+                       file_name=f"{edhrec_client.slugify(cmd['name'])}_{result['budget']}.txt",
                        icon=":material/download:", help="Paste into Moxfield or Archidekt.")
     basics = ", ".join(f"{n} {b}" for b, n in sorted(deck["basics"].items()))
     st.caption(f"Basic lands (free): {basics or 'none'}")
@@ -194,8 +213,11 @@ with list_tab:
 @st.fragment
 def card_grid(deck):
     """Image grid by role. Flipping a two-faced card only reruns this fragment."""
-    if cmd.get("image_url"):
-        st.image(cmd["image_url"], caption=f"Commander: {cmd['name']}", width=180)
+    members = cmd.get("members") or [cmd]
+    with st.container(horizontal=True):
+        for member in members:
+            if member.get("image_url"):
+                st.image(member["image_url"], caption=f"Commander: {member['name']}", width=180)
     for role, cards in deck_service.grouped(deck):
         st.markdown(f"#### {ROLE_TITLES[role]} ({len(cards)})")
         for start in range(0, len(cards), GRID_COLUMNS):

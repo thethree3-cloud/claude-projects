@@ -3,13 +3,16 @@
 Reads plain decklist text, the format Moxfield / Archidekt import and export
 ("1 Sol Ring", "1x Sol Ring (CMM) 1", or just "Sol Ring"), so it can check
 any deck: the baseline builder's, a future LLM-built one, or your own.
-The first card is the commander unless ``--commander`` is given.
+The first card is the commander unless ``--commander`` is given. If the
+second card can legally pair with the first (partners, a Background), the
+two are read as a pair; ``--partner`` names the second one explicitly.
 
 Errors (the deck is not legal / not what was asked for):
   - a card name that doesn't exist (catches made-up or misspelled cards)
   - the commander can't be a commander (needs a legendary creature, or
-    "can be your commander"); single commanders only for now (no partners
-    or backgrounds yet)
+    "can be your commander"); two commanders must legally pair (Partner,
+    Partner with, Partner variants, Choose a Background + Background,
+    Doctor's companion + Time Lord Doctor)
   - not exactly 100 cards, commander included
   - more than one copy of a card (except basic lands and cards that say
     "any number" / "up to N")
@@ -98,7 +101,7 @@ def copy_limit(card):
     return int(word) if word.isdigit() else _NUMBER_WORDS.get(word, 1)
 
 
-def validate(entries, db, commander_name=None, budget=None, owned=frozenset(), bracket=None):
+def validate(entries, db, commander_name=None, budget=None, owned=frozenset(), bracket=None, partner_name=None):
     """Check parsed entries. Returns ``{"ok", "errors", "warnings", "stats", ...}``."""
     errors, warnings = [], []
 
@@ -112,20 +115,38 @@ def validate(entries, db, commander_name=None, budget=None, owned=frozenset(), b
             continue
         resolved.append((count, card))
 
-    # Commander: --commander, else the first card listed.
-    commander = None
-    if commander_name:
-        commander = db.get(commander_name)
-        if commander is None:
-            errors.append(f"Unknown commander: {commander_name!r}")
-        elif not any(card["name"] == commander["name"] for _, card in resolved):
-            resolved.insert(0, (1, commander))  # list given without the commander line
-    elif resolved:
-        commander = resolved[0][1]
-    if commander is None:
+    # Commander(s): --commander / --partner, else the first card listed (plus the
+    # second if it legally pairs with the first).
+    members = []
+    for i, wanted in enumerate((commander_name, partner_name)):
+        if not wanted:
+            continue
+        card = db.get(wanted)
+        if card is None:
+            errors.append(f"Unknown {'commander' if i == 0 else 'partner'}: {wanted!r}")
+            continue
+        members.append(card)
+        if not any(c["name"] == card["name"] for _, c in resolved):
+            resolved.insert(len(members) - 1, (1, card))  # list given without the commander line
+    if not commander_name and resolved:
+        members.insert(0, resolved[0][1])
+        if not partner_name and len(resolved) > 1 and resolved[1][0] == 1 \
+                and card_db.pair_problem(resolved[0][1], resolved[1][1]) is None:
+            members.append(resolved[1][1])
+    if not members:
         return _result(False, errors or ["Decklist is empty."], warnings, {}, None)
-    if not can_be_commander(commander):
-        errors.append(f"{commander['name']} can't be a commander (not a legendary creature).")
+    if len(members) == 1:
+        if not can_be_commander(members[0]):
+            errors.append(f"{members[0]['name']} can't be a commander (not a legendary creature).")
+    else:
+        problem = card_db.pair_problem(members[0], members[1])
+        if problem:
+            errors.append(problem[0].upper() + problem[1:] + ".")
+        for card in members:
+            if not card_db.can_lead(card):
+                errors.append(f"{card['name']} can't be a commander.")
+    commander = card_db.combine_commanders(members)
+    member_names = {c["name"] for c in members}
     identity = commander["color_identity"]
 
     copies = Counter()
@@ -172,8 +193,8 @@ def validate(entries, db, commander_name=None, budget=None, owned=frozenset(), b
             f"{BRACKET_GAME_CHANGER_LIMIT[bracket]}."
         )
 
-    # Playability (warnings only). The commander isn't part of the 99.
-    nine_nine = [(by_name[name], n - (name == commander["name"])) for name, n in copies.items()]
+    # Playability (warnings only). The commander(s) aren't part of the 99.
+    nine_nine = [(by_name[name], n - (name in member_names)) for name, n in copies.items()]
     nine_nine = [(card, n) for card, n in nine_nine if n > 0]
     roles = Counter()
     for card, n in nine_nine:
@@ -241,6 +262,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Check a Commander decklist against the format rules.")
     parser.add_argument("decklist", type=Path, help="decklist text file (Moxfield / Archidekt format)")
     parser.add_argument("--commander", help="commander name, if it isn't the first card in the list")
+    parser.add_argument("--partner", help="second commander (partner, Background...), if not the second card")
     parser.add_argument("--budget", type=float, help="max USD to buy the cards you don't own")
     parser.add_argument("--owned", action="store_true", help="cards in your collection cost $0")
     parser.add_argument("--bracket", type=int, choices=range(1, 6), help="bracket the deck must fit")
@@ -261,7 +283,7 @@ def main(argv=None):
         finally:
             col.close()
 
-    result = validate_text(text, db, commander_name=args.commander, budget=args.budget, owned=owned, bracket=args.bracket)
+    result = validate_text(text, db, commander_name=args.commander, partner_name=args.partner, budget=args.budget, owned=owned, bracket=args.bracket)
     print(json.dumps(result, indent=2) if args.json else format_report(result))
     return 0 if result["ok"] else 1
 

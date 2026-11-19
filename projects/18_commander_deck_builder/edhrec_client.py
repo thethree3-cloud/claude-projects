@@ -67,6 +67,26 @@ def slugify(name):
     return re.sub(r"[^a-z0-9]+", "-", ascii_name).strip("-")
 
 
+def _get_json(url, slug):
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=HEADERS)) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403, 404):
+            raise EdhrecError(
+                f"No EDHREC page for '{slug}' (not a commander, or too new to have data)."
+            ) from exc
+        raise EdhrecError(f"EDHREC returned HTTP {exc.code} for '{slug}'.") from exc
+    except json.JSONDecodeError as exc:
+        raise EdhrecError(f"No EDHREC page for '{slug}' (empty answer).") from exc
+
+
+def pair_slug(names):
+    """EDHREC slug for two commanders: both slugs joined, alphabetical
+    (EDHREC redirects the other order anyway)."""
+    return "-".join(sorted(slugify(n) for n in names))
+
+
 def fetch_commander_page(slug, cache_dir=CACHE_DIR, max_age_days=CACHE_MAX_AGE_DAYS, refresh=False):
     """Return the raw EDHREC JSON for a commander slug, using a disk cache."""
     cache_file = Path(cache_dir) / f"edhrec_{slug}.json"
@@ -75,16 +95,12 @@ def fetch_commander_page(slug, cache_dir=CACHE_DIR, max_age_days=CACHE_MAX_AGE_D
         if time.time() - cache_file.stat().st_mtime < max_age_seconds:
             return json.loads(cache_file.read_text())
 
-    url = f"{BASE_URL}/{slug}.json"
-    try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=HEADERS)) as resp:
-            page = json.load(resp)
-    except urllib.error.HTTPError as exc:
-        if exc.code in (403, 404):
-            raise EdhrecError(
-                f"No EDHREC page for '{slug}' (not a commander, or too new to have data)."
-            ) from exc
-        raise EdhrecError(f"EDHREC returned HTTP {exc.code} for '{slug}'.") from exc
+    page = _get_json(f"{BASE_URL}/{slug}.json", slug)
+    # Pairs listed in the other order answer {"redirect": "/commanders/<slug>"}.
+    redirect = page.get("redirect") if isinstance(page, dict) else None
+    if redirect:
+        target = redirect.rstrip("/").rsplit("/", 1)[-1]
+        page = _get_json(f"{BASE_URL}/{target}.json", target)
 
     cache_file.parent.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(json.dumps(page))
@@ -173,3 +189,53 @@ def parse_commander_page(page):
                 card["game_changer"] = True
 
     return {"commander": commander, "cards": list(merged.values())}
+
+
+THIN_PAIR_DECKS = 50  # a pair page with fewer decks than this gets the single pages mixed in
+
+
+def commander_cards(names, fetch=None):
+    """EDHREC data for one or two commanders: ``{"commander", "cards", "sources"}``.
+
+    One name: that commander's page. Two: the pair's page; if it is missing or
+    has fewer than ``THIN_PAIR_DECKS`` decks, each commander's own page is mixed
+    in (cards the pair page lacks take their best single-page inclusion).
+    Backgrounds have no page of their own, which is fine.
+    """
+    fetch = fetch or fetch_commander_page
+    if len(names) == 1:
+        page = parse_commander_page(fetch(slugify(names[0])))
+        return {**page, "sources": [slugify(names[0])]}
+
+    pages, sources = [], []
+    pair = None
+    try:
+        pair = parse_commander_page(fetch(pair_slug(names)))
+        pages.append(pair)
+        sources.append(pair_slug(names))
+    except EdhrecError:
+        pass
+    if pair is None or pair["commander"]["num_decks"] < THIN_PAIR_DECKS:
+        for name in names:
+            try:
+                pages.append(parse_commander_page(fetch(slugify(name))))
+                sources.append(slugify(name))
+            except EdhrecError:
+                continue  # e.g. a Background
+    if not pages:
+        raise EdhrecError(f"No EDHREC data for {' + '.join(names)} or either commander alone.")
+
+    merged = {}
+    for i, page in enumerate(pages):
+        for card in page["cards"]:
+            have = merged.get(card["name"])
+            # The pair page (first) wins; otherwise keep the higher inclusion.
+            if have is None or (i > 0 and have["_page"] > 0 and card["inclusion"] > have["inclusion"]):
+                merged[card["name"]] = {**card, "_page": i}
+    cards = [{k: v for k, v in c.items() if k != "_page"} for c in merged.values()]
+    commander = {
+        "name": " + ".join(names),
+        "num_decks": pair["commander"]["num_decks"] if pair else 0,
+        "legal_commander": all(p["commander"]["legal_commander"] for p in pages),
+    }
+    return {"commander": commander, "cards": cards, "sources": sources}

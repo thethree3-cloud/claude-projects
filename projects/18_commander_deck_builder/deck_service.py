@@ -7,7 +7,7 @@ build_claude() Claude-picked deck (llm_deck), validated; None deck if it never p
 
 import build_deck
 import card_db
-import edhrec_client
+import commander_lookup
 import llm_deck
 from validate_deck import validate_text
 
@@ -17,27 +17,29 @@ def commander_names(db):
     return db.commander_names()
 
 
-def prepare(commander_name, db, owned=frozenset()):
-    """Commander row, its checked candidate pool, and what the commander costs you."""
-    commander = db.get(commander_name)
-    if commander is None:
+def partner_names(commander_name, db):
+    """Cards that can be this commander's second commander (empty if none)."""
+    card = db.get(commander_name)
+    return db.partner_names(card) if card else []
+
+
+def prepare(commander_name, db, owned=frozenset(), partner_name=None):
+    """Commander row (combined for a pair), its checked candidate pool, and
+    what the commander(s) cost you."""
+    if db.get(commander_name) is None:
         raise LookupError(f"No card named {commander_name!r}.")
-    page = edhrec_client.parse_commander_page(
-        edhrec_client.fetch_commander_page(edhrec_client.slugify(commander["name"]))
-    )
-    if not page["commander"]["legal_commander"]:
-        raise LookupError(f"{commander['name']} is not legal as a commander.")
-    pool = build_deck.candidate_pool(commander, page["cards"], db, owned)
+    loaded = commander_lookup.load_commanders(commander_name, db, partner_name, owned)
+    commander = loaded["commander"]
+    pool = build_deck.candidate_pool(commander, loaded["cards"], db, owned)
     oracle = db.get_many([c["name"] for c in pool])
     for c in pool:
         c["oracle_text"] = oracle[c["name"]]["oracle_text"]
-    cost = 0.0 if commander["name"] in owned else (commander["usd"] or 0.0)
-    return {"commander": commander, "pool": pool, "commander_cost": cost}
+    return {"commander": commander, "pool": pool, "commander_cost": loaded["commander_cost"]}
 
 
 def _finish(prep, deck, budget, db, owned):
     text = build_deck.import_text(prep["commander"], deck)
-    check = validate_text(text, db, budget=budget, owned=owned)
+    check = validate_text(text, db, budget=budget, owned=owned, **build_deck.commander_args(prep["commander"]))
     return {"deck": deck, "text": text, "check": check}
 
 

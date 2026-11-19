@@ -30,6 +30,8 @@ Usage:
     python build_deck.py "Kestia, the Cultivator" --budget 100
     python build_deck.py kestia --budget 50 --owned
     python build_deck.py kestia --budget 50 --owned --binder "Born of the Gods" --out kestia.txt
+    python build_deck.py thrasios --partner tymna --budget 150
+    python build_deck.py halsin --partner "raised by giants" --budget 75
 """
 
 import argparse
@@ -96,7 +98,7 @@ def candidate_pool(commander, edhrec_cards, db, owned=frozenset()):
     EDHREC doesn't list are added with ``listed=False`` as a last resort.
     """
     identity = commander["color_identity"]
-    pool, seen = [], {commander["name"]}
+    pool, seen = [], {c["name"] for c in card_db.commander_members(commander)}
 
     def add(card, inclusion, listed):
         if card is None or card["name"] in seen or card["name"] in edhrec_client.BASIC_LANDS:
@@ -185,8 +187,9 @@ def build_deck(commander, pool, budget, owned_mode=False, upgrade=True, commande
     Returns ``{"cards", "basics", "warnings", "spent", "upgrades"}``.
     """
     identity = commander["color_identity"]
+    in_command_zone = len(card_db.commander_members(commander))  # 2 for partners / backgrounds
     nonbasic_target = min(NONBASIC_BY_COLORS[len(identity)], LAND_TARGET)
-    spell_target = DECK_SIZE - 1 - LAND_TARGET
+    spell_target = DECK_SIZE - in_command_zone - LAND_TARGET
     chosen, warnings = [], []
     spent = commander_cost
 
@@ -273,7 +276,7 @@ def build_deck(commander, pool, budget, owned_mode=False, upgrade=True, commande
     upgrades = upgrade_pass(chosen, pool, budget - spent, owned_mode) if upgrade else []
     spent += sum(u["extra"] for u in upgrades)
 
-    basics_count = DECK_SIZE - 1 - len(chosen)
+    basics_count = DECK_SIZE - in_command_zone - len(chosen)
     return {
         "cards": chosen,
         "basics": _basics_split(identity, spells(), basics_count),
@@ -286,11 +289,12 @@ def build_deck(commander, pool, budget, owned_mode=False, upgrade=True, commande
 def check_deck(commander, deck, budget):
     """Quick sanity checks (the full validator is Slice 4). Returns a list of problems."""
     names = [c["name"] for c in deck["cards"]]
+    members = {c["name"] for c in card_db.commander_members(commander)}
     problems = []
-    total = 1 + len(names) + sum(deck["basics"].values())
+    total = len(members) + len(names) + sum(deck["basics"].values())
     if total != DECK_SIZE:
         problems.append(f"deck has {total} cards, not {DECK_SIZE}")
-    if len(set(names)) != len(names) or commander["name"] in names:
+    if len(set(names)) != len(names) or members & set(names):
         problems.append("a card appears more than once")
     if any(not card_db.identity_fits(c["color_identity"], commander["color_identity"]) for c in deck["cards"]):
         problems.append("a card is outside the color identity")
@@ -304,9 +308,17 @@ def check_deck(commander, deck, budget):
 # ---------------------------------------------------------------------------
 
 
+def commander_args(commander):
+    """``validate_text`` keywords naming the commander(s) explicitly, so a deck
+    whose first spell happens to be a partner isn't read as a pair."""
+    members = card_db.commander_members(commander)
+    return {"commander_name": members[0]["name"],
+            "partner_name": members[1]["name"] if len(members) > 1 else None}
+
+
 def import_text(commander, deck):
-    """Moxfield / Archidekt import format: '1 Card Name' per line, commander first."""
-    lines = [f"1 {commander['name']}"]
+    """Moxfield / Archidekt import format: '1 Card Name' per line, commander(s) first."""
+    lines = [f"1 {c['name']}" for c in card_db.commander_members(commander)]
     lines += [f"1 {c['name']}" for c in sorted(deck["cards"], key=lambda c: c["name"])]
     lines += [f"{n} {name}" for name, n in sorted(deck["basics"].items())]
     return "\n".join(lines)
@@ -351,6 +363,7 @@ def format_report(commander, deck, budget, owned_mode):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Build a Commander deck within a budget (no LLM).")
     parser.add_argument("commander", help="commander name (fuzzy match is fine)")
+    parser.add_argument("--partner", help="second commander: a partner, Background, Doctor... (fuzzy)")
     parser.add_argument("--budget", type=float, required=True, help="max USD to spend on cards you don't own")
     parser.add_argument("--owned", action="store_true", help="use cards from your collection first ($0)")
     parser.add_argument("--binder", help="with --owned: only this binder")
@@ -373,30 +386,25 @@ def main(argv=None):
 
     try:
         db = card_db.open_db()
-        commander = db.get(commander_lookup.resolve_commander(args.commander, db))
-        page = edhrec_client.parse_commander_page(
-            edhrec_client.fetch_commander_page(edhrec_client.slugify(commander["name"]))
-        )
-        if not page["commander"]["legal_commander"]:
-            raise LookupError(f"{commander['name']} is not legal as a commander.")
+        loaded = commander_lookup.load_commanders(args.commander, db, args.partner, owned)
     except (LookupError, edhrec_client.EdhrecError, card_db.BulkDataError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
     from validate_deck import validate_text  # here, not at the top: validate_deck imports this module
 
-    commander_cost = 0.0 if commander["name"] in owned else (commander["usd"] or 0.0)
+    commander, commander_cost = loaded["commander"], loaded["commander_cost"]
     if commander_cost > args.budget:
         print(f"Error: {commander['name']} alone costs ${commander_cost:.2f}, over the ${args.budget:.2f} budget.",
               file=sys.stderr)
         return 1
-    pool = candidate_pool(commander, page["cards"], db, owned)
+    pool = candidate_pool(commander, loaded["cards"], db, owned)
     deck = build_deck(commander, pool, args.budget, owned_mode=args.owned, upgrade=not args.no_upgrade,
                       commander_cost=commander_cost)
     problems = check_deck(commander, deck, args.budget)
     text = import_text(commander, deck)
     # Every deck goes through the full validator before it is shown.
-    check = validate_text(text, db, budget=args.budget, owned=owned)
+    check = validate_text(text, db, budget=args.budget, owned=owned, **commander_args(commander))
     problems += check["errors"]
     if problems:
         print("Error: built deck failed checks: " + "; ".join(problems), file=sys.stderr)

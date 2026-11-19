@@ -69,13 +69,13 @@ class Picks(BaseModel):
     picks: list[Pick]
 
 
-PROMPT = """Build a Commander (EDH) deck for {name}.
+PROMPT = """Build a Commander (EDH) deck for {name}.{pair_note}
 
 Commander rules text:
 {oracle}
 
-Budget: ${budget:.2f} in total. The commander costs ${commander_cost:.2f}, so the cards you pick may cost at most ${money:.2f} together.
-Cards marked "owned" cost $0. Basic lands are free and are added automatically after your picks to bring the deck to 99 cards plus the commander.
+Budget: ${budget:.2f} in total. The {commander_word} cost{s} ${commander_cost:.2f}, so the cards you pick may cost at most ${money:.2f} together.
+Cards marked "owned" cost $0. Basic lands are free and are added automatically after your picks to bring the deck to {rest} cards plus the {commander_word}.
 
 Rules for your answer:
 - Pick ONLY by id from the table below. Each id at most once.
@@ -116,9 +116,10 @@ def card_table(pool):
     return "\n".join(lines), by_id
 
 
-def min_picks(pool, money):
-    """Fewest picks to demand: the 62 spell slots, or as many cards as the money can buy at all."""
-    spell_slots = build_deck.DECK_SIZE - 1 - build_deck.LAND_TARGET
+def min_picks(pool, money, in_command_zone=1):
+    """Fewest picks to demand: the 62 spell slots (61 with two commanders), or as
+    many cards as the money can buy at all."""
+    spell_slots = build_deck.DECK_SIZE - in_command_zone - build_deck.LAND_TARGET
     affordable, total = 0, 0.0
     for cost in sorted(c["cost"] for c in pool if c["role"] != "land"):
         if total + cost > money + 1e-9:
@@ -129,15 +130,20 @@ def min_picks(pool, money):
 
 
 def first_prompt(commander, budget, commander_cost, table, minimum=None):
-    spell_slots = build_deck.DECK_SIZE - 1 - build_deck.LAND_TARGET
+    n = len(card_db.commander_members(commander))
+    spell_slots = build_deck.DECK_SIZE - n - build_deck.LAND_TARGET
     return PROMPT.format(
         name=commander["name"],
+        pair_note=" They share the command zone as partners; build for both." if n > 1 else "",
+        commander_word="commanders" if n > 1 else "commander",
+        s="" if n > 1 else "s",
+        rest=build_deck.DECK_SIZE - n,
         oracle=commander["oracle_text"],
         budget=budget,
         commander_cost=commander_cost,
         money=budget - commander_cost,
         min_picks=spell_slots if minimum is None else minimum,
-        max_picks=build_deck.DECK_SIZE - 1,
+        max_picks=build_deck.DECK_SIZE - n,
         land_lo=34,
         land_hi=38,
         table=table,
@@ -157,6 +163,7 @@ def assemble(commander, by_id, picks, commander_cost=0.0, minimum=0):
     "legal" deck of 99 basic lands). Basics fill the deck to 99 cards.
     """
     problems, cards, seen = [], [], set()
+    slots = build_deck.DECK_SIZE - len(card_db.commander_members(commander))  # 99, or 98 with a pair
     for p in picks:
         card = by_id.get(p.id)
         if card is None:
@@ -169,11 +176,11 @@ def assemble(commander, by_id, picks, commander_cost=0.0, minimum=0):
         cards.append({**card, "reason": p.reason.strip()})
     if len(cards) < minimum:
         problems.append(f"Only {len(cards)} cards picked; pick at least {minimum} (the budget allows that many).")
-    if len(cards) > build_deck.DECK_SIZE - 1:
-        problems.append(f"{len(cards)} cards picked; at most {build_deck.DECK_SIZE - 1} fit next to the commander.")
-        cards = cards[: build_deck.DECK_SIZE - 1]
+    if len(cards) > slots:
+        problems.append(f"{len(cards)} cards picked; at most {slots} fit next to the commander.")
+        cards = cards[:slots]
     spells = [c for c in cards if c["role"] != "land"]
-    basics = build_deck._basics_split(commander["color_identity"], spells, build_deck.DECK_SIZE - 1 - len(cards))
+    basics = build_deck._basics_split(commander["color_identity"], spells, slots - len(cards))
     spent = commander_cost + sum(c["cost"] for c in cards)
     return {"cards": cards, "basics": basics, "spent": round(spent, 2), "warnings": [], "upgrades": []}, problems
 
@@ -236,7 +243,7 @@ def build_with_claude(commander, pool, budget, db, client, owned=frozenset(), co
     """Ask Claude for a deck, validate, feed errors back. Returns a result dict with ``ok``."""
     table, by_id = card_table(pool)
     money = budget - commander_cost
-    minimum = min_picks(pool, money)
+    minimum = min_picks(pool, money, len(card_db.commander_members(commander)))
     messages = [{
         "role": "user",
         "content": [{
@@ -256,7 +263,7 @@ def build_with_claude(commander, pool, budget, db, client, owned=frozenset(), co
         picks = _parse(message)
         deck, problems = assemble(commander, by_id, picks.picks, commander_cost, minimum)
         text = build_deck.import_text(commander, deck)
-        check = validate_text(text, db, budget=budget, owned=owned)
+        check = validate_text(text, db, budget=budget, owned=owned, **build_deck.commander_args(commander))
         errors = problems + check["errors"]
         attempts.append({"attempt": attempt, "errors": errors, "picks": len(picks.picks),
                          "served_model": getattr(message, "model", None)})
@@ -340,6 +347,7 @@ def format_report(commander, budget, result, baseline):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Claude picks a Commander deck from the checked candidate pool.")
     parser.add_argument("commander")
+    parser.add_argument("--partner", help="second commander: a partner, Background, Doctor... (fuzzy)")
     parser.add_argument("--budget", type=float, required=True)
     parser.add_argument("--owned", action="store_true", help="cards in your collection cost $0")
     parser.add_argument("--binder", help="with --owned: only this binder")
@@ -359,14 +367,11 @@ def main(argv=None):
 
     try:
         db = card_db.open_db()
-        commander = db.get(commander_lookup.resolve_commander(args.commander, db))
-        page = edhrec_client.parse_commander_page(
-            edhrec_client.fetch_commander_page(edhrec_client.slugify(commander["name"]))
-        )
-        commander_cost = 0.0 if commander["name"] in owned else (commander["usd"] or 0.0)
+        loaded = commander_lookup.load_commanders(args.commander, db, args.partner, owned)
+        commander, commander_cost = loaded["commander"], loaded["commander_cost"]
         if commander_cost > args.budget:
             raise LookupError(f"{commander['name']} alone costs ${commander_cost:.2f}, over the budget.")
-        pool = build_deck.candidate_pool(commander, page["cards"], db, owned)
+        pool = build_deck.candidate_pool(commander, loaded["cards"], db, owned)
         oracle = db.get_many([c["name"] for c in pool])
         for c in pool:
             c["oracle_text"] = oracle[c["name"]]["oracle_text"]

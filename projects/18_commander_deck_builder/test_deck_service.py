@@ -22,10 +22,10 @@ class DeckServiceTests(unittest.TestCase):
         write_bulk(bulk, cards)
         card_db.build_db(bulk, Path(cls.tmp.name) / "cards.sqlite")
         cls.db = card_db.CardDB(Path(cls.tmp.name) / "cards.sqlite")
-        page = {"commander": {"legal_commander": True},
+        page = {"commander": {"legal_commander": True, "num_decks": 100},
                 "cards": [{"name": f"Spell {i}", "inclusion": 0.5 - i / 200} for i in range(80)]}
-        with mock.patch("deck_service.edhrec_client.fetch_commander_page", return_value={}), \
-             mock.patch("deck_service.edhrec_client.parse_commander_page", return_value=page):
+        with mock.patch("edhrec_client.fetch_commander_page", return_value={}), \
+             mock.patch("edhrec_client.parse_commander_page", return_value=page):
             cls.prep = deck_service.prepare("Green Commander", cls.db, owned={"Spell 3"})
 
     @classmethod

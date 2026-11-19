@@ -100,8 +100,8 @@ def grade_pool(commander, names, db, edhrec_cards, bracket=None):
         if card is None:
             missing.append(name)
             continue
-        if card["name"] == commander["name"]:
-            continue  # the commander itself isn't one of the 99
+        if card["name"] in {c["name"] for c in card_db.commander_members(commander)}:
+            continue  # the commander(s) aren't part of the 99
         graded.append(grade_card(card, identity, by_name.get(card["name"]), bracket))
     graded.sort(key=lambda g: (TIERS.index(g["tier"]), -(g["inclusion"] or 0), g["name"]))
 
@@ -278,6 +278,7 @@ def format_report(result):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Grade your owned cards against a commander.")
     parser.add_argument("commander", help="commander name (fuzzy match is fine)")
+    parser.add_argument("--partner", help="second commander: a partner, Background, Doctor... (fuzzy)")
     parser.add_argument("--binder", help="only cards from this binder (default: whole collection)")
     parser.add_argument("--bracket", type=int, choices=range(1, 6), help="bracket you play (flags Game Changers)")
     parser.add_argument("--no-llm", action="store_true", help="skip Claude's one-line reasons")
@@ -297,13 +298,8 @@ def main(argv=None):
 
     try:
         db = card_db.open_db()
-        commander = db.get(commander_lookup.resolve_commander(args.commander, db))
-        page = edhrec_client.parse_commander_page(
-            edhrec_client.fetch_commander_page(edhrec_client.slugify(commander["name"]))
-        )
-        if not page["commander"]["legal_commander"]:
-            raise LookupError(f"{commander['name']} is not legal as a commander.")
-        result = grade_pool(commander, names, db, page["cards"], args.bracket)
+        loaded = commander_lookup.load_commanders(args.commander, db, args.partner)
+        result = grade_pool(loaded["commander"], names, db, loaded["cards"], args.bracket)
         if not args.no_llm:
             add_reasons(result, make_client(), args.model)
     except (LookupError, edhrec_client.EdhrecError, card_db.BulkDataError, ScanError) as exc:

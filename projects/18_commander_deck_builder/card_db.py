@@ -305,6 +305,136 @@ def can_be_commander(card):
     return "Legendary" in front and ("Creature" in front or "creature in addition to its other types" in text)
 
 
+# ---------------------------------------------------------------------------
+# Two commanders (partners, backgrounds, Doctor's companion)
+# ---------------------------------------------------------------------------
+
+_PARTNER_WITH = re.compile(r"^Partner with (.+?)\s*(?:\(|$)")
+_PARTNER_VARIANT = re.compile(r"^Partner\s*[—-]\s*(.+?)\s*(?:\(|$)")
+_PARTNER_PLAIN = re.compile(r"^Partner\s*(?:\(|$)")
+
+
+def pairing(card):
+    """How a card can share the command zone, as a set of tags:
+    ``("partner",)``, ``("with", name)``, ``("variant", "friends forever")``,
+    ``("wants_background",)``, ``("background",)``, ``("companion",)``, ``("doctor",)``.
+    """
+    tags = set()
+    for line in card["oracle_text"].split("\n"):
+        line = line.strip()
+        if m := _PARTNER_WITH.match(line):
+            tags.add(("with", m.group(1)))
+        elif m := _PARTNER_VARIANT.match(line):
+            tags.add(("variant", m.group(1).lower()))
+        elif _PARTNER_PLAIN.match(line):
+            tags.add(("partner",))
+        elif line.startswith("Choose a Background"):
+            tags.add(("wants_background",))
+        elif re.match(r"Doctor.s companion", line):
+            tags.add(("companion",))
+    front = card["type_line"].split(" // ")[0]
+    kinds, _, subtypes = front.partition("—")
+    if "Legendary" in kinds and "Enchantment" in kinds and "Background" in subtypes.split():
+        tags.add(("background",))
+    if "Legendary" in kinds and "Creature" in kinds and subtypes.split() == ["Time", "Lord", "Doctor"]:
+        tags.add(("doctor",))
+    return tags
+
+
+def _names(card):
+    return {card["name"], card["name"].split(" // ")[0]}
+
+
+def pair_problem(a, b):
+    """Why ``a`` and ``b`` can't be your two commanders, or None if they can."""
+    if a["name"] == b["name"]:
+        return "the same card can't be both commanders"
+    for card in (a, b):
+        if not card["legal_commander"]:
+            return f"{card['name']} is banned in Commander"
+    ta, tb = pairing(a), pairing(b)
+    if ta & tb & {("partner",)}:
+        return None
+    if any(("with", n) in ta for n in _names(b)) and any(("with", n) in tb for n in _names(a)):
+        return None
+    if {t for t in ta if t[0] == "variant"} & {t for t in tb if t[0] == "variant"}:
+        return None
+    for x, y, tx, ty in ((a, b, ta, tb), (b, a, tb, ta)):
+        if ("wants_background",) in tx and ("background",) in ty and can_be_commander(x):
+            return None
+        if ("companion",) in tx and ("doctor",) in ty and can_be_commander(x):
+            return None
+    return f"{a['name']} and {b['name']} can't be commanders together (no matching partner or background ability)"
+
+
+def can_lead(card):
+    """Can this card be one of the commanders (alone, or as half of a pair)?"""
+    return card["legal_commander"] and (can_be_commander(card) or ("background",) in pairing(card))
+
+
+def commander_members(commander):
+    """The real card rows behind a commander (two for a pair)."""
+    return commander.get("members") or [commander]
+
+
+def combine_commanders(cards):
+    """One commander dict for one or two cards. A pair gets ``members``, the
+    combined color identity, a "A + B" display name and both rules texts."""
+    if len(cards) == 1:
+        return cards[0]
+    identity = "".join(c for c in "WUBRG" if any(c in card["color_identity"] for card in cards))
+    prices = [card["usd"] for card in cards]
+    return {
+        **cards[0],
+        "name": " + ".join(card["name"] for card in cards),
+        "color_identity": identity,
+        "oracle_text": "\n\n".join(f"{card['name']}: {card['oracle_text']}" for card in cards),
+        "usd": None if None in prices else round(sum(prices), 2),
+        "legal_commander": int(all(card["legal_commander"] for card in cards)),
+        "members": list(cards),
+    }
+
+
+def _norm(text):
+    # Punctuation counts as a space: "ur dragon" finds "The Ur-Dragon".
+    return " ".join(re.sub(r"[,'\-]", " ", text.lower()).split())
+
+
+def best_match(query, names, cutoff=0.6):
+    """Best name in ``names`` (ordered most-played first) for a sloppy query, or None.
+
+    Order: exact name -> name starts with the query -> a word in the name
+    starts with it -> substring -> typo (full or short name). Ties go to the
+    earlier name in ``names``.
+    """
+    q = _norm(query)
+    if not q:
+        return None
+    lowered = {n.lower(): n for n in names}
+    if query.lower().strip() in lowered:
+        return lowered[query.lower().strip()]
+    fronts = {_norm(n.split(" // ")[0]): n for n in names}
+    if q in fronts:
+        return fronts[q]
+    normed = [(_norm(n), n) for n in names]
+    tests = (
+        lambda low: low.startswith(q),
+        lambda low: (" " + low).find(" " + q) >= 0,  # a word starts with the query
+        lambda low: q in low,
+    )
+    for test in tests:
+        hits = [n for low, n in normed if test(low)]
+        if hits:
+            return hits[0]
+    # Typos: compare against full names and short names ("Muldrotha" from
+    # "Muldrotha, the Gravetide"), since people usually type the short one.
+    keys = dict(lowered)
+    for n in names:
+        keys.setdefault(n.lower().split(",")[0].split(" // ")[0], n)
+    close = difflib.get_close_matches(q, keys, n=1, cutoff=cutoff)
+    return keys[close[0]] if close else None
+
+
 class CardDB:
     """Read-only access to the local card table."""
 
@@ -366,44 +496,24 @@ class CardDB:
         return [r["name"] for r in rows if can_be_commander(r)]
 
     def find_commander(self, query, cutoff=0.6):
-        """Like ``find_name``, but only cards that can be a commander are considered.
+        """Like ``find_name``, but only cards that can be a commander are considered,
+        so "esika" is Esika, God of the Tree (not the fuzzy hit "Amnesia"). See
+        ``best_match`` for the order. Returns the exact name or None."""
+        return best_match(query, self.commander_names(), cutoff)
 
-        Order: exact name -> name starts with the query -> a word in the name
-        starts with it -> substring -> fuzzy. Ties go to the most-played card,
-        so "esika" is Esika, God of the Tree (not the fuzzy hit "Amnesia").
-        Returns the exact name or None.
-        """
-        def norm(text):
-            # Punctuation counts as a space: "ur dragon" finds "The Ur-Dragon".
-            return " ".join(re.sub(r"[,'\-]", " ", text.lower()).split())
-
-        q = norm(query)
-        if not q:
-            return None
-        names = self.commander_names()  # already most-played first
-        lowered = {n.lower(): n for n in names}
-        if query.lower().strip() in lowered:
-            return lowered[query.lower().strip()]
-        fronts = {norm(n.split(" // ")[0]): n for n in names}
-        if q in fronts:
-            return fronts[q]
-        normed = [(norm(n), n) for n in names]
-        tests = (
-            lambda low: low.startswith(q),
-            lambda low: (" " + low).find(" " + q) >= 0,  # a word starts with the query
-            lambda low: q in low,
+    def partner_names(self, card):
+        """Cards that can be ``card``'s second commander, most-played first."""
+        if not pairing(card):
+            return []
+        rows = self.conn.execute(
+            "SELECT * FROM cards WHERE legal_commander = 1 AND type_line LIKE '%Legendary%' "
+            "ORDER BY edhrec_rank IS NULL, edhrec_rank, name"
         )
-        for test in tests:
-            hits = [n for low, n in normed if test(low)]
-            if hits:
-                return hits[0]
-        # Typos: compare against full names and short names ("Muldrotha" from
-        # "Muldrotha, the Gravetide"), since people usually type the short one.
-        keys = dict(lowered)
-        for n in names:
-            keys.setdefault(n.lower().split(",")[0].split(" // ")[0], n)
-        close = difflib.get_close_matches(q, keys, n=1, cutoff=cutoff)
-        return keys[close[0]] if close else None
+        return [r["name"] for r in rows if pairing(r) and pair_problem(card, r) is None]
+
+    def find_partner(self, card, query, cutoff=0.6):
+        """Best match for ``query`` among the cards that can pair with ``card``."""
+        return best_match(query, self.partner_names(card), cutoff)
 
     def game_changers(self):
         """Names of every card on the official Game Changers list, A-Z."""
