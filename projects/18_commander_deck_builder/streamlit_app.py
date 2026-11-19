@@ -15,6 +15,7 @@ import deck_service
 import edhrec_client
 import llm_deck
 from collection import Collection
+from flip_card import flip_card
 from scan_binder import ScanError, make_client
 
 st.set_page_config(page_title="Commander deck builder", page_icon=":material/style:", layout="wide")
@@ -25,7 +26,6 @@ ROLE_TITLES = {"land": "Lands", "ramp": "Ramp", "draw": "Card draw", "removal": 
                "wipe": "Board wipes", "synergy": "Synergy"}
 
 st.session_state.setdefault("result", None)
-st.session_state.setdefault("flipped", set())
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +69,16 @@ def load_prep(commander, partner, owned, max_card_price):
         db.close()
 
 
+@st.cache_data(ttl="1d", max_entries=50, show_spinner="Asking Commander Spellbook...")
+def load_combos(commanders, main):
+    import combos
+    db = deck_service.open_db()
+    try:
+        return combos.find_combos(list(commanders), list(main), db)
+    finally:
+        db.close()
+
+
 @st.cache_resource
 def claude_client():
     return make_client().with_options(timeout=600, max_retries=4)
@@ -82,11 +92,6 @@ def owned_names(binder):
         return tuple(sorted(col.names(binder=binder)))
     finally:
         col.close()
-
-
-def toggle_flip(name):
-    flipped = st.session_state.flipped
-    flipped.symmetric_difference_update({name})
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +159,6 @@ if build:
         result = None
     if result is not None:
         st.session_state.result = result | {"commander": prep["commander"], "budget": budget}
-        st.session_state.flipped = set()
 
 result = st.session_state.result
 
@@ -202,7 +206,41 @@ with st.container(horizontal=True):
     basics = ", ".join(f"{n} {b}" for b, n in sorted(deck["basics"].items()))
     st.caption(f"Basic lands (free): {basics or 'none'}")
 
-cards_tab, list_tab = st.tabs(["Cards", "List"])
+cards_tab, list_tab, combos_tab = st.tabs(["Cards", "List", "Combos"])
+
+with combos_tab:
+    combo_key = (tuple(c["name"] for c in cmd.get("members") or [cmd]), tuple(sorted(c["name"] for c in deck["cards"])))
+    if st.session_state.get("combos_for") != combo_key:
+        st.caption("Combos already in this deck, and combos one card away, from Commander Spellbook.")
+        if st.button("Find combos", icon=":material/join_inner:", key="find_combos"):
+            try:
+                st.session_state.combos = load_combos(*combo_key)
+                st.session_state.combos_for = combo_key
+                st.rerun()
+            except Exception as exc:  # network / API shape problems
+                st.error(f"Couldn't reach Commander Spellbook: {exc}", icon=":material/error:")
+    else:
+        found = st.session_state.combos
+        st.markdown(f"#### In this deck ({len(found['in_deck'])})")
+        if not found["in_deck"]:
+            st.caption("None found.")
+        for c in found["in_deck"]:
+            with st.expander(" + ".join(c["cards"])):
+                st.markdown(f"**Produces:** {', '.join(c['produces']) or 'see link'}")
+                if c["prerequisites"]:
+                    st.markdown(f"**Needs:** {c['prerequisites']}")
+                st.markdown(c["description"].replace("\n", "  \n"))
+                st.link_button("Open on Commander Spellbook", c["url"], icon=":material/open_in_new:")
+        st.markdown(f"#### One card away ({len(found['one_card_away'])})")
+        if found["one_card_away"]:
+            st.dataframe(
+                [{"Add": c["missing"][0], "Price": f"${c['missing_usd']:.2f}" if c["missing_usd"] is not None else "n/a",
+                  "Combo": " + ".join(c["cards"]), "Produces": ", ".join(c["produces"][:3]), "Link": c["url"]}
+                 for c in found["one_card_away"]],
+                column_config={"Link": st.column_config.LinkColumn(display_text="Open")}, hide_index=True)
+        else:
+            st.caption("None.")
+        st.caption("Combo data: Commander Spellbook. The builder doesn't add combos on its own.")
 
 with list_tab:
     st.dataframe(
@@ -214,32 +252,34 @@ with list_tab:
     )
 
 
-@st.fragment
+def card_image(card, key, width="stretch"):
+    """A card picture; two-faced cards turn over in 3D when clicked (in the browser, no rerun)."""
+    if card.get("image_url") and card.get("image_url_back"):
+        flip_card(card["name"], card["image_url"], card["image_url_back"], key=key)
+    elif card.get("image_url"):
+        st.image(card["image_url"], width=width, alt=card["name"])
+    else:
+        st.write(card["name"])
+
+
 def card_grid(deck):
-    """Image grid by role. Flipping a two-faced card only reruns this fragment."""
+    """Image grid by role."""
     members = cmd.get("members") or [cmd]
     with st.container(horizontal=True):
         for member in members:
-            if member.get("image_url"):
-                st.image(member["image_url"], caption=f"Commander: {member['name']}", width=180)
+            with st.container(width=180):
+                card_image(member, key=f"flip-cmd-{member['name']}")
+                st.caption(f"Commander: {member['name']}")
     for role, cards in deck_service.grouped(deck):
         st.markdown(f"#### {ROLE_TITLES[role]} ({len(cards)})")
         for start in range(0, len(cards), GRID_COLUMNS):
             cols = st.columns(GRID_COLUMNS)
             for col, card in zip(cols, cards[start:start + GRID_COLUMNS]):
                 with col:
-                    flipped = card["name"] in st.session_state.flipped and card.get("image_url_back")
-                    url = card["image_url_back"] if flipped else card.get("image_url")
-                    if url:
-                        st.image(url, width="stretch")
-                    else:
-                        st.write(card["name"])
+                    card_image(card, key=f"flip-{card['name']}")
                     st.caption(f"{card['name']} - {deck_service.price_label(card)}")
                     if card.get("reason"):
                         st.caption(f":material/smart_toy: {card['reason']}")
-                    if card.get("image_url_back"):
-                        st.button("Flip", key=f"flip-{card['name']}", icon=":material/flip:",
-                                  on_click=toggle_flip, args=(card["name"],), width="stretch")
 
 
 with cards_tab:

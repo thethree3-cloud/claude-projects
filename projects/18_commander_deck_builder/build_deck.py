@@ -374,6 +374,7 @@ def main(argv=None):
     parser.add_argument("--owned", action="store_true", help="use cards from your collection first ($0)")
     parser.add_argument("--binder", help="with --owned: only this binder")
     parser.add_argument("--no-upgrade", action="store_true", help="skip the leftover-money upgrade pass")
+    parser.add_argument("--combos", action="store_true", help="also list combos in the deck (Commander Spellbook)")
     parser.add_argument("--out", type=Path, help="write the import list to this file")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
@@ -424,6 +425,12 @@ def main(argv=None):
         print(json.dumps({"commander": commander["name"], "budget": args.budget, **deck}, indent=2))
     else:
         print(format_report(commander, deck, args.budget, args.owned))
+        if args.combos:
+            import combos  # optional network call, only when asked
+            try:
+                print("\n" + combos.format_report(combos.deck_combos(commander, deck, db)))
+            except combos.ComboError as exc:
+                print(f"\nCombos: {exc}")
         if args.out:
             print(f"\nImport list written to {args.out}")
     return 0

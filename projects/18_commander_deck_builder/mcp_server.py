@@ -23,6 +23,7 @@ from mcp.server.fastmcp import FastMCP
 
 import build_deck
 import card_db
+import combos
 import commander_lookup
 import edhrec_client
 import validate_deck
@@ -157,6 +158,30 @@ def validate_commander_deck(decklist: str, budget: float | None = None, commande
                                          partner_name=partner or None, budget=budget,
                                          max_card_price=max_card_price, bracket=bracket)
     return validate_deck.format_report(result)
+
+
+@mcp.tool()
+def find_combos(decklist: str, two_commanders: bool = False, one_card_away: int = 5) -> str:
+    """Combos in a Commander decklist, from Commander Spellbook: combos already in
+    the deck, and combos one card away (inside the deck's colors) with that
+    card's price.
+
+    Args:
+        decklist: one card per line; the first line is the commander.
+        two_commanders: the second line is a second commander (partners / Background).
+        one_card_away: how many near-miss combos to list (default 5).
+    """
+    try:
+        names = [name for _, name in validate_deck.parse_decklist(decklist)]
+    except ValueError as exc:
+        return f"Error: {exc}"
+    n = 2 if two_commanders else 1
+    if len(names) <= n:
+        return "Error: the decklist needs the commander line(s) and at least one more card."
+    try:
+        return combos.format_report(combos.find_combos(names[:n], names[n:], db(), almost_limit=one_card_away))
+    except combos.ComboError as exc:
+        return f"Error: {exc}"
 
 
 if __name__ == "__main__":

@@ -64,6 +64,12 @@ def build_claude(prep, budget, db, client, owned=frozenset(), model=llm_deck.MOD
     return _finish(prep, result["deck"], budget, db, owned) | meta | {"strategy": result["strategy"]}
 
 
+def deck_combos(commander, deck, db):
+    """Combos in a built deck (Commander Spellbook); raises combos.ComboError."""
+    import combos
+    return combos.deck_combos(commander, deck, db)
+
+
 def grouped(deck):
     """Deck cards grouped by role in display order, most popular first in each group."""
     groups = []
