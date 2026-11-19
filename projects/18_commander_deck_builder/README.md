@@ -1,6 +1,9 @@
 # Commander Deck Builder Agent (Project 18)
 
-**Status: spec drafted 2026-09-24. Built 2026-09-25: Slice 1 (bulk-data card database), staples fetcher, commander lookup (no LLM yet).**
+**Status (2026-11-18): all 7 slices built and tested.** Code-only and Claude
+builders, a full format validator, partner commanders, evals plus a blind
+pairwise judge, a Streamlit app, an MCP server and Commander Spellbook
+combos. What's left: [`TODO_NEXT.md`](TODO_NEXT.md).
 
 Give it a commander and a budget; get back a legal, priced, 100-card
 Commander deck built from real popularity data. The LLM makes the judgment
@@ -94,8 +97,8 @@ Sol Ring 85%, Arcane Signet 70%, Spore Frog 59% (+53% synergy). A lookup takes
 ~0.1 s (cached EDHREC page) or ~0.5 s (new commander, one EDHREC request).
 Before Slice 1 it took ~30 s cold because prices came from live Scryfall calls.
 
-Known limits: inclusion is EDHREC's aggregate, not individual decklists; no
-total-deck budget or slot logic yet (Slices 3-5).
+Known limit: inclusion is EDHREC's aggregate, not individual decklists.
+(Budget, slots and deck building came later; see Slices.)
 
 ## Slice 1: card database (built 2026-09-25)
 
@@ -144,7 +147,8 @@ the input to Slice 3.
 | Price | Same file, `prices.usd` | Min USD across non-promo printings; keep `price_source` (which printing) |
 | Popularity (global) | Scryfall `edhrec_rank` | In the same bulk file |
 | Popularity (per commander) | EDHREC JSON | `json.edhrec.com/pages/commanders/<slug>.json` — unofficial; parse defensively, cache 7 days |
-| Combos (stretch) | Commander Spellbook API | Filter by color identity |
+| Popularity (as commander) | EDHREC commander ranking | `pages/commanders/year.json` + paged `more` links, top ~2,000, cached 7 days |
+| Combos | Commander Spellbook API | `POST backend.commanderspellbook.com/find-my-combos`, cached per decklist |
 
 ## Pipeline
 
@@ -174,10 +178,12 @@ Hard failures (block the deck):
   Doctor
 - every card legal in Commander (not banned / not silver-border)
 - every card exists in the candidate data (catches hallucinated names)
-- total price <= budget
+- total price <= budget; optional per-card limit (`--max-card-price`; the
+  commander and owned cards don't count)
+- Game Changers within the limit for `--bracket` 1-3
 
 Soft warnings: land count outside 34-38, ramp/draw/removal below target,
-mana curve too top-heavy, Game Changers count vs requested bracket.
+mana curve too top-heavy, unpriced cards.
 
 ## Evals (Slice 6, run 2026-10-19)
 
@@ -223,7 +229,8 @@ What the numbers say:
 Run cost: **$8.75 measured** for all 90 Claude decks (Opus $5.95, Sonnet
 $2.55, Haiku $0.25), pilot included; ~12 minutes with 4 cases in parallel.
 One Haiku case hit the 32k output limit, was logged as an error and re-run
-(its usage isn't in the total). Raw rows: `evals/runs/<variant>/results.jsonl`;
+(its usage isn't in the total; error rows now keep the usage of failed
+attempts, and the summary adds it). Raw rows: `evals/runs/<variant>/results.jsonl`;
 table: `evals/RESULTS.md` (`python eval_decks.py --summary`).
 
 ### Blind pairwise judge (run 2026-11-18)
@@ -263,8 +270,9 @@ judged twice with the order swapped; a deck wins only if it wins both.**
   same-family preference); an LLM judge is not play-testing. Its reasons
   sometimes misread a deck (it called Edgar's R/W lands off-color), which
   is why the pilot's land miscount led to adding counted facts to the
-  prompt. A second judge family or a human review of a few cases would
-  firm this up.
+  prompt. **Human check:** `review_decks.py` shows 6 of these cases blind
+  (2 per budget, including 2 splits) for a person to pick; it reveals the
+  builders and the judge's verdict only after all 6. Result: pending.
 
 Cost: **$1.52** for 60 judge calls (~10k input tokens each), 55 s with 4 in
 parallel; pilot $0.10. Raw rows: `evals/judge/claude-sonnet-5-5/results.jsonl`;
@@ -292,51 +300,106 @@ legally pair with the first commander), and the Streamlit page shows a
   Wernog $80 all build and pass the validator; single-commander decks are
   unchanged (Kestia $100 still $98.39).
 
+## Robustness and fallbacks (2026-11-18)
+
+- **EDHREC requests** are spaced 0.5 s apart and retried on 429 / 5xx /
+  network errors (1 s, 2 s, 4 s, or the server's `Retry-After`); missing
+  pages fail at once. Trimmed real pages (Thrasios + Tymna, Krenko) are
+  test fixtures, so a format change shows up in the tests.
+- **Thin or missing EDHREC data:** under 150 EDHREC cards, the pool gets the
+  most-played cards in the commander's colors (ranked below every real
+  EDHREC card, with a warning). A brand-new commander with no page at all
+  still gets a valid deck (checked: Ragnarok, Divine Deliverance $60).
+- **Commander names** match by how many decks a card *leads* (EDHREC's
+  2-year ranking): "krenko" is Mob Boss (45,216 decks), not Tin Street
+  Kingpin (1,802). A leading "The" is skipped, so "gitrog" is The Gitrog
+  Monster. Without the network it falls back to card popularity.
+- **Per-card cap:** `--max-card-price 3` drops cards you'd buy above $3
+  (Kestia $150 -> a valid $54 deck).
+
+## Combos (Commander Spellbook)
+
+`combos.py` sends a decklist (card names only) to Commander Spellbook and
+lists **combos already in the deck** and **combos one card away** inside the
+deck's colors, with that card's price. Cached per decklist. The builder
+doesn't add combos itself (v1 shows them). Example: the $150 Krenko baseline
+has 7 (e.g. Krenko + Skirk Prospector + Goblin Warchief); one card away:
+Zealous Conscripts ($0.29) with Kiki-Jiki.
+
+```
+python combos.py deck.txt              # --partner if line 2 is a second commander
+python build_deck.py krenko --budget 150 --combos
+```
+
 ## Interface
 
-- **CLI:** `build_deck.py` (no LLM) and `llm_deck.py` (Claude), both with
-  `--partner` for a second commander, write a
-  Moxfield/Archidekt import list (`--out`) plus a markdown report;
-  `validate_deck.py` checks any decklist; `grade_pool.py` grades your
-  collection for a commander.
-- **Streamlit page (Slice 7):** `streamlit run streamlit_app.py`. Commander
-  search (3,445 eligible cards), budget, "use my collection" with a binder
-  filter, code-only or Claude (model picker). Shows cost, lands, average
-  mana value, owned cards used and the validator verdict, Claude's strategy
-  and per-card reasons, warnings, a download button, a sortable list, and a
-  **card image grid by role with a Flip button on two-faced cards** (the
-  flip reruns only the grid). An invalid Claude deck is never shown. Logic
-  lives in `deck_service.py` (unit-tested); images are Scryfall links from
-  the printing that sets the price (`card_db.py` schema 3).
-- **Later (optional):** expose as an MCP tool, matching Project 06's pattern.
+- **CLI:** `build_deck.py` (no LLM) and `llm_deck.py` (Claude), with
+  `--partner`, `--max-card-price`, `--owned`, write a Moxfield/Archidekt
+  import list (`--out`) plus a markdown report; `validate_deck.py` checks any
+  decklist; `combos.py` finds combos; `grade_pool.py` grades your collection
+  for a commander; `commander_lookup.py` shows EDHREC's cards.
+- **Streamlit app:** `streamlit run streamlit_app.py`. Commander search
+  (ordered by decks led), second-commander picker when the commander can
+  pair, budget, optional per-card limit, "use my collection" with a binder
+  filter, code-only or Claude (shown only when an API key is set). Shows
+  cost, lands, average mana value, owned cards used and the validator
+  verdict, Claude's strategy and per-card reasons, warnings, a download
+  button, a sortable list, a **Combos** tab (fetched on click), and a card
+  image grid by role where **two-faced cards turn over with a 3D flip**
+  (`flip_card.py`, a Streamlit components-v2 element; the flip runs in the
+  browser with no rerun). An invalid Claude deck is never shown. Logic lives
+  in `deck_service.py` (unit-tested).
+- **MCP server:** `mcp_server.py` (FastMCP over stdio, Project 06's
+  pattern) with `find_commander`, `commander_cards`, `build_commander_deck`
+  (code-only builder, validated), `validate_commander_deck` and
+  `find_combos`. The deck tool doesn't call Claude: the MCP client already
+  is an LLM, so a second paid call would be hidden cost. Smoke-tested with a
+  real stdio client. Register it with:
+
+  ```bash
+  claude mcp add commander-deck-builder -- /home/t9/venv/bin/python /home/t9/claude-projects/projects/18_commander_deck_builder/mcp_server.py
+  ```
+- **Blind review page:** `streamlit run review_decks.py` (see the judge section).
+
+## Hosted demo (Streamlit Community Cloud)
+
+Ready to deploy; the deploy itself needs a Streamlit account:
+
+1. share.streamlit.io -> Create app -> this GitHub repo, branch `main` (or
+   this branch), main file `projects/18_commander_deck_builder/streamlit_app.py`,
+   Python 3.12. `requirements.txt` next to the app lists what it needs.
+2. Leave the Anthropic key out of a public app: without it the app hides
+   the Claude builder and runs the code-only builder for free. To demo
+   Claude, make the app private (invite viewers) and add
+   `ANTHROPIC_API_KEY = "..."` under Settings -> Secrets.
+3. First load takes ~20 s (downloads Scryfall's ~80 MB bulk file, builds the
+   card database, fetches the commander ranking); later loads are fast.
+   "Use my collection" stays off there (your scanned collection is local
+   and gitignored).
+
+Checked locally from a fresh copy with no `data/` folder and no key: first
+load 20 s, Claude hidden, Krenko $100 with a $3 card cap built and passed.
 
 ## Slices
 
-1. **Data layer** *(built: `card_db.py`, 26 tests)* — Default Cards bulk
-   download/cache/parse, Oracle-ID collapse, min-USD pricing.
-2. **EDHREC client** *(prototype built: `edhrec_client.py`)* — fetch + parse per-commander JSON (fix inclusion %
-   properly), disk cache, throttle; tests against saved fixtures.
-3. **Candidate pool + slot plan** — filtering, ranking, slot targets; pure
-   code, no LLM yet. A "greedy top-N by popularity within budget" baseline
-   that already produces a valid deck.
-4. **Validator** — all hard/soft rules, with tests for each failure mode.
-5. **LLM selection** — Claude picks per slot with reasons; validator loop
-   with retry; strict tool-only card access.
-6. **Evals** — test set, metrics, results table in the README.
-7. **CLI + report**, then Streamlit UI.
+1. **Data layer** *(done)* — `card_db.py`: Default Cards bulk, Oracle-ID
+   collapse, cheapest-printing USD, images, Game Changers.
+2. **EDHREC client** *(done)* — `edhrec_client.py`: inclusion = num/potential,
+   pair pages, throttle + retry, cache, fixtures, commander ranking.
+3. **Candidate pool + slot plan + baseline** *(done)* — `build_deck.py`.
+4. **Validator** *(done)* — `validate_deck.py`, a test per failure mode.
+5. **LLM selection** *(done)* — `llm_deck.py`, ids only, validator loop.
+6. **Evals** *(done)* — `eval_decks.py` metrics + `judge_decks.py` blind judge.
+7. **Interfaces** *(done)* — CLIs, Streamlit app, MCP server.
 
-Slice 3's baseline matters: it proves the data layer and gives the LLM
-version something to beat in the evals.
+## Decisions
 
-## Open decisions
-
-- Model choice for step 5 (Sonnet vs Haiku; cost per deck is an eval axis).
-- Whether to include Commander Spellbook combos in v1 or hold for later.
-- Bracket support (Game Changers list) — v1 or later.
-- Budget semantics: total deck cap (default) vs also a per-card cap.
-- Foil/promo printings: excluded from price by default — confirm.
-- Is EDHREC's unofficial JSON acceptable long-term, or is a fallback
-  (Moxfield/Archidekt public decklists for the commander) needed?
+- Claude builder model: **Opus 5.5** (Slice 6 eval).
+- Data: **EDHREC only**, hardened (retries, fixtures, staples fallback).
+- Budget: total cap plus an **optional per-card cap**.
+- Price: **cheapest regular printing**; promo/foil only when nothing else is priced.
+- Bracket: Game Changers limits for brackets 1-3 in the validator.
+- Combos: **shown** (Commander Spellbook), not used by the builder yet.
 
 ## Risks
 
@@ -351,10 +414,11 @@ version something to beat in the evals.
 
 ## Setup
 
-Uses the shared venv at `/home/t9/venv/`. The first run downloads Scryfall
-bulk data (~79 MB) into `data/cache/` and refreshes it daily. Only the
-Claude features (binder scanning, grader reasons, Claude decks, evals) need
-`ANTHROPIC_API_KEY` in the repo-root `.env`.
+Uses the shared venv at `/home/t9/venv/` (`requirements.txt` lists the
+app's packages; `mcp_server.py` also needs `mcp==1.30.0`). The first run
+downloads Scryfall bulk data (~80 MB) into `data/cache/` and refreshes it
+daily. Only the Claude features (binder scanning, grader reasons, Claude
+decks, evals, judge) need `ANTHROPIC_API_KEY` in the repo-root `.env`.
 
 ```bash
 cd projects/18_commander_deck_builder

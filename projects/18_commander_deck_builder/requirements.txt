@@ -1,0 +1,9 @@
+# Commander deck builder (Project 18): what the Streamlit app needs.
+# Streamlit Community Cloud reads this file because it sits next to streamlit_app.py.
+streamlit==1.67.0
+anthropic==0.117.1
+pydantic==2.13.4
+python-dotenv==1.2.2
+pillow==13.0.0
+# Only for mcp_server.py (not needed by the app). Keep on 1.x: 2.x removed mcp.server.fastmcp.
+# mcp==1.30.0

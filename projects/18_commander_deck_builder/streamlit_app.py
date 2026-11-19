@@ -79,6 +79,17 @@ def load_combos(commanders, main):
         db.close()
 
 
+@st.cache_data(ttl="5m")
+def claude_available():
+    """True if an Anthropic API key is set (environment, Streamlit secrets or the repo's .env).
+    A hosted demo without a key still works with the code-only builder."""
+    import os
+    from dotenv import load_dotenv
+    from scan_binder import ENV_PATH
+    load_dotenv(ENV_PATH)
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
 @st.cache_resource
 def claude_client():
     return make_client().with_options(timeout=600, max_retries=4)
@@ -127,8 +138,11 @@ with st.sidebar:
                           help=None if collection["all"] else "Scan binder pages first (scan_binder.py --binder).")
     binder = st.selectbox("Binder", ["All binders", *collection["binders"]], key="binder",
                           disabled=not use_owned)
-    builder = st.segmented_control("Builder", ["Code only", "Claude"], default="Code only", key="builder",
-                                   required=True)
+    has_claude = claude_available()
+    builder = st.segmented_control("Builder", ["Code only", "Claude"] if has_claude else ["Code only"],
+                                   default="Code only", key="builder", required=True,
+                                   help=None if has_claude else "Claude needs an ANTHROPIC_API_KEY; this copy "
+                                                                "runs the code-only builder.")
     model = st.selectbox("Claude model", MODELS, key="model", disabled=builder != "Claude",
                          help="Opus won the eval (see README). Roughly $0.20 / $0.09 / $0.01 per deck.")
     build = st.button("Build deck", type="primary", icon=":material/construction:", width="stretch", key="build")
