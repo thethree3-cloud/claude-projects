@@ -1,0 +1,368 @@
+"""Card watch list: rising cards on EDHREC, price risers, and your own list.
+
+- **Rising on EDHREC:** EDHREC's top-card lists for the past week and the past
+  2 years (first ``TOP_PAGES`` x 100 cards each, cached for a day). Each card
+  has a trend score from EDHREC (``trend_zscore``, higher = gaining faster)
+  and an inclusion rate (decks playing it / decks that could) for each window,
+  so the gain in percentage points is visible too. Cards in this week's list
+  but not in the 2-year one are new arrivals.
+- **Price risers:** a daily snapshot of every card's price from the Scryfall
+  bulk file we already download (``data/watchlist.sqlite``), compared over 7
+  or 30 days. History starts the day snapshots start; Scryfall has no past
+  prices to backfill.
+- **My watch list:** cards you add; their price history is kept for good
+  (other cards' snapshots are pruned after ``KEEP_DAYS``).
+
+CLI (e.g. from cron, so price history has no gaps):
+    python watchlist.py snapshot
+    python watchlist.py rising --limit 20
+    python watchlist.py prices --days 7
+    python watchlist.py add "The One Ring" | remove NAME | list
+"""
+
+import argparse
+import datetime as dt
+import json
+import sqlite3
+import sys
+import time
+from pathlib import Path
+
+import card_db
+import edhrec_client
+
+DATA_DIR = Path(__file__).parent / "data"
+DB_NAME = "watchlist.sqlite"
+TOP_PAGES = 10  # x100 cards per EDHREC window
+KEEP_DAYS = 120  # price snapshots older than this are pruned (watched cards are kept)
+MIN_TRACK_USD = 0.25  # cheaper cards aren't snapshotted (unless watched): their % moves are noise
+WINDOWS = {"week": "top/week", "year": "top/year"}  # EDHREC's "year" page is the past 2 years
+
+# Compact on purpose (~16k priced cards a day): small integer card ids, dates
+# as YYYYMMDD integers, prices in cents, no rowid -> ~0.3 MB per day.
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS card_ids (
+    id INTEGER PRIMARY KEY,
+    oracle_id TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS snapshots (
+    day INTEGER NOT NULL,        -- Scryfall bulk date as YYYYMMDD
+    card INTEGER NOT NULL,       -- card_ids.id
+    cents INTEGER NOT NULL,
+    PRIMARY KEY (day, card)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS watched (
+    name TEXT PRIMARY KEY,
+    oracle_id TEXT NOT NULL,
+    added_at TEXT NOT NULL,
+    usd_when_added REAL,
+    note TEXT NOT NULL DEFAULT ''
+);
+"""
+
+
+# ---------------------------------------------------------------------------
+# EDHREC: rising cards
+# ---------------------------------------------------------------------------
+
+
+def fetch_top(window, pages=TOP_PAGES, cache_dir=edhrec_client.CACHE_DIR, get=None):
+    """EDHREC top cards for a window ("week" or "year"): ``[{name, num_decks,
+    potential_decks, trend_zscore}]`` in EDHREC's order. Cached for a day."""
+    cache_file = Path(cache_dir) / f"edhrec_top_{window}_{pages}.json"
+    if cache_file.exists() and time.time() - cache_file.stat().st_mtime < 86400:
+        return json.loads(cache_file.read_text())
+    get = get or (lambda path: edhrec_client._get_json(f"{edhrec_client.PAGES_URL}/{path}.json", path))
+    views, path = [], WINDOWS[window]
+    for _ in range(pages):
+        page = get(path)
+        try:
+            if "container" in page:  # first page
+                lists = page["container"]["json_dict"]["cardlists"]
+                found = [v for cl in lists for v in cl.get("cardviews", [])]
+                more = lists[0].get("more") if lists else None
+            else:  # later pages are bare lists
+                found, more = page.get("cardviews", []), page.get("more")
+        except (KeyError, TypeError, AttributeError) as exc:
+            raise edhrec_client.EdhrecError("Unexpected EDHREC top-cards format (EDHREC may have changed).") from exc
+        views += [{"name": v["name"], "num_decks": v.get("num_decks") or 0,
+                   "potential_decks": v.get("potential_decks") or 0, "trend_zscore": v.get("trend_zscore")}
+                  for v in found if v.get("name")]
+        if not more:
+            break
+        path = more.removesuffix(".json")
+    if not views:
+        raise edhrec_client.EdhrecError(f"EDHREC's top-cards list for the past {window} was empty.")
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text(json.dumps(views))
+    return views
+
+
+def _inclusion(view):
+    return view["num_decks"] / view["potential_decks"] if view and view["potential_decks"] else None
+
+
+def rising_cards(db, week=None, year=None):
+    """Cards in this week's EDHREC top list, most-rising first.
+
+    Each: name, trend (EDHREC z-score), week / 2-year inclusion, change in
+    percentage points (None for a new arrival), week rank, decks this week,
+    plus price, colors and type from the card database (cards it doesn't know,
+    e.g. brand-new spoilers, keep None there)."""
+    week = fetch_top("week") if week is None else week
+    year = fetch_top("year") if year is None else year
+    year_by_name = {v["name"]: v for v in year}
+    info = db.get_many([v["name"] for v in week])
+    rows = []
+    for rank, v in enumerate(week, 1):
+        w_inc, y_inc = _inclusion(v), _inclusion(year_by_name.get(v["name"]))
+        card = info.get(v["name"])
+        rows.append({
+            "name": card["name"] if card else v["name"],
+            "trend": round(v["trend_zscore"], 2) if v["trend_zscore"] is not None else None,
+            "week_inclusion": w_inc,
+            "year_inclusion": y_inc,
+            "change_pts": round((w_inc - y_inc) * 100, 1) if w_inc is not None and y_inc is not None else None,
+            "new": y_inc is None,
+            "week_rank": rank,
+            "week_decks": v["num_decks"],
+            "usd": card["usd"] if card else None,
+            "color_identity": card["color_identity"] if card else None,
+            "type_line": card["type_line"] if card else None,
+            "legal_commander": bool(card["legal_commander"]) if card else None,
+        })
+    rows.sort(key=lambda r: (r["trend"] is None, -(r["trend"] or 0), r["week_rank"]))
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Price history + watch list (local SQLite)
+# ---------------------------------------------------------------------------
+
+
+def _day(date):
+    return int(date.replace("-", ""))
+
+
+def _date(day):
+    s = str(day)
+    return f"{s[:4]}-{s[4:6]}-{s[6:]}"
+
+
+class WatchList:
+    """Price snapshots and your watched cards, in ``data/watchlist.sqlite``."""
+
+    def __init__(self, path=None):
+        self.path = Path(path) if path else DATA_DIR / DB_NAME
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(self.path)
+        self.conn.row_factory = sqlite3.Row
+        self.conn.executescript(SCHEMA)
+
+    def close(self):
+        self.conn.close()
+
+    # -- snapshots ---------------------------------------------------------
+
+    def _card_id(self, oracle_id, create=True):
+        row = self.conn.execute("SELECT id FROM card_ids WHERE oracle_id = ?", (oracle_id,)).fetchone()
+        if row or not create:
+            return row[0] if row else None
+        return self.conn.execute("INSERT INTO card_ids (oracle_id) VALUES (?)", (oracle_id,)).lastrowid
+
+    def snapshot(self, db, keep_days=KEEP_DAYS):
+        """Save today's prices (dated by the Scryfall bulk file) once per date.
+        Returns the date and whether a new snapshot was written."""
+        date = (db.meta().get("updated_at") or dt.date.today().isoformat())[:10]
+        day = _day(date)
+        if self.conn.execute("SELECT 1 FROM snapshots WHERE day = ? LIMIT 1", (day,)).fetchone():
+            return date, False
+        watched = {r[0] for r in self.conn.execute("SELECT oracle_id FROM watched")}
+        ids = dict(self.conn.execute("SELECT oracle_id, id FROM card_ids"))
+        rows = []
+        with self.conn:
+            for r in db.conn.execute("SELECT oracle_id, usd FROM cards WHERE usd IS NOT NULL"):
+                if r["usd"] < MIN_TRACK_USD and r["oracle_id"] not in watched:
+                    continue
+                if r["oracle_id"] not in ids:
+                    ids[r["oracle_id"]] = self._card_id(r["oracle_id"])
+                rows.append((day, ids[r["oracle_id"]], round(r["usd"] * 100)))
+            self.conn.executemany("INSERT OR IGNORE INTO snapshots VALUES (?, ?, ?)", rows)
+            cutoff = _day((dt.date.fromisoformat(date) - dt.timedelta(days=keep_days)).isoformat())
+            self.conn.execute(
+                "DELETE FROM snapshots WHERE day < ? AND card NOT IN "
+                "(SELECT c.id FROM card_ids c JOIN watched w ON w.oracle_id = c.oracle_id)", (cutoff,))
+        return date, True
+
+    def dates(self):
+        return [_date(r[0]) for r in self.conn.execute("SELECT DISTINCT day FROM snapshots ORDER BY day")]
+
+    def _compare_dates(self, days):
+        """(old, new) snapshot dates about ``days`` apart, or None if history is too short."""
+        dates = self.dates()
+        if len(dates) < 2:
+            return None
+        new = dates[-1]
+        target = (dt.date.fromisoformat(new) - dt.timedelta(days=days)).isoformat()
+        older = [d for d in dates[:-1] if d <= target]
+        return (older[-1] if older else dates[0]), new
+
+    def price_risers(self, db, days=7, min_usd=1.0, limit=50):
+        """Cards whose price rose most over ``days`` (or the longest history so far).
+
+        Returns ``{"from", "to", "rows": [{name, old, new, change_pct, change_usd, ...}]}``;
+        ``from``/``to`` are None while there is only one snapshot."""
+        span = self._compare_dates(days)
+        if span is None:
+            return {"from": None, "to": None, "rows": []}
+        old_date, new_date = span
+        pairs = self.conn.execute(
+            "SELECT c.oracle_id, o.cents AS old, n.cents AS new FROM snapshots n "
+            "JOIN snapshots o ON o.card = n.card AND o.day = ? "
+            "JOIN card_ids c ON c.id = n.card "
+            "WHERE n.day = ? AND n.cents >= ? AND n.cents > o.cents",
+            (_day(old_date), _day(new_date), round(min_usd * 100)),
+        ).fetchall()
+        rows = []
+        for p in pairs:
+            card = db.conn.execute("SELECT name, color_identity, type_line FROM cards WHERE oracle_id = ?",
+                                   (p["oracle_id"],)).fetchone()
+            if card is None:
+                continue
+            old, new = p["old"] / 100, p["new"] / 100
+            rows.append({"name": card["name"], "old": old, "new": new, "change_usd": round(new - old, 2),
+                         "change_pct": round((new - old) / old * 100, 1),
+                         "color_identity": card["color_identity"], "type_line": card["type_line"]})
+        rows.sort(key=lambda r: (-r["change_pct"], -r["change_usd"]))
+        return {"from": old_date, "to": new_date, "rows": rows[:limit]}
+
+    def history(self, oracle_id):
+        """[(date, usd)] for one card, oldest first."""
+        return [(_date(r[0]), r[1] / 100) for r in self.conn.execute(
+            "SELECT s.day, s.cents FROM snapshots s JOIN card_ids c ON c.id = s.card "
+            "WHERE c.oracle_id = ? ORDER BY s.day", (oracle_id,))]
+
+    # -- watched cards -----------------------------------------------------
+
+    def add(self, db, name, note=""):
+        """Watch a card (exact or fuzzy name). Returns the exact name."""
+        card = db.get(name) or (db.get(db.find_name(name)) if db.find_name(name) else None)
+        if card is None:
+            raise LookupError(f"No card matched {name!r}.")
+        with self.conn:
+            self.conn.execute(
+                "INSERT INTO watched (name, oracle_id, added_at, usd_when_added, note) VALUES (?, ?, ?, ?, ?) "
+                "ON CONFLICT(name) DO UPDATE SET note = excluded.note",
+                (card["name"], card["oracle_id"], dt.date.today().isoformat(), card["usd"], note),
+            )
+            if card["usd"] is not None:  # start its history now, even if it's under MIN_TRACK_USD
+                for date in self.dates()[-1:]:
+                    self.conn.execute("INSERT OR IGNORE INTO snapshots VALUES (?, ?, ?)",
+                                      (_day(date), self._card_id(card["oracle_id"]), round(card["usd"] * 100)))
+        return card["name"]
+
+    def remove(self, name):
+        with self.conn:
+            return self.conn.execute("DELETE FROM watched WHERE name = ?", (name,)).rowcount > 0
+
+    def is_watched(self, name):
+        return self.conn.execute("SELECT 1 FROM watched WHERE name = ?", (name,)).fetchone() is not None
+
+    def watched(self, db, rising=None):
+        """Watched cards with price now, change since added / 7 / 30 days, and
+        this week's EDHREC trend when the card is in the week's top list."""
+        by_name = {r["name"]: r for r in rising or []}
+        out = []
+        for w in self.conn.execute("SELECT * FROM watched ORDER BY added_at DESC, name"):
+            card = db.get(w["name"])
+            hist = self.history(w["oracle_id"])
+            now = card["usd"] if card else None
+
+            def change(days):
+                if not hist or now is None:
+                    return None
+                target = (dt.date.fromisoformat(hist[-1][0]) - dt.timedelta(days=days)).isoformat()
+                past = [usd for date, usd in hist if date <= target]
+                return round((now - past[-1]) / past[-1] * 100, 1) if past and past[-1] else None
+
+            trend = by_name.get(w["name"])
+            out.append({
+                "name": w["name"], "note": w["note"], "added_at": w["added_at"], "usd": now,
+                "usd_when_added": w["usd_when_added"],
+                "since_added_pct": round((now - w["usd_when_added"]) / w["usd_when_added"] * 100, 1)
+                if now is not None and w["usd_when_added"] else None,
+                "change_7d_pct": change(7), "change_30d_pct": change(30),
+                "trend": trend["trend"] if trend else None,
+                "week_inclusion": trend["week_inclusion"] if trend else None,
+                "history": hist,
+            })
+        return out
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def _pct(value):
+    return "n/a" if value is None else f"{value:+.1f}%"
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Rising cards (EDHREC), price risers and your watch list.")
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("snapshot", help="save today's prices (run daily, e.g. from cron)")
+    p_rising = sub.add_parser("rising", help="cards rising on EDHREC this week")
+    p_rising.add_argument("--limit", type=int, default=25)
+    p_prices = sub.add_parser("prices", help="cards whose price rose")
+    p_prices.add_argument("--days", type=int, default=7)
+    p_prices.add_argument("--min-usd", type=float, default=1.0)
+    p_prices.add_argument("--limit", type=int, default=25)
+    p_add = sub.add_parser("add", help="watch a card")
+    p_add.add_argument("name")
+    p_add.add_argument("--note", default="")
+    p_remove = sub.add_parser("remove", help="stop watching a card")
+    p_remove.add_argument("name")
+    sub.add_parser("list", help="your watched cards")
+    args = parser.parse_args(argv)
+
+    db = card_db.open_db(log=lambda m: print(m, file=sys.stderr))
+    wl = WatchList()
+    try:
+        date, new = wl.snapshot(db)  # every command keeps history going
+        if args.command == "snapshot":
+            print(f"Price snapshot for {date}: {'saved' if new else 'already saved'} "
+                  f"({len(wl.dates())} days of history).")
+        elif args.command == "rising":
+            for r in rising_cards(db)[: args.limit]:
+                change = "new this week" if r["new"] else f"{r['change_pts']:+.1f} pts vs 2 years"
+                price = f"${r['usd']:.2f}" if r["usd"] is not None else "n/a"
+                print(f"{r['trend']:>6} {r['name']} - {r['week_inclusion']:.1%} of decks this week ({change}), {price}")
+        elif args.command == "prices":
+            found = wl.price_risers(db, args.days, args.min_usd, args.limit)
+            if found["from"] is None:
+                print("Only one day of price history so far; run `watchlist.py snapshot` daily.")
+            for r in found["rows"]:
+                print(f"{r['change_pct']:+6.1f}% {r['name']}: ${r['old']:.2f} -> ${r['new']:.2f}")
+            if found["from"]:
+                print(f"({found['from']} -> {found['to']})")
+        elif args.command == "add":
+            print(f"Watching {wl.add(db, args.name, args.note)}.")
+        elif args.command == "remove":
+            print("Removed." if wl.remove(args.name) else f"{args.name} wasn't on your list.")
+        elif args.command == "list":
+            for w in wl.watched(db):
+                price = f"${w['usd']:.2f}" if w["usd"] is not None else "n/a"
+                print(f"{w['name']}: {price} (7d {_pct(w['change_7d_pct'])}, 30d {_pct(w['change_30d_pct'])}, "
+                      f"since added {_pct(w['since_added_pct'])})")
+    except (LookupError, edhrec_client.EdhrecError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        wl.close()
+        db.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

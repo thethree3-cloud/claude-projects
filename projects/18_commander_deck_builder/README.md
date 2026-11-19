@@ -377,6 +377,30 @@ python build_deck.py krenko --budget 150 --combos
   ```
 - **Blind review page:** `streamlit run review_decks.py` (see the judge section).
 
+## Watch list (added 2026-11-18)
+
+A **Watch list** page (top menu of the app; also `python watchlist.py`):
+
+- **Rising on EDHREC:** EDHREC's top 1,000 cards for the past week next to
+  its past-2-years list, most rising first by EDHREC's trend score, with the
+  week's inclusion, the 2-year inclusion, the change in percentage points
+  and "new" for cards not in the 2-year list. Filters: fits these colors,
+  max price, hide lands, new only. (First look, 2026-11-18: the new Star
+  Trek set's Borg cards lead; One, Borg Evolved 7.8% of decks this week vs
+  5.3% over 2 years.) Cached 6 hours; ~10 s the first time.
+- **Price risers:** a daily snapshot of every card's price (cheapest regular
+  printing, $0.25 and up) from the Scryfall file we already download, kept
+  120 days in `data/watchlist.sqlite` (~0.14 MB a day). Compared over 7 or
+  30 days. History starts the first day it runs (Scryfall has no past
+  prices), so risers appear from the second day; running
+  `python watchlist.py snapshot` daily (e.g. cron) avoids gaps.
+- **My watch list:** add cards from the form, the **Watch** star on any card
+  page, or by selecting rows in either list. Shows price now, change since
+  added / 7 / 30 days, this week's EDHREC trend, a note, and a price chart.
+  Watched cards' history is never pruned.
+- **Moxfield isn't a source:** it blocks outside requests (Cloudflare 403)
+  and its API needs approval from Moxfield, so it isn't used.
+
 ## Hosted demo (Streamlit Community Cloud)
 
 Ready to deploy; the deploy itself needs a Streamlit account:

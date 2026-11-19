@@ -17,6 +17,8 @@ eval results; git history has the story.
 | Evals | Slice 6 metrics (30 cases x 3 models); blind pairwise judge: Claude 26/30, baseline 0, 4 splits |
 | Interfaces | CLIs, Streamlit app (3D flip, combos tab), MCP server (5 tools), blind review page |
 | Combos (`combos.py`) | Commander Spellbook: combos in the deck + one card away |
+| Card page | click a card name: every printing (picture, set, look, prices, Scryfall link) |
+| Watch list (`watchlist.py`) | EDHREC rising cards, daily price snapshots -> price risers, your watched cards |
 
 Quick resume:
 
@@ -43,6 +45,10 @@ cd projects/18_commander_deck_builder
       `j4th/mtg-mcp-server` (`mtg-bulk-fix.patch`).
 
 ## Could do later (not needed for v1)
+
+- [ ] Daily `python watchlist.py snapshot` from cron so price history has no
+      gaps (needs your OK: it's a scheduled job on your machine).
+- [ ] Moxfield as a trend source, only if Moxfield grants API access.
 
 - [ ] Builder uses combos (e.g. reserve slots for a one-card-away combo when
       the budget allows). v1 only shows them.

@@ -8,6 +8,7 @@ import streamlit as st
 
 import card_db
 import deck_service
+import watchlist
 from flip_card import flip_card
 
 GRID_COLUMNS = 5
@@ -83,7 +84,28 @@ if card is None:
 # The card
 # ---------------------------------------------------------------------------
 
-st.title(card["name"])
+def toggle_watch(name, watching):
+    db, wl = deck_service.open_db(), watchlist.WatchList()
+    try:
+        if watching:
+            wl.remove(name)
+        else:
+            wl.add(db, name)
+    finally:
+        wl.close()
+        db.close()
+
+
+with st.container(horizontal=True, vertical_alignment="center"):
+    st.title(card["name"], width="content")
+    _wl = watchlist.WatchList()
+    try:
+        watching = _wl.is_watched(card["name"])
+    finally:
+        _wl.close()
+    st.button("Watching" if watching else "Watch", icon=":material/star:" if watching else ":material/star_border:",
+              key="watch_toggle", on_click=toggle_watch, args=(card["name"], watching),
+              help="Remove from your watch list" if watching else "Add to your watch list (Watch list page)")
 left, right = st.columns([1, 3], gap="large")
 with left:
     if card["image_url"] and card["image_url_back"]:
