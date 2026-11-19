@@ -355,6 +355,15 @@ python build_deck.py krenko --budget 150 --combos
   (`flip_card.py`, a Streamlit components-v2 element; the flip runs in the
   browser with no rerun). An invalid Claude deck is never shown. Logic lives
   in `deck_service.py` (unit-tested).
+- **Alternates panel** (added 2026-11-19), beside the card grid: pick a
+  card type (Creature, Instant, Sorcery, Artifact, Enchantment, Land,
+  Planeswalker, Battle) to see the top 15 cards from the same checked pool
+  that aren't in the deck (most played first, with price and job). Select
+  one, choose what it replaces (least-played card of that type preselected,
+  or any type), and **Swap in**: the validator re-checks the whole deck, so a
+  swap that breaks the budget, the per-card cap or a rule is refused with
+  the reason. Budget left, a swap log and **Undo** are shown; the import
+  list, List tab and Combos tab follow the swapped deck.
 - **Card page** (added 2026-11-18): click any card name in the deck to open
   its page: picture (flips if two-faced), rules text, color identity,
   legality, Game Changer flag, and **every printing** with its picture,

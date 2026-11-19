@@ -19,12 +19,13 @@ from flip_card import flip_card
 from scan_binder import ScanError, make_client
 
 CARD_PAGE = "app_pages/card.py"
-GRID_COLUMNS = 6
+GRID_COLUMNS = 5  # the alternates panel takes the right quarter
 MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
 ROLE_TITLES = {"land": "Lands", "ramp": "Ramp", "draw": "Card draw", "removal": "Removal",
                "wipe": "Board wipes", "synergy": "Synergy"}
 
 st.session_state.setdefault("result", None)
+st.session_state.setdefault("swap_history", [])  # earlier results, for Undo
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +172,9 @@ if build:
         st.error(f"Couldn't build the deck: {exc}", icon=":material/error:")
         result = None
     if result is not None:
-        st.session_state.result = result | {"commander": prep["commander"], "budget": budget}
+        st.session_state.result = result | {"commander": prep["commander"], "budget": budget, "prep": prep,
+                                            "owned": tuple(owned)}
+        st.session_state.swap_history = []
 
 result = st.session_state.result
 
@@ -305,5 +308,71 @@ def card_grid(deck):
                         st.caption(f":material/smart_toy: {card['reason']}")
 
 
+def alternates_panel():
+    """Top alternates by card type, with a validated swap and Undo."""
+    prep = result.get("prep")
+    st.markdown("#### Alternates")
+    if not prep:
+        st.caption("Build the deck again to see alternates.")
+        return
+    left = result["budget"] - check["stats"]["cost_to_buy"]
+    st.caption(f"Next-best cards from the same checked pool. Budget left: **${left:.2f}**.")
+    counts = deck_service.type_counts(deck)
+    kinds = [k for k in deck_service.CARD_TYPES if counts.get(k) or deck_service.alternates(prep, deck, k, 1)]
+    kind = st.selectbox("Card type", kinds, key="alt_kind", persist_state="session",
+                        format_func=lambda k: f"{k} ({counts.get(k, 0)} in deck)")
+    alts = deck_service.alternates(prep, deck, kind)
+    if not alts:
+        st.caption(f"No more {kind.lower()} cards in the pool.")
+    else:
+        event = st.dataframe(
+            [{"Card": a["name"], "Played in": a["inclusion"] if a["listed"] else None,
+              "Price": deck_service.price_label(a), "Job": ROLE_TITLES[a["role"]]} for a in alts],
+            column_config={"Played in": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1,
+                                                                        help="Share of this commander's decks on EDHREC")},
+            hide_index=True, on_select="rerun", selection_mode="single-row", key=f"alt_table-{kind}",
+        )
+        if not event.selection.rows:
+            st.caption("Select a card to swap it in.")
+        else:
+            pick = alts[event.selection.rows[0]]
+            any_type = st.toggle("Replace a card of any type", key="alt_any")
+            options = deck_service.replace_options(deck, None if any_type else kind)
+            by_name = {c["name"]: c for c in options}
+            out_name = st.selectbox(
+                "Replaces", list(by_name), key=f"alt_out-{pick['name']}-{any_type}",
+                help="Least-played cards first",
+                format_func=lambda n: f"{n} ({by_name[n]['inclusion']:.0%}, {deck_service.price_label(by_name[n])})")
+            extra = pick["cost"] - by_name[out_name]["cost"]
+            st.caption(f"{pick['name']} for {out_name}: {extra:+.2f} USD"
+                       + (" (over the budget left)" if extra > left + 1e-9 else ""))
+            if st.button("Swap in", type="primary", icon=":material/swap_horiz:", key="alt_swap", width="stretch"):
+                db = deck_service.open_db()
+                try:
+                    new, errors = deck_service.swap(prep, result, out_name, pick["name"], result["budget"], db,
+                                                    frozenset(result.get("owned", ())))
+                finally:
+                    db.close()
+                if errors:
+                    st.error("Not swapped: " + " ".join(errors), icon=":material/block:")
+                else:
+                    st.session_state.swap_history.append(result)
+                    st.session_state.result = new
+                    st.rerun()
+    swaps = result.get("swaps", [])
+    if swaps:
+        with st.expander(f"Your swaps ({len(swaps)})"):
+            for sw in swaps:
+                st.caption(f"{sw['in']} in for {sw['out']} ({sw['extra']:+.2f} USD)")
+    if st.session_state.swap_history and st.button("Undo last swap", icon=":material/undo:", key="alt_undo",
+                                                   width="stretch"):
+        st.session_state.result = st.session_state.swap_history.pop()
+        st.rerun()
+
+
 with cards_tab:
-    card_grid(deck)
+    grid_col, alt_col = st.columns([3, 1], gap="medium")
+    with alt_col, st.container(border=True):
+        alternates_panel()
+    with grid_col:
+        card_grid(deck)

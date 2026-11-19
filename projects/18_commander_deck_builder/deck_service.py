@@ -36,6 +36,8 @@ def prepare(commander_name, db, owned=frozenset(), partner_name=None, max_card_p
     oracle = db.get_many([c["name"] for c in pool])
     for c in pool:
         c["oracle_text"] = oracle[c["name"]]["oracle_text"]
+        c["type_line"] = oracle[c["name"]]["type_line"]
+        c["cmc"] = oracle[c["name"]]["cmc"]
     return {"commander": commander, "pool": pool, "commander_cost": loaded["commander_cost"],
             "warnings": loaded["warnings"], "max_card_price": max_card_price}
 
@@ -62,6 +64,68 @@ def build_claude(prep, budget, db, client, owned=frozenset(), model=llm_deck.MOD
     if not result["ok"]:
         return {"deck": None, "text": None, "check": None, **meta}
     return _finish(prep, result["deck"], budget, db, owned) | meta | {"strategy": result["strategy"]}
+
+
+# ---------------------------------------------------------------------------
+# Alternates: the next-best cards by type, and validated swaps
+# ---------------------------------------------------------------------------
+
+CARD_TYPES = ("Creature", "Instant", "Sorcery", "Artifact", "Enchantment", "Planeswalker", "Battle", "Land")
+_TYPE_ORDER = ("Land", "Creature", "Planeswalker", "Battle", "Instant", "Sorcery", "Artifact", "Enchantment")
+
+
+def card_type(card):
+    """One main type per card, from the front face: an Artifact Creature is a
+    Creature, an Artifact Land is a Land."""
+    front = (card.get("type_line") or "").split(" // ")[0]
+    return next((t for t in _TYPE_ORDER if t in front), "Other")
+
+
+def type_counts(deck):
+    counts = {}
+    for c in deck["cards"]:
+        counts[card_type(c)] = counts.get(card_type(c), 0) + 1
+    return counts
+
+
+def alternates(prep, deck, kind, limit=15):
+    """Top ``limit`` cards of type ``kind`` from the checked pool that aren't in
+    the deck: EDHREC-listed first, then most played, then cheapest."""
+    in_deck = {c["name"] for c in deck["cards"]}
+    found = [c for c in prep["pool"] if c["name"] not in in_deck and card_type(c) == kind]
+    found.sort(key=lambda c: (not c["listed"], -c["inclusion"], c["cost"], c["name"]))
+    return found[:limit]
+
+
+def replace_options(deck, kind=None):
+    """Deck cards that could make room, least played first (same type when ``kind`` is set)."""
+    cards = [c for c in deck["cards"] if kind is None or card_type(c) == kind]
+    return sorted(cards, key=lambda c: (c["inclusion"], -c["cost"], c["name"]))
+
+
+def swap(prep, result, out_name, in_name, budget, db, owned=frozenset()):
+    """Replace one deck card with a pool card and re-run the validator.
+
+    Returns ``(new_result, errors)``. The swap is applied only when the deck
+    stays valid (legal, in budget, under the per-card cap); otherwise
+    ``new_result`` is None and ``errors`` says why."""
+    deck = result["deck"]
+    out = next((c for c in deck["cards"] if c["name"] == out_name), None)
+    new = next((c for c in prep["pool"] if c["name"] == in_name), None)
+    if out is None or new is None:
+        return None, [f"{out_name if out is None else in_name} isn't available to swap."]
+    if any(c["name"] == in_name for c in deck["cards"]):
+        return None, [f"{in_name} is already in the deck."]
+    new = {**new, "reason": "Swapped in by you"} if any(c.get("reason") for c in deck["cards"]) else dict(new)
+    cards = [new if c["name"] == out_name else c for c in deck["cards"]]
+    new_deck = {**deck, "cards": cards, "spent": round(deck["spent"] - out["cost"] + new["cost"], 2)}
+    text = build_deck.import_text(prep["commander"], new_deck)
+    check = validate_text(text, db, budget=budget, owned=owned, max_card_price=prep.get("max_card_price"),
+                          **build_deck.commander_args(prep["commander"]))
+    if not check["ok"]:
+        return None, check["errors"]
+    swaps = result.get("swaps", []) + [{"out": out_name, "in": in_name, "extra": round(new["cost"] - out["cost"], 2)}]
+    return {**result, "deck": new_deck, "text": text, "check": check, "swaps": swaps}, []
 
 
 def deck_combos(commander, deck, db):

@@ -68,6 +68,49 @@ class DeckServiceTests(unittest.TestCase):
         self.assertIsNone(bad["deck"])  # never handed over as a deck
         self.assertEqual(len(bad["attempts"]), 3)
 
+    def test_card_type_uses_the_front_face(self):
+        t = deck_service.card_type
+        self.assertEqual(t({"type_line": "Artifact Creature — Golem"}), "Creature")
+        self.assertEqual(t({"type_line": "Artifact Land"}), "Land")
+        self.assertEqual(t({"type_line": "Sorcery // Land"}), "Sorcery")
+        self.assertEqual(t({"type_line": "Legendary Enchantment — Background"}), "Enchantment")
+        self.assertEqual(t({}), "Other")
+
+    def test_alternates_and_swap(self):
+        result = deck_service.build_code(self.prep, 100, self.db)
+        deck = result["deck"]
+        alts = deck_service.alternates(self.prep, deck, "Sorcery")
+        in_deck = {c["name"] for c in deck["cards"]}
+        self.assertTrue(alts)
+        self.assertLessEqual(len(alts), 15)
+        self.assertFalse(in_deck & {a["name"] for a in alts})
+        self.assertEqual(alts, sorted(alts, key=lambda a: (not a["listed"], -a["inclusion"], a["cost"], a["name"])))
+        self.assertEqual(deck_service.alternates(self.prep, deck, "Planeswalker"), [])
+
+        out = deck_service.replace_options(deck, "Sorcery")[0]  # least played first
+        self.assertEqual(out["inclusion"], min(c["inclusion"] for c in deck["cards"]))
+        new, errors = deck_service.swap(self.prep, result, out["name"], alts[0]["name"], 100, self.db)
+        self.assertEqual(errors, [])
+        names = {c["name"] for c in new["deck"]["cards"]}
+        self.assertIn(alts[0]["name"], names)
+        self.assertNotIn(out["name"], names)
+        self.assertTrue(new["check"]["ok"])
+        self.assertIn(f"1 {alts[0]['name']}", new["text"])
+        self.assertEqual(new["swaps"][0]["out"], out["name"])
+        self.assertEqual(len(new["deck"]["cards"]) + sum(new["deck"]["basics"].values()), 99)
+        self.assertNotIn(alts[0]["name"], {c["name"] for c in result["deck"]["cards"]})  # original untouched
+
+    def test_swap_refused_when_it_breaks_the_deck(self):
+        result = deck_service.build_code(self.prep, 40, self.db)
+        out = result["deck"]["cards"][0]["name"]
+        pricey = next(c["name"] for c in self.prep["pool"] if c["name"] == "Pricey Spell")
+        new, errors = deck_service.swap(self.prep, result, out, pricey, 40, self.db)
+        self.assertIsNone(new)
+        self.assertTrue(any("budget" in e for e in errors), errors)
+        already = result["deck"]["cards"][1]["name"]
+        self.assertEqual(deck_service.swap(self.prep, result, out, already, 40, self.db)[1],
+                         [f"{already} is already in the deck."])
+
     def test_price_label(self):
         self.assertEqual(deck_service.price_label({"owned": True, "usd": 3.0}), "owned")
         self.assertEqual(deck_service.price_label({"owned": False, "usd": 3.0}), "$3.00")
