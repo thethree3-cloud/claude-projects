@@ -322,30 +322,26 @@ def alternates_panel():
     kind = st.selectbox("Card type", kinds, key="alt_kind", persist_state="session",
                         format_func=lambda k: f"{k} ({counts.get(k, 0)} in deck)")
     alts = deck_service.alternates(prep, deck, kind)
+    pick_key = f"alt_pick-{kind}"
     if not alts:
         st.caption(f"No more {kind.lower()} cards in the pool.")
-    else:
-        event = st.dataframe(
-            [{"Card": a["name"], "Played in": a["inclusion"] if a["listed"] else None,
-              "Price": deck_service.price_label(a), "Job": ROLE_TITLES[a["role"]]} for a in alts],
-            column_config={"Played in": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1,
-                                                                        help="Share of this commander's decks on EDHREC")},
-            hide_index=True, on_select="rerun", selection_mode="single-row", key=f"alt_table-{kind}",
-        )
-        if not event.selection.rows:
-            st.caption("Select a card to swap it in.")
-        else:
-            pick = alts[event.selection.rows[0]]
+    picked_name = st.session_state.get(pick_key)
+    pick = next((a for a in alts if a["name"] == picked_name), None)
+
+    # Swap controls first, so they stay in view above the pictures.
+    if alts and pick is None:
+        st.caption("Select a card below to swap it in.")
+    elif pick is not None:
+        with st.container(border=True):
             any_type = st.toggle("Replace a card of any type", key="alt_any")
             options = deck_service.replace_options(deck, None if any_type else kind)
             by_name = {c["name"]: c for c in options}
             out_name = st.selectbox(
-                "Replaces", list(by_name), key=f"alt_out-{pick['name']}-{any_type}",
+                f"{pick['name']} replaces", list(by_name), key=f"alt_out-{pick['name']}-{any_type}",
                 help="Least-played cards first",
                 format_func=lambda n: f"{n} ({by_name[n]['inclusion']:.0%}, {deck_service.price_label(by_name[n])})")
             extra = pick["cost"] - by_name[out_name]["cost"]
-            st.caption(f"{pick['name']} for {out_name}: {extra:+.2f} USD"
-                       + (" (over the budget left)" if extra > left + 1e-9 else ""))
+            st.caption(f"Cost change: {extra:+.2f} USD" + (" (over the budget left)" if extra > left + 1e-9 else ""))
             if st.button("Swap in", type="primary", icon=":material/swap_horiz:", key="alt_swap", width="stretch"):
                 db = deck_service.open_db()
                 try:
@@ -358,7 +354,22 @@ def alternates_panel():
                 else:
                     st.session_state.swap_history.append(result)
                     st.session_state.result = new
+                    st.session_state.pop(pick_key, None)
                     st.rerun()
+
+    # The alternates as pictures, two per row; the selected one is outlined.
+    for start in range(0, len(alts), 2):
+        for col, a in zip(st.columns(2), alts[start:start + 2]):
+            chosen = a["name"] == picked_name
+            with col, st.container(border=chosen):
+                card_image(a, key=f"alt-img-{a['name']}")
+                card_link(a["name"])
+                played = f"{a['inclusion']:.0%} of decks" if a["listed"] else "not on EDHREC list"
+                st.caption(f"{deck_service.price_label(a)} · {played} · {ROLE_TITLES[a['role']]}")
+                st.button("Selected" if chosen else "Select", key=f"alt_sel-{a['name']}", width="stretch",
+                          type="primary" if chosen else "secondary",
+                          icon=":material/check_circle:" if chosen else None,
+                          on_click=lambda k=pick_key, n=a["name"]: st.session_state.update({k: n}))
     swaps = result.get("swaps", [])
     if swaps:
         with st.expander(f"Your swaps ({len(swaps)})"):

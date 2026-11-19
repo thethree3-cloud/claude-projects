@@ -358,8 +358,9 @@ python build_deck.py krenko --budget 150 --combos
 - **Alternates panel** (added 2026-11-19), beside the card grid: pick a
   card type (Creature, Instant, Sorcery, Artifact, Enchantment, Land,
   Planeswalker, Battle) to see the top 15 cards from the same checked pool
-  that aren't in the deck (most played first, with price and job). Select
-  one, choose what it replaces (least-played card of that type preselected,
+  that aren't in the deck, shown as card pictures two per row (two-faced
+  cards flip; most played first, with price, play rate and job). Select
+  one (it gets an outline), choose what it replaces (least-played card of that type preselected,
   or any type), and **Swap in**: the validator re-checks the whole deck, so a
   swap that breaks the budget, the per-card cap or a rule is refused with
   the reason. Budget left, a swap log and **Undo** are shown; the import
