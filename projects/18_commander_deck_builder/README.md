@@ -392,8 +392,11 @@ A **Watch list** page (top menu of the app; also `python watchlist.py`):
   printing, $0.25 and up) from the Scryfall file we already download, kept
   120 days in `data/watchlist.sqlite` (~0.14 MB a day). Compared over 7 or
   30 days. History starts the first day it runs (Scryfall has no past
-  prices), so risers appear from the second day; running
-  `python watchlist.py snapshot` daily (e.g. cron) avoids gaps.
+  prices), so risers appear from the second day. A user crontab (set up
+  2026-11-18) runs `python watchlist.py snapshot` hourly and when WSL starts;
+  it saves once per Scryfall date and the other runs exit fast, so a day is
+  only missed if WSL never runs that day. Log: `data/watchlist_cron.log`.
+  See the jobs with `crontab -l`; remove them with `crontab -e`.
 - **My watch list:** add cards from the form, the **Watch** star on any card
   page, or by selecting rows in either list. Shows price now, change since
   added / 7 / 30 days, this week's EDHREC trend, a note, and a price chart.

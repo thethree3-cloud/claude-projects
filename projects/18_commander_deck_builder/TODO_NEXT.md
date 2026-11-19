@@ -46,8 +46,8 @@ cd projects/18_commander_deck_builder
 
 ## Could do later (not needed for v1)
 
-- [ ] Daily `python watchlist.py snapshot` from cron so price history has no
-      gaps (needs your OK: it's a scheduled job on your machine).
+- [x] Daily price snapshot: user crontab runs `watchlist.py snapshot` hourly
+      and at WSL start (2026-11-18). Log in `data/watchlist_cron.log`.
 - [ ] Moxfield as a trend source, only if Moxfield grants API access.
 
 - [ ] Builder uses combos (e.g. reserve slots for a one-card-away combo when
