@@ -145,6 +145,13 @@ class ErrorTests(ValidateCase):
     def test_banned(self):
         self.assertError(self.check(deck((1, "Banned Card"))), "banned in Commander")
 
+    def test_max_card_price(self):
+        pricey = deck((1, "Big Changer"))  # $10; commander is $2
+        self.assertTrue(self.check(pricey, max_card_price=10)["ok"])
+        self.assertError(self.check(pricey, max_card_price=5), "1 cards cost more than the $5.00 per-card limit: Big Changer ($10.00)")
+        self.assertTrue(self.check(pricey, max_card_price=5, owned={"Big Changer"})["ok"])
+        self.assertTrue(self.check(deck(), max_card_price=1)["ok"])  # the $2 commander doesn't count
+
     def test_budget_counts_commander_and_skips_owned_and_basics(self):
         # 2.00 commander + 63 spells x 0.50 = 33.50; basics free.
         self.assertTrue(self.check(deck(), budget=33.50)["ok"])

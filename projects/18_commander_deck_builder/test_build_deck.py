@@ -230,6 +230,15 @@ class CandidatePoolTests(unittest.TestCase):
         self.assertEqual((by["Green Card"]["cost"], by["Green Card"]["listed"]), (0.0, True))
         self.assertEqual((by["Owned Unpriced"]["cost"], by["Owned Unpriced"]["listed"]), (0.0, False))
 
+    def test_max_card_price_drops_pricey_cards_you_would_buy(self):
+        edhrec = [{"name": n, "inclusion": 0.5} for n in ("Green Card", "Forest")]
+        commander = self.db.get("Test Commander")
+        self.assertEqual(build_deck.candidate_pool(commander, edhrec, self.db, max_card_price=0.25), [])
+        kept = build_deck.candidate_pool(commander, edhrec, self.db, max_card_price=0.50)
+        self.assertEqual([c["name"] for c in kept], ["Green Card"])  # exactly at the limit is fine
+        owned = build_deck.candidate_pool(commander, edhrec, self.db, owned={"Green Card"}, max_card_price=0.25)
+        self.assertEqual([c["name"] for c in owned], ["Green Card"])  # owned cards are free
+
 
 if __name__ == "__main__":
     unittest.main()

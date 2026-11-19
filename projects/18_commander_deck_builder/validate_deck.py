@@ -19,6 +19,8 @@ Errors (the deck is not legal / not what was asked for):
   - a card outside the commander's color identity
   - a card banned in Commander
   - over ``--budget`` (cards in your collection are free with ``--owned``)
+  - a card you'd buy above ``--max-card-price`` (the commander and owned cards
+    don't count)
   - Game Changers above what ``--bracket`` allows (0 for 1-2, 3 for 3)
 Warnings (legal, but likely to play badly):
   - lands outside 34-38
@@ -101,7 +103,8 @@ def copy_limit(card):
     return int(word) if word.isdigit() else _NUMBER_WORDS.get(word, 1)
 
 
-def validate(entries, db, commander_name=None, budget=None, owned=frozenset(), bracket=None, partner_name=None):
+def validate(entries, db, commander_name=None, budget=None, owned=frozenset(), bracket=None, partner_name=None,
+             max_card_price=None):
     """Check parsed entries. Returns ``{"ok", "errors", "warnings", "stats", ...}``."""
     errors, warnings = [], []
 
@@ -186,6 +189,15 @@ def validate(entries, db, commander_name=None, budget=None, owned=frozenset(), b
         if unpriced:
             warnings.append(f"No price known for {len(unpriced)} cards, not counted in the cost: {', '.join(sorted(unpriced))}.")
 
+    if max_card_price is not None:
+        pricey = sorted(
+            f"{name} (${by_name[name]['usd']:.2f})" for name in copies
+            if name not in owned and name not in member_names and by_name[name]["usd"] is not None
+            and by_name[name]["usd"] > max_card_price + 1e-9
+        )
+        if pricey:
+            errors.append(f"{len(pricey)} cards cost more than the ${max_card_price:.2f} per-card limit: {', '.join(pricey)}.")
+
     game_changers = sorted(name for name in copies if by_name[name]["game_changer"])
     if bracket in BRACKET_GAME_CHANGER_LIMIT and len(game_changers) > BRACKET_GAME_CHANGER_LIMIT[bracket]:
         errors.append(
@@ -264,6 +276,7 @@ def main(argv=None):
     parser.add_argument("--commander", help="commander name, if it isn't the first card in the list")
     parser.add_argument("--partner", help="second commander (partner, Background...), if not the second card")
     parser.add_argument("--budget", type=float, help="max USD to buy the cards you don't own")
+    parser.add_argument("--max-card-price", type=float, help="no card you buy may cost more than this (USD)")
     parser.add_argument("--owned", action="store_true", help="cards in your collection cost $0")
     parser.add_argument("--bracket", type=int, choices=range(1, 6), help="bracket the deck must fit")
     parser.add_argument("--json", action="store_true")
@@ -283,7 +296,8 @@ def main(argv=None):
         finally:
             col.close()
 
-    result = validate_text(text, db, commander_name=args.commander, partner_name=args.partner, budget=args.budget, owned=owned, bracket=args.bracket)
+    result = validate_text(text, db, commander_name=args.commander, partner_name=args.partner, budget=args.budget,
+                           max_card_price=args.max_card_price, owned=owned, bracket=args.bracket)
     print(json.dumps(result, indent=2) if args.json else format_report(result))
     return 0 if result["ok"] else 1
 

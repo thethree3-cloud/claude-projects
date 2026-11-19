@@ -30,6 +30,7 @@ Usage:
     python build_deck.py "Kestia, the Cultivator" --budget 100
     python build_deck.py kestia --budget 50 --owned
     python build_deck.py kestia --budget 50 --owned --binder "Born of the Gods" --out kestia.txt
+    python build_deck.py kestia --budget 150 --max-card-price 5
     python build_deck.py thrasios --partner tymna --budget 150
     python build_deck.py halsin --partner "raised by giants" --budget 75
 """
@@ -91,11 +92,13 @@ def card_role(card):
 # ---------------------------------------------------------------------------
 
 
-def candidate_pool(commander, edhrec_cards, db, owned=frozenset()):
+def candidate_pool(commander, edhrec_cards, db, owned=frozenset(), max_card_price=None):
     """Legal, priced-or-owned cards for this commander, with role and cost.
 
     EDHREC-listed cards come first (``listed=True``). Owned legal cards that
     EDHREC doesn't list are added with ``listed=False`` as a last resort.
+    ``max_card_price`` drops cards you'd have to buy that cost more (owned
+    cards are free, so they always stay).
     """
     identity = commander["color_identity"]
     pool, seen = [], {c["name"] for c in card_db.commander_members(commander)}
@@ -108,6 +111,8 @@ def candidate_pool(commander, edhrec_cards, db, owned=frozenset()):
         is_owned = card["name"] in owned
         if card["usd"] is None and not is_owned:
             return  # can't price it, can't budget it
+        if max_card_price is not None and not is_owned and card["usd"] > max_card_price + 1e-9:
+            return
         seen.add(card["name"])
         pool.append({
             "name": card["name"],
@@ -365,6 +370,7 @@ def main(argv=None):
     parser.add_argument("commander", help="commander name (fuzzy match is fine)")
     parser.add_argument("--partner", help="second commander: a partner, Background, Doctor... (fuzzy)")
     parser.add_argument("--budget", type=float, required=True, help="max USD to spend on cards you don't own")
+    parser.add_argument("--max-card-price", type=float, help="no card you buy may cost more than this (USD)")
     parser.add_argument("--owned", action="store_true", help="use cards from your collection first ($0)")
     parser.add_argument("--binder", help="with --owned: only this binder")
     parser.add_argument("--no-upgrade", action="store_true", help="skip the leftover-money upgrade pass")
@@ -398,18 +404,19 @@ def main(argv=None):
         print(f"Error: {commander['name']} alone costs ${commander_cost:.2f}, over the ${args.budget:.2f} budget.",
               file=sys.stderr)
         return 1
-    pool = candidate_pool(commander, loaded["cards"], db, owned)
+    pool = candidate_pool(commander, loaded["cards"], db, owned, args.max_card_price)
     deck = build_deck(commander, pool, args.budget, owned_mode=args.owned, upgrade=not args.no_upgrade,
                       commander_cost=commander_cost)
     problems = check_deck(commander, deck, args.budget)
     text = import_text(commander, deck)
     # Every deck goes through the full validator before it is shown.
-    check = validate_text(text, db, budget=args.budget, owned=owned, **commander_args(commander))
+    check = validate_text(text, db, budget=args.budget, owned=owned, max_card_price=args.max_card_price,
+                          **commander_args(commander))
     problems += check["errors"]
     if problems:
         print("Error: built deck failed checks: " + "; ".join(problems), file=sys.stderr)
         return 1
-    deck["warnings"] += [f"Validator: {w}" for w in check["warnings"]]
+    deck["warnings"] = loaded["warnings"] + deck["warnings"] + [f"Validator: {w}" for w in check["warnings"]]
 
     if args.out:
         args.out.write_text(text + "\n")

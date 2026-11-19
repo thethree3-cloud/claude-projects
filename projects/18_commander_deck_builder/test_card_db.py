@@ -371,6 +371,17 @@ class FindCommanderTests(TempDirCase):
     def test_typo_and_extra_spaces(self):
         self.assertEqual(self.db.find_commander("  muldrota  "), "Muldrotha, the Gravetide")
 
+    def test_popularity_breaks_ties_by_decks_led(self):
+        # Card popularity says Praetors' Voice; commander popularity can say otherwise.
+        self.assertEqual(self.db.find_commander("atraxa", popularity={"Atraxa, Grand Unifier": 900}),
+                         "Atraxa, Grand Unifier")
+        names = self.db.commander_names({"Ur-Drago": 5})
+        self.assertEqual(names[0], "Ur-Drago")
+        self.assertEqual(names[1:3], ["Atraxa, Praetors' Voice", "Atraxa, Grand Unifier"])  # unranked keep order
+
+    def test_leading_the_is_skipped_for_prefix_matches(self):
+        self.assertEqual(self.db.find_commander("ur-dragon"), "The Ur-Dragon")
+
     def test_non_commanders_and_nonsense_give_none(self):
         self.assertIsNone(self.db.find_commander("sol ring"))
         self.assertIsNone(self.db.find_commander("banned legend"))

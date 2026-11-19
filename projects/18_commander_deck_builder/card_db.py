@@ -403,7 +403,8 @@ def _norm(text):
 def best_match(query, names, cutoff=0.6):
     """Best name in ``names`` (ordered most-played first) for a sloppy query, or None.
 
-    Order: exact name -> name starts with the query -> a word in the name
+    Order: exact name -> name starts with the query (a leading "The" is
+    skipped) -> a word in the name
     starts with it -> substring -> typo (full or short name). Ties go to the
     earlier name in ``names``.
     """
@@ -418,7 +419,7 @@ def best_match(query, names, cutoff=0.6):
         return fronts[q]
     normed = [(_norm(n), n) for n in names]
     tests = (
-        lambda low: low.startswith(q),
+        lambda low: low.startswith(q) or low.removeprefix("the ").startswith(q),  # "gitrog" -> The Gitrog Monster
         lambda low: (" " + low).find(" " + q) >= 0,  # a word starts with the query
         lambda low: q in low,
     )
@@ -485,21 +486,33 @@ class CardDB:
         close = difflib.get_close_matches(query.lower(), lowered, n=1, cutoff=cutoff)
         return lowered[close[0]] if close else None
 
-    def commander_names(self):
-        """Every card that can lead a Commander deck, most-played first."""
+    def commander_names(self, popularity=None):
+        """Every card that can lead a Commander deck, most-played first.
+
+        With ``popularity`` ({name: decks led}, e.g. from EDHREC), cards are
+        ordered by how often they lead a deck; unranked ones follow."""
         rows = self.conn.execute(
             "SELECT name, type_line, oracle_text FROM cards "
             "WHERE legal_commander = 1 AND (type_line LIKE '%Legendary%' "
             "OR oracle_text LIKE '%can be your commander%') "
             "ORDER BY edhrec_rank IS NULL, edhrec_rank, name"
         )
-        return [r["name"] for r in rows if can_be_commander(r)]
+        names = [r["name"] for r in rows if can_be_commander(r)]
+        if popularity:
+            def decks(name):
+                return popularity.get(name) or popularity.get(name.split(" // ")[0]) or 0
+            names.sort(key=lambda n: -decks(n))  # stable: unranked keep card-popularity order
+        return names
 
-    def find_commander(self, query, cutoff=0.6):
+    def find_commander(self, query, cutoff=0.6, popularity=None):
         """Like ``find_name``, but only cards that can be a commander are considered,
         so "esika" is Esika, God of the Tree (not the fuzzy hit "Amnesia"). See
-        ``best_match`` for the order. Returns the exact name or None."""
-        return best_match(query, self.commander_names(), cutoff)
+        ``best_match`` for the order. Returns the exact name or None.
+
+        ``popularity`` ({name: decks led}) breaks ties by how often a card is the
+        *commander*; without it, ties go to how often it's played at all, so
+        "krenko" would be Tin Street Kingpin rather than Mob Boss."""
+        return best_match(query, self.commander_names(popularity), cutoff)
 
     def partner_names(self, card):
         """Cards that can be ``card``'s second commander, most-played first."""

@@ -61,10 +61,10 @@ def load_collection():
 
 
 @st.cache_data(ttl="1h", max_entries=20, show_spinner="Fetching EDHREC data...")
-def load_prep(commander, partner, owned):
+def load_prep(commander, partner, owned, max_card_price):
     db = deck_service.open_db()
     try:
-        return deck_service.prepare(commander, db, frozenset(owned), partner)
+        return deck_service.prepare(commander, db, frozenset(owned), partner, max_card_price)
     finally:
         db.close()
 
@@ -101,7 +101,7 @@ with st.sidebar:
     commander = st.selectbox(
         "Commander", commanders, index=commanders.index("Kestia, the Cultivator")
         if "Kestia, the Cultivator" in commanders else 0, key="commander",
-        help="Type to search. Ordered by how often the card is played.",
+        help="Type to search. Ordered by how many decks each commander leads (EDHREC, past 2 years).",
     )
     partners = load_partners(commander)
     partner = None
@@ -113,6 +113,10 @@ with st.sidebar:
         )
     budget = st.number_input("Budget (USD, commander included)", min_value=0, max_value=5000, value=100,
                              step=10, key="budget")
+    max_card = st.number_input("Max price per card (USD, optional)", min_value=0.0, max_value=1000.0, value=None,
+                               step=1.0, key="max_card_price", placeholder="No limit",
+                               help="Cards you'd have to buy above this price are left out. Owned cards and the "
+                                    "commander don't count.")
     use_owned = st.toggle("Use my collection (owned cards cost $0)", key="use_owned",
                           disabled=not collection["all"],
                           help=None if collection["all"] else "Scan binder pages first (scan_binder.py --binder).")
@@ -135,7 +139,7 @@ st.title("Commander deck builder")
 if build:
     owned = owned_names(binder) if use_owned else ()
     try:
-        prep = load_prep(commander, partner, owned)
+        prep = load_prep(commander, partner, owned, max_card)
         db = deck_service.open_db()
         try:
             if builder == "Claude":

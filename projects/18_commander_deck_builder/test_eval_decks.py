@@ -98,6 +98,18 @@ class RunnerTests(unittest.TestCase):
         errors = (self.dir / "runs" / "claude-opus-5-5" / "errors.jsonl").read_text().splitlines()
         self.assertEqual(json.loads(errors[0])["failure"], "api_or_parse_error")
 
+    def test_truncated_run_keeps_its_cost(self):
+        # Attempt 1 fails validation (empty), attempt 2 is cut off at max_tokens.
+        self.run_claude([message([]), message(self.ids, stop_reason="max_tokens")])
+        self.assertEqual(self.rows("claude-opus-5-5"), [])
+        [err] = [json.loads(l) for l in
+                 (self.dir / "runs" / "claude-opus-5-5" / "errors.jsonl").read_text().splitlines()]
+        self.assertEqual(err["attempts"], 2)
+        self.assertEqual(err["usage"]["output_tokens"], 1000)  # both answers counted (500 each)
+        self.assertGreater(err["cost_usd"], 0)
+        summary = eval_decks.summarize(self.dir / "runs" / "claude-opus-5-5")
+        self.assertAlmostEqual(summary["cost_total"], err["cost_usd"])
+
     def test_resume_skips_done_cases(self):
         self.run_claude([message(self.ids)])
         client = self.run_claude([])  # nothing scripted: would fail if it called Claude

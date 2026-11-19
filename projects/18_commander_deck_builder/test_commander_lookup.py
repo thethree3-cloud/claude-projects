@@ -100,6 +100,11 @@ class FormatTests(unittest.TestCase):
 
 
 class ResolveTests(unittest.TestCase):
+    def setUp(self):
+        patcher = mock.patch("edhrec_client.commander_popularity", return_value={})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_exact_name_wins_even_if_not_a_commander(self):
         db = mock.Mock()
         db.get.return_value = {"name": "Sol Ring"}
@@ -110,6 +115,7 @@ class ResolveTests(unittest.TestCase):
         db = mock.Mock()
         db.get.return_value = None
         db.find_commander.return_value = "Esika, God of the Tree // The Prismatic Bridge"
+        db.find_commander.side_effect = None
         self.assertEqual(commander_lookup.resolve_commander("esika", db),
                          "Esika, God of the Tree // The Prismatic Bridge")
         db.find_name.assert_not_called()
@@ -128,6 +134,14 @@ class ResolveTests(unittest.TestCase):
         db.find_name.return_value = None
         with self.assertRaises(LookupError):
             commander_lookup.resolve_commander("zzzz", db)
+
+
+    def test_popularity_is_passed_to_the_commander_search(self):
+        db = mock.Mock()
+        db.get.return_value = None
+        db.find_commander.return_value = "Krenko, Mob Boss"
+        commander_lookup.resolve_commander("krenko", db, popularity={"Krenko, Mob Boss": 45000})
+        db.find_commander.assert_called_once_with("krenko", popularity={"Krenko, Mob Boss": 45000})
 
 
 if __name__ == "__main__":

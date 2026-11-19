@@ -299,7 +299,8 @@ def main(argv=None):
     try:
         db = card_db.open_db()
         loaded = commander_lookup.load_commanders(args.commander, db, args.partner)
-        result = grade_pool(loaded["commander"], names, db, loaded["cards"], args.bracket)
+        edhrec_only = [c for c in loaded["cards"] if not c.get("staple")]  # tiers come from real EDHREC data
+        result = grade_pool(loaded["commander"], names, db, edhrec_only, args.bracket)
         if not args.no_llm:
             add_reasons(result, make_client(), args.model)
     except (LookupError, edhrec_client.EdhrecError, card_db.BulkDataError, ScanError) as exc:

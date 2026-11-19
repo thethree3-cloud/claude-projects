@@ -60,6 +60,9 @@ def cards():
 class PairDBCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        patcher = mock.patch("edhrec_client.commander_popularity", return_value={})
+        patcher.start()
+        cls.addClassCleanup(patcher.stop)
         cls.tmp = tempfile.TemporaryDirectory()
         bulk = Path(cls.tmp.name) / "bulk.jsonl.gz"
         write_bulk(bulk, cards())
@@ -140,7 +143,33 @@ class ResolvePairTests(PairDBCase):
             loaded = commander_lookup.load_commanders("Green Partner", self.db, "Blue Partner",
                                                       owned={"Blue Partner"}, fetch=lambda slug: {})
         self.assertEqual(loaded["commander_cost"], 3.0)  # Blue Partner owned
-        self.assertEqual(loaded["sources"], ["blue-partner-green-partner"])
+        self.assertEqual(loaded["sources"], ["blue-partner-green-partner", "staples"])  # empty page -> staples
+
+    def test_thin_page_gets_staples_in_the_commanders_colors(self):
+        page = {"commander": {"legal_commander": True, "num_decks": 3},
+                "cards": [{"name": "Green Spell 0", "inclusion": 0.6}]}
+        with mock.patch("edhrec_client.parse_commander_page", return_value=page):
+            loaded = commander_lookup.load_commanders("Lone Legend", self.db, fetch=lambda slug: {})
+        names = [c["name"] for c in loaded["cards"]]
+        self.assertEqual(names[0], "Green Spell 0")  # real EDHREC card stays first
+        staples = [c for c in loaded["cards"] if c.get("staple")]
+        self.assertTrue(staples)
+        self.assertNotIn("Green Spell 0", [c["name"] for c in staples])
+        self.assertNotIn("Lone Legend", names)
+        self.assertNotIn("Blue Spell 0", names)  # outside green
+        self.assertTrue(all(c["inclusion"] <= 0.01 for c in staples))
+        self.assertIn("EDHREC lists only 1 cards", loaded["warnings"][0])
+
+    def test_missing_page_builds_from_staples_alone(self):
+        def missing(slug):
+            raise edhrec_client.EdhrecError("No EDHREC page for 'lone-legend'")
+        loaded = commander_lookup.load_commanders("Lone Legend", self.db, fetch=missing)
+        self.assertEqual(loaded["sources"], ["staples"])
+        self.assertTrue(loaded["cards"])
+        self.assertIn("EDHREC has no data for Lone Legend", loaded["warnings"][0])
+        pool = build_deck.candidate_pool(loaded["commander"], loaded["cards"], self.db)
+        deck = build_deck.build_deck(loaded["commander"], pool, 100)
+        self.assertEqual(build_deck.check_deck(loaded["commander"], deck, 100), [])
 
 
 def _page(name, cards, num_decks=100):

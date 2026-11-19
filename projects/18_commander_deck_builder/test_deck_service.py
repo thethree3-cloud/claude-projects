@@ -34,7 +34,9 @@ class DeckServiceTests(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_commander_names(self):
-        names = deck_service.commander_names(self.db)
+        with mock.patch("edhrec_client.commander_popularity", return_value={"Walker": 10}):
+            names = deck_service.commander_names(self.db)
+        self.assertEqual(names[0], "Walker")  # most-led commander first
         self.assertIn("Green Commander", names)
         self.assertIn("Walker", names)
         self.assertNotIn("Legendary Rock", names)  # legendary but not a creature

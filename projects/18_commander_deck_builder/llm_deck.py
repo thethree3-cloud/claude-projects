@@ -239,7 +239,7 @@ def estimated_cost(usage, model):
 
 
 def build_with_claude(commander, pool, budget, db, client, owned=frozenset(), commander_cost=0.0,
-                      model=MODEL, effort="medium", max_attempts=MAX_ATTEMPTS, log=print):
+                      model=MODEL, effort="medium", max_attempts=MAX_ATTEMPTS, log=print, max_card_price=None):
     """Ask Claude for a deck, validate, feed errors back. Returns a result dict with ``ok``."""
     table, by_id = card_table(pool)
     money = budget - commander_cost
@@ -256,14 +256,20 @@ def build_with_claude(commander, pool, budget, db, client, owned=frozenset(), co
     transcript = [{"role": "user", "content": messages[0]["content"][0]["text"]}]
     for attempt in range(1, max_attempts + 1):
         log(f"Attempt {attempt}: asking {model} for a deck...")
-        message = _call(client, model, messages, effort)
-        _add_usage(usage, message.usage)
-        transcript.append({"role": "assistant", "content": "".join(
-            b.text for b in message.content if b.type == "text"), "model": getattr(message, "model", None)})
-        picks = _parse(message)
+        try:
+            message = _call(client, model, messages, effort)
+            _add_usage(usage, message.usage)
+            transcript.append({"role": "assistant", "content": "".join(
+                b.text for b in message.content if b.type == "text"), "model": getattr(message, "model", None)})
+            picks = _parse(message)
+        except ScanError as exc:
+            # Keep what was spent so far (including a truncated answer) for cost reports.
+            exc.usage, exc.cost_usd, exc.attempts = usage, estimated_cost(usage, model), attempt
+            raise
         deck, problems = assemble(commander, by_id, picks.picks, commander_cost, minimum)
         text = build_deck.import_text(commander, deck)
-        check = validate_text(text, db, budget=budget, owned=owned, **build_deck.commander_args(commander))
+        check = validate_text(text, db, budget=budget, owned=owned, max_card_price=max_card_price,
+                              **build_deck.commander_args(commander))
         errors = problems + check["errors"]
         attempts.append({"attempt": attempt, "errors": errors, "picks": len(picks.picks),
                          "served_model": getattr(message, "model", None)})
@@ -349,6 +355,7 @@ def main(argv=None):
     parser.add_argument("commander")
     parser.add_argument("--partner", help="second commander: a partner, Background, Doctor... (fuzzy)")
     parser.add_argument("--budget", type=float, required=True)
+    parser.add_argument("--max-card-price", type=float, help="no card you buy may cost more than this (USD)")
     parser.add_argument("--owned", action="store_true", help="cards in your collection cost $0")
     parser.add_argument("--binder", help="with --owned: only this binder")
     parser.add_argument("--model", default=MODEL)
@@ -371,13 +378,15 @@ def main(argv=None):
         commander, commander_cost = loaded["commander"], loaded["commander_cost"]
         if commander_cost > args.budget:
             raise LookupError(f"{commander['name']} alone costs ${commander_cost:.2f}, over the budget.")
-        pool = build_deck.candidate_pool(commander, loaded["cards"], db, owned)
+        pool = build_deck.candidate_pool(commander, loaded["cards"], db, owned, args.max_card_price)
+        for w in loaded["warnings"]:
+            print(f"Note: {w}", file=sys.stderr)
         oracle = db.get_many([c["name"] for c in pool])
         for c in pool:
             c["oracle_text"] = oracle[c["name"]]["oracle_text"]
         log = (lambda *_: None) if args.json else (lambda m: print(m, file=sys.stderr))
         result = build_with_claude(commander, pool, args.budget, db, make_client(), owned, commander_cost,
-                                   args.model, args.effort, log=log)
+                                   args.model, args.effort, log=log, max_card_price=args.max_card_price)
     except (LookupError, edhrec_client.EdhrecError, card_db.BulkDataError, ScanError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

@@ -203,7 +203,9 @@ def run_variant(variant, cases, workers=4, db_path=None, client=None, log=print,
             return case, *run_claude_case(case, ctx, client, variant), None
         except (ScanError, anthropic.APIError) as exc:
             failure = "refusal" if "declined" in str(exc) else "api_or_parse_error"
-            return case, None, None, {"failure": failure, "error": str(exc)}
+            return case, None, None, {"failure": failure, "error": str(exc), "usage": getattr(exc, "usage", {}),
+                                      "cost_usd": getattr(exc, "cost_usd", None),
+                                      "attempts": getattr(exc, "attempts", None)}
 
     with ThreadPoolExecutor(max_workers=1 if is_baseline else workers) as pool:
         futures = [pool.submit(work, c) for c in todo]
@@ -232,9 +234,12 @@ def run_variant(variant, cases, workers=4, db_path=None, client=None, log=print,
 
 
 def summarize(variant_dir):
-    rows = [json.loads(l) for l in (variant_dir / "results.jsonl").read_text().splitlines() if l.strip()]
+    results_path = variant_dir / "results.jsonl"
+    rows = [json.loads(l) for l in results_path.read_text().splitlines() if l.strip()] if results_path.exists() else []
     errors_path = variant_dir / "errors.jsonl"
-    n_err = len(errors_path.read_text().splitlines()) if errors_path.exists() else 0
+    error_rows = [json.loads(l) for l in errors_path.read_text().splitlines() if l.strip()] if errors_path.exists() else []
+    n_err = len(error_rows)
+    error_cost = sum(e.get("cost_usd") or 0.0 for e in error_rows)  # failed runs cost money too
     n = len(rows)
     valid = [r for r in rows if r["status"] == "ok"]
     first = sum(r["grade"]["valid_first"] for r in rows)
@@ -249,7 +254,8 @@ def summarize(variant_dir):
         "valid_first": first / n if n else 0.0, "valid_first_ci": wilson(first, n),
         "valid": len(valid) / n if n else 0.0, "valid_n": len(valid),
         **{k: mean(k) for k in ("budget_use", "avg_overlap", "inclusion", "roles_ok")},
-        "cost_total": sum(cost), "cost_per_deck": sum(cost) / n if n else 0.0,
+        "cost_total": sum(cost) + error_cost, "cost_per_deck": sum(cost) / n if n else 0.0,
+        "error_cost": error_cost,
         "latency_s": sum(r["latency_s"] for r in rows) / n if n else 0.0,
         "over_budget": sum(r["grade"].get("budget_use", 0) > 1 for r in rows),
     }

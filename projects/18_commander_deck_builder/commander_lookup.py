@@ -21,17 +21,23 @@ import card_db
 import edhrec_client
 
 SORTS = ("inclusion", "synergy")
+MIN_EDHREC_CARDS = 150  # fewer than this from EDHREC -> add staples in the commander's colors
+STAPLE_POOL = 250
 
 
-def resolve_commander(query, db):
+def resolve_commander(query, db, popularity=None):
     """Match a possibly-sloppy name to an exact card name using the local card database.
 
     An exact card name always wins. Otherwise cards that can be a commander are
-    tried first, then any card, so a non-commander name still resolves and gets a
+    tried first (ties go to the commander EDHREC sees leading the most decks,
+    ``popularity``; fetched and cached if not given), then any card, so a non-commander name still resolves and gets a
     clear "not a commander" error later.
     """
     exact = db.get(query)
-    name = exact["name"] if exact else (db.find_commander(query) or db.find_name(query))
+    if exact:
+        return exact["name"]
+    popularity = edhrec_client.commander_popularity() if popularity is None else popularity
+    name = db.find_commander(query, popularity=popularity) or db.find_name(query)
     if name is None:
         raise LookupError(f"No card matched '{query}'. Check the spelling.")
     return name
@@ -69,19 +75,47 @@ def resolve_pair(query, db, partner=None):
 def load_commanders(query, db, partner=None, owned=frozenset(), fetch=None):
     """Everything a builder needs about the commander(s), from one call.
 
-    Returns ``{"commander", "cards", "commander_cost", "sources", "num_decks"}``: the commander
+    Returns ``{"commander", "cards", "commander_cost", "sources", "num_decks", "warnings"}``: the commander
     dict (combined for a pair, see ``card_db.combine_commanders``), EDHREC's
     cards for it, what the commander(s) cost you (owned ones are $0), and which
     EDHREC pages were used.
     """
     members = resolve_pair(query, db, partner)
-    data = edhrec_client.commander_cards([c["name"] for c in members], fetch)
-    if not data["commander"]["legal_commander"] or not all(c["legal_commander"] for c in members):
-        raise LookupError(f"{data['commander']['name']} is not legal as a commander.")
+    commander = card_db.combine_commanders(members)
+    if not all(c["legal_commander"] for c in members):
+        raise LookupError(f"{commander['name']} is not legal as a commander.")
+    warnings = []
+    try:
+        data = edhrec_client.commander_cards([c["name"] for c in members], fetch)
+    except edhrec_client.EdhrecError:
+        # Brand-new or never-played commanders have no page: build from staples alone.
+        data = {"commander": {"num_decks": 0, "legal_commander": True}, "cards": [], "sources": []}
+        warnings.append(f"EDHREC has no data for {commander['name']} yet, so the deck uses popular cards "
+                        "in these colors instead.")
+    if not data["commander"]["legal_commander"]:
+        raise LookupError(f"{commander['name']} is not legal as a commander.")
+    cards = data["cards"]
+    if len(cards) < MIN_EDHREC_CARDS:
+        added = staple_cards(commander, db, {c["name"] for c in cards} | {m["name"] for m in members})
+        if cards:
+            warnings.append(f"EDHREC lists only {len(cards)} cards for {commander['name']}; "
+                            f"{len(added)} popular cards in these colors were added as a fallback.")
+        cards = cards + added
+        data["sources"].append("staples")
     cost = sum(0.0 if c["name"] in owned else (c["usd"] or 0.0) for c in members)
-    return {"commander": card_db.combine_commanders(members), "cards": data["cards"],
-            "commander_cost": round(cost, 2), "sources": data["sources"],
-            "num_decks": data["commander"].get("num_decks", 0)}
+    return {"commander": commander, "cards": cards, "commander_cost": round(cost, 2),
+            "sources": data["sources"], "num_decks": data["commander"].get("num_decks", 0),
+            "warnings": warnings}
+
+
+def staple_cards(commander, db, skip=frozenset(), limit=STAPLE_POOL):
+    """Most-played cards in the commander's colors (Scryfall's EDHREC rank), as
+    EDHREC-style entries ranked below every real EDHREC card (inclusion 0.001-0.01)."""
+    rows = [r for r in db.candidates(commander["color_identity"], limit=limit + len(skip))
+            if r["name"] not in skip and r["name"] not in edhrec_client.BASIC_LANDS][:limit]
+    return [{"name": r["name"], "role": None, "inclusion": round(0.01 - 0.009 * i / max(len(rows), 1), 5),
+             "synergy": 0.0, "num_decks": 0, "potential_decks": 0, "high_synergy": False,
+             "game_changer": bool(r["game_changer"]), "staple": True} for i, r in enumerate(rows)]
 
 
 def role_from_type_line(type_line):
@@ -178,8 +212,9 @@ def lookup(commander_query, db=None, partner=None, **rank_options):
         fetch = lambda slug: edhrec_client.fetch_commander_page(slug, refresh=refresh)  # noqa: E731
         loaded = load_commanders(commander_query, db, partner, fetch=fetch)
         commander = loaded["commander"]
-        info = db.get_many([c["name"] for c in loaded["cards"]])
-        rows = build_rows(loaded["cards"], info)
+        edhrec_only = [c for c in loaded["cards"] if not c.get("staple")]  # this report is EDHREC's data
+        info = db.get_many([c["name"] for c in edhrec_only])
+        rows = build_rows(edhrec_only, info)
         header = {"name": commander["name"], "color_identity": list(commander["color_identity"]),
                   "num_decks": loaded["num_decks"], "sources": loaded["sources"]}
         return header, rank_rows(rows, **rank_options)

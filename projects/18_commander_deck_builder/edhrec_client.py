@@ -10,6 +10,7 @@ percentage field).
 
 import json
 import re
+import threading
 import time
 import unicodedata
 import urllib.error
@@ -67,18 +68,45 @@ def slugify(name):
     return re.sub(r"[^a-z0-9]+", "-", ascii_name).strip("-")
 
 
+MIN_INTERVAL_S = 0.5  # polite gap between EDHREC requests
+RETRIES = 3  # extra tries for 429 / 5xx / network errors
+RETRY_BASE_S = 1.0  # backoff: 1 s, 2 s, 4 s (or the server's Retry-After, up to 30 s)
+_last_request = [0.0]
+_request_lock = threading.Lock()
+
+
+def _throttle():
+    with _request_lock:
+        wait = _last_request[0] + MIN_INTERVAL_S - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        _last_request[0] = time.monotonic()
+
+
 def _get_json(url, slug):
-    try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=HEADERS)) as resp:
-            return json.load(resp)
-    except urllib.error.HTTPError as exc:
-        if exc.code in (403, 404):
-            raise EdhrecError(
-                f"No EDHREC page for '{slug}' (not a commander, or too new to have data)."
-            ) from exc
-        raise EdhrecError(f"EDHREC returned HTTP {exc.code} for '{slug}'.") from exc
-    except json.JSONDecodeError as exc:
-        raise EdhrecError(f"No EDHREC page for '{slug}' (empty answer).") from exc
+    """GET one EDHREC JSON page. Missing pages (403/404/empty) raise at once;
+    rate limits, server errors and network errors are retried with backoff."""
+    for attempt in range(RETRIES + 1):
+        _throttle()
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=HEADERS), timeout=30) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as exc:
+            if exc.code in (403, 404):
+                raise EdhrecError(
+                    f"No EDHREC page for '{slug}' (not a commander, or too new to have data)."
+                ) from exc
+            if exc.code != 429 and exc.code < 500 or attempt == RETRIES:
+                raise EdhrecError(f"EDHREC returned HTTP {exc.code} for '{slug}'.") from exc
+            retry_after = exc.headers.get("Retry-After") if exc.headers else None
+            delay = float(retry_after) if retry_after and retry_after.isdigit() else RETRY_BASE_S * 2 ** attempt
+            time.sleep(min(delay, 30.0))
+        except json.JSONDecodeError as exc:
+            raise EdhrecError(f"No EDHREC page for '{slug}' (empty answer).") from exc
+        except (urllib.error.URLError, TimeoutError) as exc:
+            if attempt == RETRIES:
+                raise EdhrecError(f"Could not reach EDHREC for '{slug}': {exc}") from exc
+            time.sleep(RETRY_BASE_S * 2 ** attempt)
 
 
 def pair_slug(names):
@@ -107,6 +135,41 @@ def fetch_commander_page(slug, cache_dir=CACHE_DIR, max_age_days=CACHE_MAX_AGE_D
     return page
 
 
+PAGES_URL = "https://json.edhrec.com/pages"
+POPULARITY_PAGES = 20  # ~100 commanders per page -> the top ~2,000
+
+
+def commander_popularity(cache_dir=CACHE_DIR, max_age_days=CACHE_MAX_AGE_DAYS, pages=POPULARITY_PAGES):
+    """``{commander name: decks in the past 2 years}`` from EDHREC's commander
+    ranking, cached on disk. Returns {} if EDHREC can't be reached (callers then
+    fall back to card popularity), so it never blocks a lookup."""
+    cache_file = Path(cache_dir) / "edhrec_commander_popularity.json"
+    if cache_file.exists() and time.time() - cache_file.stat().st_mtime < max_age_days * 86400:
+        return json.loads(cache_file.read_text())
+    ranking, path = {}, "commanders/year"
+    try:
+        for _ in range(pages):
+            page = _get_json(f"{PAGES_URL}/{path}.json", path)
+            if "container" in page:  # first page
+                lists = page["container"]["json_dict"]["cardlists"]
+                views = [v for cl in lists for v in cl.get("cardviews", [])]
+                more = lists[0].get("more") if lists else None
+            else:  # later pages are bare lists
+                views, more = page.get("cardviews", []), page.get("more")
+            for v in views:
+                if v.get("name"):
+                    ranking.setdefault(v["name"], v.get("num_decks") or 0)
+            if not more:
+                break
+            path = more.removesuffix(".json")
+    except (EdhrecError, KeyError, TypeError, AttributeError):
+        if not ranking:
+            return {}
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text(json.dumps(ranking))
+    return ranking
+
+
 AVERAGE_DECK_URL = "https://json.edhrec.com/pages/average-decks"
 
 
@@ -116,12 +179,7 @@ def fetch_average_deck(slug, cache_dir=CACHE_DIR, max_age_days=CACHE_MAX_AGE_DAY
     if cache_file.exists() and time.time() - cache_file.stat().st_mtime < max_age_days * 86400:
         page = json.loads(cache_file.read_text())
     else:
-        try:
-            req = urllib.request.Request(f"{AVERAGE_DECK_URL}/{slug}.json", headers=HEADERS)
-            with urllib.request.urlopen(req) as resp:
-                page = json.load(resp)
-        except urllib.error.HTTPError as exc:
-            raise EdhrecError(f"No EDHREC average deck for '{slug}' (HTTP {exc.code}).") from exc
+        page = _get_json(f"{AVERAGE_DECK_URL}/{slug}.json", slug)
         cache_file.parent.mkdir(parents=True, exist_ok=True)
         cache_file.write_text(json.dumps(page))
     try:
