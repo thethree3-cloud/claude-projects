@@ -39,7 +39,7 @@ BULK_NAME = "default-cards.jsonl.gz"
 MAX_AGE_HOURS = 24
 CHUNK = 1024 * 1024
 WUBRG = "WUBRG"
-SCHEMA_VERSION = "4"  # bump when the cards table changes; ensure_db rebuilds locally
+SCHEMA_VERSION = "5"  # bump when the cards table changes; ensure_db rebuilds locally
 
 # Layouts that are not real cards (no place in a Commander deck).
 EXCLUDED_LAYOUTS = {
@@ -68,6 +68,7 @@ CREATE TABLE cards (
     edhrec_rank INTEGER,
     legal_commander INTEGER NOT NULL,
     game_changer INTEGER NOT NULL,  -- on the official WotC Game Changers list
+    reserved INTEGER NOT NULL,      -- on the Reserved List (never reprinted)
     usd REAL,
     price_source TEXT,              -- non_promo | promo | foil
     price_printing TEXT,            -- e.g. "cmm #1"
@@ -293,6 +294,7 @@ def aggregate_cards(lines, printings=None):
                     (card.get("legalities") or {}).get("commander") in ("legal", "restricted")
                 ),
                 "game_changer": int(bool(card.get("game_changer"))),
+                "reserved": int(bool(card.get("reserved"))),
                 "usd": None,
                 "price_source": None,
                 "price_printing": None,
@@ -340,7 +342,7 @@ def build_db(bulk_path, db_path, updated_at=""):
         columns = [
             "oracle_id", "name", "name_lower", "front_name_lower", "type_line",
             "oracle_text", "color_identity", "cmc", "edhrec_rank", "legal_commander",
-            "game_changer", "usd", "price_source", "price_printing", "image_url", "image_url_back",
+            "game_changer", "reserved", "usd", "price_source", "price_printing", "image_url", "image_url_back",
         ]  # fmt: skip
         conn.executemany(
             f"INSERT INTO cards ({', '.join(columns)}) VALUES ({', '.join('?' * len(columns))})",
@@ -617,6 +619,35 @@ class CardDB:
             (card["oracle_id"],),
         )
         return [dict(r) for r in rows]
+
+    def supply(self, names, today=None):
+        """How much of each card exists: ``{name: {...}}`` for the names found.
+
+        printings: distinct sets with a regular (non-promo) printing out by
+        ``today``; promos: promo printings out; first / last: first and latest
+        release dates; reserved: on the Reserved List; upcoming: set names of
+        printings dated after ``today`` (a reprint already on the way)."""
+        today = today or time.strftime("%Y-%m-%d")
+        out = {}
+        for name in dict.fromkeys(names):
+            card = self.get(name)
+            if card is None:
+                continue
+            rows = self.conn.execute(
+                "SELECT set_code, set_name, released_at, promo FROM printings WHERE oracle_id = ?",
+                (card["oracle_id"],)).fetchall()
+            out_now = [r for r in rows if (r["released_at"] or "") <= today]
+            regular = {r["set_code"] for r in out_now if not r["promo"]}
+            dates = sorted(r["released_at"] for r in out_now if r["released_at"])
+            out[name] = {
+                "printings": len(regular),
+                "promos": sum(r["promo"] for r in out_now),
+                "first": dates[0] if dates else None,
+                "last": dates[-1] if dates else None,
+                "reserved": bool(card["reserved"]),
+                "upcoming": sorted({r["set_name"] for r in rows if (r["released_at"] or "") > today}),
+            }
+        return out
 
     def game_changers(self):
         """Names of every card on the official Game Changers list, A-Z."""

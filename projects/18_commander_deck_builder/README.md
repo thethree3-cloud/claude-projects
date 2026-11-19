@@ -392,7 +392,8 @@ A **Watch list** page (top menu of the app; also `python watchlist.py`):
   printing, $0.25 and up) from the Scryfall file we already download, kept
   120 days in `data/watchlist.sqlite` (~0.14 MB a day). Compared over 7 or
   30 days. History starts the first day it runs (Scryfall has no past
-  prices), so risers appear from the second day. A user crontab (set up
+  prices), so risers appear from the second day. The same job also saves
+  EDHREC's weekly top list daily (for popularity speed). A user crontab (set up
   2026-11-18) runs `python watchlist.py snapshot` hourly and when WSL starts;
   it saves once per Scryfall date and the other runs exit fast, so a day is
   only missed if WSL never runs that day. Log: `data/watchlist_cron.log`.
@@ -401,6 +402,24 @@ A **Watch list** page (top menu of the app; also `python watchlist.py`):
   page, or by selecting rows in either list. Shows price now, change since
   added / 7 / 30 days, this week's EDHREC trend, a note, and a price chart.
   Watched cards' history is never pruned.
+- **Spec signals** (added 2026-11-19): cards gaining players while the
+  price hasn't caught up, ranked by score = EDHREC trend (+ our own 7-day
+  popularity gain from daily EDHREC snapshots, once there are two) x supply
+  x price. Supply comes from the printings table: Reserved List 1.5, one
+  printing 2+ years old 1.3, 2-3 printings 1.15, 8+ printings 0.85, still
+  in print (printed within a year) 0.9, **reprint already scheduled** (a
+  future-dated printing in Scryfall's file) 0.5. Price: already up 10-30%
+  0.7, over 30% 0.4. Every row lists its reasons. "Out of print only" (on
+  by default) skips cards whose set is still being opened; brand-new cards
+  (first printed in the last 30 days) are hidden unless asked for. The
+  weights are a first guess, to be tested against real price moves once
+  history builds up. First look: Nicol Bolas, Dragon-God (4 printings,
+  last 2024, +2.3 pts) tops the out-of-print list while Jace, Multiverse
+  Architect leads the commander risers.
+- **New-commander radar** (added 2026-11-19): the 10 commanders rising
+  fastest on EDHREC this week (trend score) and, for each, its cheap cards
+  with the highest synergy (played far more with that commander than
+  elsewhere) plus supply. CLI: `python watchlist.py spec` / `radar`.
 - **Moxfield isn't a source:** it blocks outside requests (Cloudflare 403)
   and its API needs approval from Moxfield, so it isn't used.
 

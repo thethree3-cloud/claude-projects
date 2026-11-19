@@ -44,6 +44,29 @@ cd projects/18_commander_deck_builder
 - [ ] Optional, outward-facing: upstream PR of the bulk-data fix to
       `j4th/mtg-mcp-server` (`mtg-bulk-fix.patch`).
 
+## Watch list: saved for 2026-11-20 (ideas #4-9)
+
+Built 2026-11-19: #1 daily EDHREC popularity snapshots + "popular, still
+cheap" spec score, #2 supply / reprint risk (printings, last printed,
+Reserved List, scheduled reprints), #3 new-commander radar.
+
+- [ ] **#4 Combo spikes:** flag older cards whose combo partner is a new or
+      upcoming card (Scryfall future-dated printings + Commander Spellbook).
+- [ ] **#5 Better price signals:** Cardmarket EUR vs USD divergence (Scryfall
+      has `eur`), foil vs normal, price range across printings (store min /
+      max per card so a cheap reprint doesn't hide a rising original).
+- [ ] **#6 Alerts:** daily digest (email like gov_bids, or desktop) of top
+      signals and watched-card moves; target-price alerts per watched card.
+- [ ] **#7 Binder value + buy log:** collection value over time, risers you
+      own (sell signals), buys with date/price/qty and P&L after fees
+      (~13% TCGplayer + shipping) and buylist spread.
+- [ ] **#8 Backtest the signals:** after 4-6 weeks of history, check whether
+      a high spec score came before price rises; tune the supply / price
+      weights (they're a first guess today).
+- [ ] **#9 Claude explains why:** one grounded line per flagged card (e.g.
+      "rising because The Borg Queen jumped and it's her top synergy card"),
+      facts from the data only.
+
 ## Could do later (not needed for v1)
 
 - [x] Daily price snapshot: user crontab runs `watchlist.py snapshot` hourly

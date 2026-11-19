@@ -13,8 +13,16 @@
 - **My watch list:** cards you add; their price history is kept for good
   (other cards' snapshots are pruned after ``KEEP_DAYS``).
 
+- **Spec signals:** cards gaining players while the price hasn't moved,
+  weighted by supply (printings, last printed, Reserved List, a reprint on the
+  way). Every row lists its reasons.
+- **New-commander radar:** commanders rising on EDHREC this week and their
+  cheap, high-synergy cards (what new decks for them will buy).
+
 CLI (e.g. from cron, so price history has no gaps):
     python watchlist.py snapshot
+    python watchlist.py spec --max-usd 10
+    python watchlist.py radar --commanders 5
     python watchlist.py rising --limit 20
     python watchlist.py prices --days 7
     python watchlist.py add "The One Ring" | remove NAME | list
@@ -36,7 +44,10 @@ DB_NAME = "watchlist.sqlite"
 TOP_PAGES = 10  # x100 cards per EDHREC window
 KEEP_DAYS = 120  # price snapshots older than this are pruned (watched cards are kept)
 MIN_TRACK_USD = 0.25  # cheaper cards aren't snapshotted (unless watched): their % moves are noise
-WINDOWS = {"week": "top/week", "year": "top/year"}  # EDHREC's "year" page is the past 2 years
+WINDOWS = {"week": "top/week", "year": "top/year",  # EDHREC's "year" page is the past 2 years
+           "commanders_week": "commanders/week"}
+RADAR_COMMANDERS = 10  # rising commanders whose pages the radar reads
+NEW_CARD_DAYS = 30  # cards first printed this recently are new-set hype, hidden from spec signals by default
 
 # Compact on purpose (~16k priced cards a day): small integer card ids, dates
 # as YYYYMMDD integers, prices in cents, no rowid -> ~0.3 MB per day.
@@ -50,6 +61,18 @@ CREATE TABLE IF NOT EXISTS snapshots (
     card INTEGER NOT NULL,       -- card_ids.id
     cents INTEGER NOT NULL,
     PRIMARY KEY (day, card)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS edhrec_names (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS edhrec_days (   -- EDHREC's past-week top list, saved daily
+    day INTEGER NOT NULL,                  -- YYYYMMDD (local date it was saved)
+    name INTEGER NOT NULL,                 -- edhrec_names.id
+    decks INTEGER NOT NULL,
+    potential INTEGER NOT NULL,
+    trend_milli INTEGER,                   -- trend z-score x 1000
+    PRIMARY KEY (day, name)
 ) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS watched (
     name TEXT PRIMARY KEY,
@@ -133,6 +156,134 @@ def rising_cards(db, week=None, year=None):
         })
     rows.sort(key=lambda r: (r["trend"] is None, -(r["trend"] or 0), r["week_rank"]))
     return rows
+
+
+# ---------------------------------------------------------------------------
+# Spec signals: popular, still cheap, short supply
+# ---------------------------------------------------------------------------
+
+
+def supply_factor(sup, today=None):
+    """(multiplier, label) for how scarce a card is. A starting guess, to be
+    checked against real price moves once history builds up (watch-list #8)."""
+    if sup is None:
+        return 1.0, "unknown"
+    if sup["upcoming"]:
+        return 0.5, "reprint coming: " + ", ".join(sup["upcoming"][:2])
+    if sup["reserved"]:
+        return 1.5, "Reserved List"
+    n = sup["printings"]
+    years = None
+    if sup["last"]:
+        today = dt.date.fromisoformat(today) if today else dt.date.today()
+        years = (today - dt.date.fromisoformat(sup["last"])).days / 365
+    since = f", last {sup['last'][:4]}" if sup["last"] else ""
+    plural = "printing" if n == 1 else "printings"
+    if years is not None and years < 1:
+        # Printed within the year: that set is still being opened, so supply is still growing.
+        return 0.9, f"in print ({n} {plural}, last {sup['last']})"
+    if n <= 1:
+        return (1.3 if years is None or years >= 2 else 1.15), f"1 printing{since}"
+    if n <= 3:
+        return 1.15, f"{n} printings{since}"
+    if n <= 7:
+        return 1.0, f"{n} printings{since}"
+    return 0.85, f"{n} printings (plentiful){since}"
+
+
+def price_factor(change_pct):
+    """(multiplier, label): a card whose price already jumped is less of a find."""
+    if change_pct is None:
+        return 1.0, "price history building"
+    if change_pct > 30:
+        return 0.4, f"price already up {change_pct:+.0f}%"
+    if change_pct > 10:
+        return 0.7, f"price up {change_pct:+.0f}%"
+    return 1.0, f"price flat ({change_pct:+.0f}%)"
+
+
+def spec_signals(db, wl, rising=None, min_usd=0.5, max_usd=None, include_new=False, today=None, days=7,
+                 out_of_print_only=False):
+    """Cards gaining players while their price hasn't caught up, scarcest first.
+
+    score = EDHREC trend (+ popularity gain over ``days`` from our own daily
+    snapshots, once there are two) x supply factor x price factor. Every row
+    carries its reasons, so the score is never a black box."""
+    """``out_of_print_only`` keeps cards last printed over a year ago (no set still being opened)."""
+    rising = rising_cards(db) if rising is None else rising
+    today = today or dt.date.today().isoformat()
+    year_ago = (dt.date.fromisoformat(today) - dt.timedelta(days=365)).isoformat()
+    _, _, pop_change = wl.popularity_change(days)
+    price_change = wl.price_changes(days)
+    supply = db.supply([r["name"] for r in rising if r["usd"] is not None], today)
+    new_cutoff = (dt.date.fromisoformat(today) - dt.timedelta(days=NEW_CARD_DAYS)).isoformat()
+    rows = []
+    for r in rising:
+        if r["usd"] is None or r["trend"] is None or r["trend"] <= 0 or r["usd"] < min_usd:
+            continue
+        if max_usd is not None and r["usd"] > max_usd:
+            continue
+        sup = supply.get(r["name"])
+        is_new = bool(sup and sup["first"] and sup["first"] >= new_cutoff)
+        if is_new and not include_new:
+            continue
+        if out_of_print_only and not (sup and sup["last"] and sup["last"] < year_ago and not sup["upcoming"]):
+            continue
+        card = db.get(r["name"])
+        accel = pop_change.get(r["name"])
+        s_mult, s_label = supply_factor(sup, today)
+        p_mult, p_label = price_factor(price_change.get(card["oracle_id"]) if card else None)
+        base = r["trend"] + (max(accel, 0) * 5 if accel is not None else 0)
+        reasons = [f"EDHREC trend {r['trend']:.1f}",
+                   "new on the weekly list" if r["new"] else f"{r['change_pts']:+.1f} pts vs 2 years"]
+        if accel is not None:
+            reasons.append(f"{accel:+.2f} pts in {days} days")
+        reasons += [s_label, p_label] + (["new card (first printed in the last 30 days)"] if is_new else [])
+        rows.append({**r, "score": round(base * s_mult * p_mult, 1), "supply": s_label,
+                     "printings": sup["printings"] if sup else None, "last_printed": sup["last"] if sup else None,
+                     "reserved": bool(sup and sup["reserved"]), "price_change_pct": price_change.get(card["oracle_id"]) if card else None,
+                     "pop_change_pts": accel, "new_card": is_new, "reasons": reasons})
+    rows.sort(key=lambda r: -r["score"])
+    return rows
+
+
+def rising_commanders(limit=RADAR_COMMANDERS, week=None):
+    """Commanders gaining fastest on EDHREC this week (trend score), most first."""
+    week = fetch_top("commanders_week", pages=3) if week is None else week
+    risers = [v for v in week if (v.get("trend_zscore") or 0) > 0]
+    risers.sort(key=lambda v: -v["trend_zscore"])
+    return risers[:limit]
+
+
+def commander_radar(db, limit=RADAR_COMMANDERS, per_commander=8, max_usd=10.0, min_synergy=0.2,
+                    commanders=None, cards_for=None, today=None):
+    """For each rising commander: its cheap, high-synergy cards (the ones new
+    decks for it will want), with supply facts. ``cards_for(name)`` returns
+    EDHREC's cards for a commander (defaults to the cached commander page)."""
+    commanders = rising_commanders(limit) if commanders is None else commanders
+    cards_for = cards_for or (lambda name: edhrec_client.commander_cards([name])["cards"])
+    out = []
+    for c in commanders:
+        try:
+            cards = cards_for(c["name"])
+        except edhrec_client.EdhrecError:
+            continue
+        picks = [x for x in cards if (x.get("synergy") or 0) >= min_synergy or x.get("high_synergy")]
+        info = db.get_many([x["name"] for x in picks])
+        supply = db.supply(list(info), today)
+        rows = []
+        for x in picks:
+            card = info.get(x["name"])
+            if card is None or card["usd"] is None or card["usd"] > max_usd or "Basic" in card["type_line"]:
+                continue
+            _, s_label = supply_factor(supply.get(x["name"]), today)
+            rows.append({"name": card["name"], "synergy": x.get("synergy") or 0.0, "inclusion": x["inclusion"],
+                         "usd": card["usd"], "supply": s_label,
+                         "printings": supply[x["name"]]["printings"] if x["name"] in supply else None})
+        rows.sort(key=lambda r: (-r["synergy"], -r["inclusion"]))
+        out.append({"commander": c["name"], "trend": round(c["trend_zscore"], 1), "week_decks": c["num_decks"],
+                    "cards": rows[:per_commander]})
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -242,6 +393,59 @@ class WatchList:
             "SELECT s.day, s.cents FROM snapshots s JOIN card_ids c ON c.id = s.card "
             "WHERE c.oracle_id = ? ORDER BY s.day", (oracle_id,))]
 
+    # -- EDHREC popularity history -------------------------------------------
+
+    def snapshot_edhrec(self, week, date=None, keep_days=KEEP_DAYS):
+        """Save this week's EDHREC top list once per (local) date. Returns True if saved."""
+        date = date or dt.date.today().isoformat()
+        day = _day(date)
+        if self.conn.execute("SELECT 1 FROM edhrec_days WHERE day = ? LIMIT 1", (day,)).fetchone():
+            return False
+        ids = dict(self.conn.execute("SELECT name, id FROM edhrec_names"))
+        with self.conn:
+            rows = []
+            for v in week:
+                if v["name"] not in ids:
+                    ids[v["name"]] = self.conn.execute("INSERT INTO edhrec_names (name) VALUES (?)",
+                                                       (v["name"],)).lastrowid
+                trend = None if v.get("trend_zscore") is None else round(v["trend_zscore"] * 1000)
+                rows.append((day, ids[v["name"]], v["num_decks"], v["potential_decks"], trend))
+            self.conn.executemany("INSERT OR IGNORE INTO edhrec_days VALUES (?, ?, ?, ?, ?)", rows)
+            cutoff = _day((dt.date.fromisoformat(date) - dt.timedelta(days=keep_days)).isoformat())
+            self.conn.execute("DELETE FROM edhrec_days WHERE day < ?", (cutoff,))
+        return True
+
+    def edhrec_dates(self):
+        return [_date(r[0]) for r in self.conn.execute("SELECT DISTINCT day FROM edhrec_days ORDER BY day")]
+
+    def popularity_change(self, days=7):
+        """``(from_date, to_date, {name: change in inclusion points})`` between the latest
+        EDHREC snapshot and the one about ``days`` earlier; (None, None, {}) until two exist."""
+        dates = self.edhrec_dates()
+        if len(dates) < 2:
+            return None, None, {}
+        new = dates[-1]
+        target = (dt.date.fromisoformat(new) - dt.timedelta(days=days)).isoformat()
+        old = ([d for d in dates[:-1] if d <= target] or [dates[0]])[-1]
+        rows = self.conn.execute(
+            "SELECT n.name, a.decks AS od, a.potential AS op, b.decks AS nd, b.potential AS np "
+            "FROM edhrec_days b JOIN edhrec_days a ON a.name = b.name AND a.day = ? "
+            "JOIN edhrec_names n ON n.id = b.name WHERE b.day = ?", (_day(old), _day(new))).fetchall()
+        change = {r["name"]: round((r["nd"] / r["np"] - r["od"] / r["op"]) * 100, 2)
+                  for r in rows if r["np"] and r["op"]}
+        return old, new, change
+
+    def price_changes(self, days=7):
+        """``{oracle_id: % change}`` over about ``days`` (or the history so far); {} with one snapshot."""
+        span = self._compare_dates(days)
+        if span is None:
+            return {}
+        rows = self.conn.execute(
+            "SELECT c.oracle_id, o.cents AS old, n.cents AS new FROM snapshots n "
+            "JOIN snapshots o ON o.card = n.card AND o.day = ? JOIN card_ids c ON c.id = n.card "
+            "WHERE n.day = ? AND o.cents > 0", (_day(span[0]), _day(span[1]))).fetchall()
+        return {r["oracle_id"]: round((r["new"] - r["old"]) / r["old"] * 100, 1) for r in rows}
+
     # -- watched cards -----------------------------------------------------
 
     def add(self, db, name, note=""):
@@ -311,7 +515,14 @@ def _pct(value):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Rising cards (EDHREC), price risers and your watch list.")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("snapshot", help="save today's prices (run daily, e.g. from cron)")
+    sub.add_parser("snapshot", help="save today's prices and EDHREC popularity (run daily, e.g. from cron)")
+    p_spec = sub.add_parser("spec", help="popular, still cheap, short supply")
+    p_spec.add_argument("--min-usd", type=float, default=0.5)
+    p_spec.add_argument("--max-usd", type=float)
+    p_spec.add_argument("--limit", type=int, default=25)
+    p_spec.add_argument("--out-of-print", action="store_true", help="only cards last printed over a year ago")
+    p_radar = sub.add_parser("radar", help="rising commanders and their cheap high-synergy cards")
+    p_radar.add_argument("--commanders", type=int, default=5)
     p_rising = sub.add_parser("rising", help="cards rising on EDHREC this week")
     p_rising.add_argument("--limit", type=int, default=25)
     p_prices = sub.add_parser("prices", help="cards whose price rose")
@@ -333,6 +544,18 @@ def main(argv=None):
         if args.command == "snapshot":
             print(f"Price snapshot for {date}: {'saved' if new else 'already saved'} "
                   f"({len(wl.dates())} days of history).")
+            saved = wl.snapshot_edhrec(fetch_top("week"))
+            print(f"EDHREC popularity snapshot: {'saved' if saved else 'already saved'} "
+                  f"({len(wl.edhrec_dates())} days of history).")
+        elif args.command == "spec":
+            for r in spec_signals(db, wl, min_usd=args.min_usd, max_usd=args.max_usd,
+                                  out_of_print_only=args.out_of_print)[: args.limit]:
+                print(f"{r['score']:>6} {r['name']} ${r['usd']:.2f} - " + "; ".join(r["reasons"]))
+        elif args.command == "radar":
+            for c in commander_radar(db, limit=args.commanders):
+                print(f"\n{c['commander']} (trend {c['trend']}, {c['week_decks']} decks this week)")
+                for x in c["cards"]:
+                    print(f"  {x['synergy']:+.0%} synergy  ${x['usd']:.2f}  {x['name']} ({x['supply']})")
         elif args.command == "rising":
             for r in rising_cards(db)[: args.limit]:
                 change = "new this week" if r["new"] else f"{r['change_pts']:+.1f} pts vs 2 years"

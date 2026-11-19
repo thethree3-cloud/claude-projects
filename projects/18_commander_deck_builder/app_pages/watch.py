@@ -1,4 +1,5 @@
-"""Watch list page: rising cards on EDHREC, price risers, and your own list.
+"""Watch list page: spec signals, new-commander radar, rising cards on EDHREC,
+price risers, and your own list.
 
 Data and storage live in ``watchlist.py``; this page only shows them.
 """
@@ -13,7 +14,7 @@ import edhrec_client
 import watchlist
 
 COLORS = {"W": "White", "U": "Blue", "B": "Black", "R": "Red", "G": "Green"}
-VIEWS = ["Rising on EDHREC", "Price risers", "My watch list"]
+VIEWS = ["Spec signals", "New commanders", "Rising on EDHREC", "Price risers", "My watch list"]
 
 
 def with_db(fn, *args):
@@ -28,8 +29,31 @@ def with_db(fn, *args):
 
 @st.cache_data(ttl="1h", show_spinner=False)
 def take_snapshot():
-    """Today's price snapshot (once per Scryfall date; cheap if it already exists)."""
-    return with_db(lambda db, wl: (*wl.snapshot(db), len(wl.dates())))
+    """Today's price + EDHREC popularity snapshots (once per date; cheap if they exist)."""
+    def take(db, wl):
+        date, new = wl.snapshot(db)
+        try:
+            wl.snapshot_edhrec(watchlist.fetch_top("week"))
+        except edhrec_client.EdhrecError:
+            pass  # prices still work; popularity history just skips a day
+        return date, new, len(wl.dates()), len(wl.edhrec_dates())
+    return with_db(take)
+
+
+@st.cache_data(ttl="1h", show_spinner="Scoring cards...")
+def load_spec(min_usd, max_usd, include_new, out_of_print):
+    rising = load_rising()
+    return with_db(lambda db, wl: watchlist.spec_signals(db, wl, rising, min_usd, max_usd, include_new,
+                                                          out_of_print_only=out_of_print))
+
+
+@st.cache_data(ttl="6h", show_spinner="Reading rising commanders' EDHREC pages (first time ~10 s)...")
+def load_radar(max_usd, per_commander):
+    db = deck_service.open_db()
+    try:
+        return watchlist.commander_radar(db, per_commander=per_commander, max_usd=max_usd)
+    finally:
+        db.close()
 
 
 @st.cache_data(ttl="6h", show_spinner="Reading EDHREC's top cards (first time ~10 s)...")
@@ -84,18 +108,107 @@ def selected_names(event, rows):
 # ---------------------------------------------------------------------------
 
 st.title("Card watch list")
-date, _, days_of_history = take_snapshot()
-st.caption(f"Popularity from EDHREC (past week vs past 2 years); prices from Scryfall, saved daily. "
-           f"Price history: {days_of_history} day{'s' if days_of_history != 1 else ''} (latest {date}).")
+date, _, days_of_history, edhrec_days = take_snapshot()
+st.caption(f"Popularity from EDHREC (past week vs past 2 years); prices from Scryfall. Both saved daily: "
+           f"{days_of_history} day{'s' if days_of_history != 1 else ''} of prices, {edhrec_days} of popularity "
+           f"(latest {date}). Signals to research, not predictions.")
 
 view = st.segmented_control("View", VIEWS, default=VIEWS[0], key="watch_view", required=True,
                             label_visibility="collapsed", persist_state="session")
 
 # ---------------------------------------------------------------------------
+# Spec signals
+# ---------------------------------------------------------------------------
+
+if view == "Spec signals":
+    with st.container(horizontal=True, vertical_alignment="bottom"):
+        out_of_print = st.toggle("Out of print only", value=True, key="spec_oop", persist_state="session",
+                                 help="Last printed over a year ago, so no set is still adding copies")
+        include_new = st.toggle("Include new cards", key="spec_new", persist_state="session",
+                                help=f"Cards first printed in the last {watchlist.NEW_CARD_DAYS} days (new-set hype)")
+        min_usd = st.number_input("Min price", min_value=0.0, value=0.5, step=0.5, key="spec_min",
+                                  persist_state="session")
+        max_usd = st.number_input("Max price", min_value=0.0, value=None, step=1.0, key="spec_max",
+                                  placeholder="Any", persist_state="session")
+    try:
+        rows = load_spec(min_usd, max_usd, include_new, out_of_print)
+    except edhrec_client.EdhrecError as exc:
+        st.error(f"Couldn't read EDHREC: {exc}", icon=":material/error:")
+        st.stop()
+    st.caption("Cards gaining players on EDHREC while the price hasn't caught up, weighted by supply. "
+               "Score = EDHREC trend (+ our own 7-day popularity gain once there are two days) x supply x price. "
+               "The weights are a first guess until enough history exists to test them. Select rows to watch.")
+    if not rows:
+        st.info("No cards match. Try turning off **Out of print only** or widening the price range.",
+                icon=":material/filter_alt_off:")
+        st.stop()
+    event = st.dataframe(
+        [{"Card": r["name"], "Score": r["score"], "Price": r["usd"],
+          "Popularity": "new on list" if r["new"] else f"{r['change_pts']:+.1f} pts",
+          "7-day popularity": r["pop_change_pts"], "7-day price": None if r["price_change_pct"] is None
+          else r["price_change_pct"] / 100, "Supply": r["supply"], "Why": "; ".join(r["reasons"]),
+          "Page": card_url(r["name"])} for r in rows[:200]],
+        column_config={
+            "Score": st.column_config.ProgressColumn(min_value=0, max_value=max(r["score"] for r in rows),
+                                                     format="%.1f"),
+            "Price": st.column_config.NumberColumn(format="dollar"),
+            "7-day popularity": st.column_config.NumberColumn(format="%+.2f pts",
+                                                              help="From our daily EDHREC snapshots"),
+            "7-day price": st.column_config.NumberColumn(format="percent"),
+            "Page": st.column_config.LinkColumn(display_text="Open"),
+        },
+        hide_index=True, on_select="rerun", selection_mode="multi-row", key="spec_table",
+    )
+    picked = selected_names(event, rows)
+    if st.button(f"Watch {len(picked)} selected" if picked else "Select cards to watch", key="spec_add",
+                 icon=":material/star:", disabled=not picked):
+        add_cards(picked)
+
+# ---------------------------------------------------------------------------
+# New-commander radar
+# ---------------------------------------------------------------------------
+
+elif view == "New commanders":
+    with st.container(horizontal=True, vertical_alignment="bottom"):
+        max_usd = st.number_input("Max card price", min_value=0.5, value=10.0, step=1.0, key="radar_max",
+                                  persist_state="session")
+        per = st.segmented_control("Cards per commander", [5, 8, 12], default=8, key="radar_per", required=True,
+                                   persist_state="session")
+    try:
+        radar = load_radar(max_usd, per)
+    except edhrec_client.EdhrecError as exc:
+        st.error(f"Couldn't read EDHREC: {exc}", icon=":material/error:")
+        st.stop()
+    st.caption("Commanders gaining fastest on EDHREC this week, and their cheap cards with the highest synergy "
+               "(played far more with this commander than elsewhere): what new decks for them will buy.")
+    for c in radar:
+        with st.container(border=True):
+            with st.container(horizontal=True, vertical_alignment="center"):
+                st.markdown(f"**{c['commander']}**", width="content")
+                st.badge(f"trend {c['trend']}", color="orange", icon=":material/trending_up:")
+                st.caption(f"{c['week_decks']:,} decks this week")
+                st.page_link("app_pages/card.py", label="Card page", query_params={"name": c["commander"]},
+                             icon=":material/open_in_new:")
+            if not c["cards"]:
+                st.caption("No high-synergy cards under that price.")
+                continue
+            st.dataframe(
+                [{"Card": x["name"], "Synergy": x["synergy"], "Played in": x["inclusion"], "Price": x["usd"],
+                  "Supply": x["supply"], "Page": card_url(x["name"])} for x in c["cards"]],
+                column_config={
+                    "Synergy": st.column_config.NumberColumn(format="percent"),
+                    "Played in": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1),
+                    "Price": st.column_config.NumberColumn(format="dollar"),
+                    "Page": st.column_config.LinkColumn(display_text="Open"),
+                },
+                hide_index=True, key=f"radar-{c['commander']}",
+            )
+
+# ---------------------------------------------------------------------------
 # Rising on EDHREC
 # ---------------------------------------------------------------------------
 
-if view == "Rising on EDHREC":
+elif view == "Rising on EDHREC":
     try:
         rising = load_rising()
     except edhrec_client.EdhrecError as exc:

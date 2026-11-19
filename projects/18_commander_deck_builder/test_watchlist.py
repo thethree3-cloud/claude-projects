@@ -133,5 +133,131 @@ class WatchedTests(WatchCase):
             self.wl.add(self.db, "zzzzqqq")
 
 
+
+class SupplyTests(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        bulk = Path(tmp.name) / "bulk.jsonl.gz"
+        write_bulk(bulk, [
+            printing("old", "Old Gem", set="aaa", released_at="2015-01-01", prices={"usd": "3.00"}),
+            printing("rl", "Reserved Thing", set="bbb", released_at="1995-01-01", reserved=True,
+                     prices={"usd": "50.00"}),
+            printing("rep", "Reprinted Soon", set="ccc", released_at="2018-01-01", prices={"usd": "4.00"}),
+            printing("rep", "Reprinted Soon", set="zzz", set_name="Future Set", released_at="2027-02-01"),
+            printing("many", "Common Staple", set="d1", released_at="2010-01-01", prices={"usd": "1.00"}),
+            *[printing("many", "Common Staple", set=f"d{i}", released_at=f"201{i}-01-01") for i in range(2, 10)],
+            printing("many", "Common Staple", set="p1", promo=True, released_at="2019-05-01"),
+            printing("fresh", "Fresh Card", set="new", released_at="2026-11-10", prices={"usd": "2.00"}),
+            printing("inp", "In Print Card", set="ipr", released_at="2026-06-01", prices={"usd": "2.00"}),
+        ])
+        card_db.build_db(bulk, Path(tmp.name) / "cards.sqlite")
+        self.db = card_db.CardDB(Path(tmp.name) / "cards.sqlite")
+        self.addCleanup(self.db.close)
+        self.today = "2026-11-19"
+        self.sup = self.db.supply(["Old Gem", "Reserved Thing", "Reprinted Soon", "Common Staple", "Fresh Card",
+                                   "In Print Card", "Nope"], self.today)
+
+    def test_supply_facts(self):
+        self.assertNotIn("Nope", self.sup)
+        self.assertEqual(self.sup["Common Staple"]["printings"], 9)  # the promo is counted apart
+        self.assertEqual(self.sup["Common Staple"]["promos"], 1)
+        self.assertTrue(self.sup["Reserved Thing"]["reserved"])
+        self.assertEqual(self.sup["Reprinted Soon"]["upcoming"], ["Future Set"])
+        self.assertEqual(self.sup["Reprinted Soon"]["last"], "2018-01-01")  # future printing isn't out yet
+
+    def test_supply_factor_order(self):
+        f = {n: watchlist.supply_factor(v, self.today) for n, v in self.sup.items()}
+        self.assertEqual(f["Reserved Thing"], (1.5, "Reserved List"))
+        self.assertEqual(f["Reprinted Soon"][0], 0.5)
+        self.assertIn("reprint coming: Future Set", f["Reprinted Soon"][1])
+        self.assertEqual(f["Old Gem"], (1.3, "1 printing, last 2015"))
+        self.assertEqual(f["Common Staple"][0], 0.85)
+        self.assertEqual(f["In Print Card"][0], 0.9)
+        self.assertIn("in print", f["In Print Card"][1])
+
+    def test_price_factor(self):
+        self.assertEqual(watchlist.price_factor(None)[0], 1.0)
+        self.assertEqual(watchlist.price_factor(5)[0], 1.0)
+        self.assertEqual(watchlist.price_factor(20)[0], 0.7)
+        self.assertEqual(watchlist.price_factor(80), (0.4, "price already up +80%"))
+
+    def test_spec_signals(self):
+        wl = watchlist.WatchList(Path(self.db.path).with_name("w.sqlite"))
+        self.addCleanup(wl.close)
+        rising = [
+            {"name": n, "trend": t, "usd": u, "new": False, "change_pts": 1.0}
+            for n, t, u in [("Old Gem", 5.0, 3.0), ("Common Staple", 6.0, 1.0), ("Reprinted Soon", 9.0, 4.0),
+                            ("Fresh Card", 20.0, 2.0), ("Reserved Thing", 2.0, 50.0), ("Falling", -1.0, 3.0),
+                            ("Penny", 4.0, 0.1)]
+        ]
+        rows = watchlist.spec_signals(self.db, wl, rising, today=self.today)
+        names = [r["name"] for r in rows]
+        self.assertNotIn("Fresh Card", names)   # new-set hype hidden by default
+        self.assertNotIn("Falling", names)      # trend <= 0
+        self.assertNotIn("Penny", names)        # under min price
+        self.assertEqual(names[0], "Old Gem")   # 5.0 x 1.3 = 6.5 beats 6.0 x 0.85 and 9.0 x 0.5
+        self.assertEqual(rows[0]["score"], 6.5)
+        self.assertIn("1 printing, last 2015", rows[0]["reasons"])
+        self.assertIn("Fresh Card", [r["name"] for r in watchlist.spec_signals(
+            self.db, wl, rising, include_new=True, today=self.today)])
+        oop = [r["name"] for r in watchlist.spec_signals(self.db, wl, rising, today=self.today,
+                                                          out_of_print_only=True)]
+        self.assertNotIn("Reprinted Soon", oop)  # reprint on the way
+        self.assertIn("Old Gem", oop)
+        self.assertEqual(watchlist.spec_signals(self.db, wl, rising, max_usd=2, today=self.today)[0]["name"],
+                         "Common Staple")
+
+
+class PopularityHistoryTests(WatchCase):
+    def test_edhrec_snapshot_and_change(self):
+        week1 = [view("Sol Ring", 80, 100, 0.5), view("Lightning Bolt", 10, 100, 2.0)]
+        week2 = [view("Sol Ring", 81, 100, 0.4), view("Lightning Bolt", 14, 100, 3.0)]
+        self.assertTrue(self.wl.snapshot_edhrec(week1, date="2026-11-01"))
+        self.assertFalse(self.wl.snapshot_edhrec(week1, date="2026-11-01"))
+        self.assertEqual(self.wl.popularity_change(), (None, None, {}))
+        self.wl.snapshot_edhrec(week2, date="2026-11-08")
+        old, new, change = self.wl.popularity_change(7)
+        self.assertEqual((old, new), ("2026-11-01", "2026-11-08"))
+        self.assertEqual(change, {"Sol Ring": 1.0, "Lightning Bolt": 4.0})
+
+    def test_spec_uses_popularity_and_price_history(self):
+        self.wl.snapshot(self.db)
+        self.wl.snapshot_edhrec([view("Lightning Bolt", 10, 100, 2.0)], date="2026-11-01")
+        self.wl.snapshot_edhrec([view("Lightning Bolt", 14, 100, 3.0)], date="2026-11-08")
+        self.next_day("2026-11-08", Lightning_Bolt=3.00)  # price +50%
+        rising = [{"name": "Lightning Bolt", "trend": 3.0, "usd": 3.0, "new": False, "change_pts": 4.0}]
+        [row] = watchlist.spec_signals(self.db, self.wl, rising, today="2026-11-19")
+        self.assertEqual(row["pop_change_pts"], 4.0)
+        self.assertEqual(row["price_change_pct"], 50.0)
+        # (3.0 + 4.0 x 5) x 1.0 supply (1 printing, no date in fixture) x 0.4 price already up
+        self.assertEqual(row["score"], round((3.0 + 20.0) * 1.3 * 0.4, 1))
+        self.assertIn("price already up +50%", row["reasons"])
+
+
+class RadarTests(WatchCase):
+    def test_rising_commanders_and_their_cheap_synergy_cards(self):
+        week = [{"name": "Hot Commander", "num_decks": 500, "trend_zscore": 12.0},
+                {"name": "Cold Commander", "num_decks": 900, "trend_zscore": -1.0},
+                {"name": "Warm Commander", "num_decks": 50, "trend_zscore": 3.0}]
+        cmdrs = watchlist.rising_commanders(week=week)
+        self.assertEqual([c["name"] for c in cmdrs], ["Hot Commander", "Warm Commander"])
+        cards = {"Hot Commander": [
+            {"name": "Lightning Bolt", "synergy": 0.5, "inclusion": 0.6},
+            {"name": "Sol Ring", "synergy": 0.05, "inclusion": 0.9},             # low synergy: left out
+            {"name": "The One Ring", "synergy": 0.7, "inclusion": 0.3},          # over max price
+            {"name": "Unknown Spoiler", "synergy": 0.9, "inclusion": 0.1},       # not in the card database
+        ]}
+
+        def cards_for(name):
+            if name not in cards:
+                raise edhrec_client.EdhrecError("no page")
+            return cards[name]
+        radar = watchlist.commander_radar(self.db, commanders=cmdrs, cards_for=cards_for, max_usd=10)
+        self.assertEqual([c["commander"] for c in radar], ["Hot Commander"])  # Warm's page failed: skipped
+        self.assertEqual([x["name"] for x in radar[0]["cards"]], ["Lightning Bolt"])
+        self.assertEqual(radar[0]["trend"], 12.0)
+
+
 if __name__ == "__main__":
     unittest.main()
