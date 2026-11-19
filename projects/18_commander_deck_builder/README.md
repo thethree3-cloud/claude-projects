@@ -167,7 +167,11 @@ Step 5 is the only LLM step. Steps 1-4 and 6-7 are plain, unit-tested code.
 Hard failures (block the deck):
 - exactly 100 cards including the commander
 - singleton (except basic lands and "any number" cards)
-- every card inside the commander's color identity
+- every card inside the commander's color identity (both commanders' colors for a pair)
+- two commanders must legally pair: Partner, "Partner with [name]", the
+  Partner variants (Friends forever, Character select, Survivors, Father &
+  son), Choose a Background + a Background, Doctor's companion + a Time Lord
+  Doctor
 - every card legal in Commander (not banned / not silver-border)
 - every card exists in the candidate data (catches hallucinated names)
 - total price <= budget
@@ -213,8 +217,8 @@ What the numbers say:
 - **"Roles OK" is a rule of thumb, not a quality score.** Most of Opus's
   misses are "fewer than 8 draw cards", including all three Krenko decks
   (fast goblin decks run little draw - every model missed there).
-- Not measured: whether Claude's decks *play* better. That needs a judge
-  (pairwise, blind) or human review - the next step if this matters.
+- Whether Claude's decks *play* better is measured separately by a blind
+  judge (next section).
 
 Run cost: **$8.75 measured** for all 90 Claude decks (Opus $5.95, Sonnet
 $2.55, Haiku $0.25), pilot included; ~12 minutes with 4 cases in parallel.
@@ -222,9 +226,76 @@ One Haiku case hit the 32k output limit, was logged as an error and re-run
 (its usage isn't in the total). Raw rows: `evals/runs/<variant>/results.jsonl`;
 table: `evals/RESULTS.md` (`python eval_decks.py --summary`).
 
+### Blind pairwise judge (run 2026-11-18)
+
+The metrics above reward copying EDHREC, so they can't say which deck plays
+better. `judge_decks.py` asks a **different model (Sonnet 5.5; Opus 5.5 built
+the decks)** to compare the Opus deck and the baseline deck for each of the
+30 cases. Both decks are rebuilt from the saved trace, so they come from the
+same candidate table and the same prices. The judge sees "Deck A" / "Deck
+B" grouped by card type with short rules text and counted facts (lands,
+average mana value): no builder name, strategy, reasons, prices or role
+labels. It scores five criteria (1-10) and picks a winner. **Each case is
+judged twice with the order swapped; a deck wins only if it wins both.**
+
+| Outcome | Cases | Share (95% CI) |
+|---|--:|--:|
+| Claude (Opus 5.5) deck wins | 26 | 87% (70%-95%) |
+| Baseline (no LLM) deck wins | 0 | 0% (0%-11%) |
+| Split (orders disagree) | 4 | 13% |
+
+| Mean score (1-10) | synergy | mana | interaction | card_flow | win_path |
+|---|--:|--:|--:|--:|--:|
+| Claude deck | 7.9 | 7.6 | 7.8 | 7.3 | 7.7 |
+| Baseline deck | 7.5 | 7.2 | 6.5 | 6.9 | 6.8 |
+
+- **By budget:** Claude wins 7/10 at $50, 9/10 at $150, 10/10 at $500.
+  The $500 wins are partly money: the baseline's cap often leaves it far
+  under budget there (Kestia $184 vs Claude $461). At $50 both spend
+  nearly all of it, and Claude still wins 7 with 3 splits and 0 losses.
+- **Where it wins:** interaction (+1.3) and a clear win path (+0.9). The
+  baseline picks by popularity per role; Claude picks removal and finishers
+  that fit the commander.
+- **All 4 splits are position flips** (each order picked the deck shown
+  first or the other way round, never the baseline in both). The first-shown
+  deck won 57% of decided calls, a mild position bias the swap cancels.
+- **Caveats:** one judge, and it's also a Claude model (possible
+  same-family preference); an LLM judge is not play-testing. Its reasons
+  sometimes misread a deck (it called Edgar's R/W lands off-color), which
+  is why the pilot's land miscount led to adding counted facts to the
+  prompt. A second judge family or a human review of a few cases would
+  firm this up.
+
+Cost: **$1.52** for 60 judge calls (~10k input tokens each), 55 s with 4 in
+parallel; pilot $0.10. Raw rows: `evals/judge/claude-sonnet-5-5/results.jsonl`;
+table: `evals/JUDGE.md` (`python judge_decks.py --summary`).
+
+## Two commanders (partners, Backgrounds, Doctors) - added 2026-11-18
+
+Every tool takes `--partner NAME` (fuzzy, matched only among cards that can
+legally pair with the first commander), and the Streamlit page shows a
+"Second commander" picker when the chosen commander can pair.
+
+- **Rules** (`card_db.pairing` / `pair_problem`): the five pair types above,
+  read from the rules text and type line; `CardDB.partner_names(card)` lists
+  legal partners (e.g. Thrasios: 57, Halsin: 30 Backgrounds, Nikara: only
+  Yannik). A Background alone is refused.
+- **Deck:** 98 cards + 2 commanders, color identity = both commanders',
+  cost = both (owned ones free). The validator reads a pair from the first
+  two lines when they legally pair, or from `--commander` / `--partner`.
+- **EDHREC:** the pair's own page (`a-b`, alphabetical; the other order
+  answers `{"redirect": ...}`, which is followed). If it has fewer than 50
+  decks or doesn't exist, each commander's own page is mixed in (pair-page
+  numbers win). Backgrounds have no page of their own.
+- Checked on real data: Thrasios + Tymna $150, Halsin + Raised by Giants
+  $75, Nikara + Yannik $50, Ryan Sinclair + The Fourth Doctor $60, Elmar +
+  Wernog $80 all build and pass the validator; single-commander decks are
+  unchanged (Kestia $100 still $98.39).
+
 ## Interface
 
-- **CLI:** `build_deck.py` (no LLM) and `llm_deck.py` (Claude) write a
+- **CLI:** `build_deck.py` (no LLM) and `llm_deck.py` (Claude), both with
+  `--partner` for a second commander, write a
   Moxfield/Archidekt import list (`--out`) plus a markdown report;
   `validate_deck.py` checks any decklist; `grade_pool.py` grades your
   collection for a commander.

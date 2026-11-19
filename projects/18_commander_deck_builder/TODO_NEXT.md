@@ -29,13 +29,20 @@ cd projects/18_commander_deck_builder
 
 The prototype works but is missing:
 
-- [ ] Handle **partner commanders** / pairs (EDHREC slug is `a-b`) and
-      **backgrounds**; right now only single-commander pages resolve.
+- [x] Handle **partner commanders** / pairs and **backgrounds** (done
+      2026-11-18): Partner, Partner with, Partner variants, Background,
+      Doctor's companion; pair page with redirect + single-page fallback
+      when thin; `--partner` on every tool; second picker in the app. See
+      README "Two commanders".
 - [ ] Optional **budget-tier** pages (EDHREC has budget / expensive variants
       of each commander page — check the URL pattern).
 - [ ] Throttle + retry on EDHREC HTTP errors (only 403/404 handled today).
 - [ ] Save 1-2 more real-page fixtures (a partner pair, a mono-color
-      commander) so format drift is caught.
+      commander) so format drift is caught. (Pair logic is tested with
+      synthetic pages only.)
+- [ ] "krenko" resolves to Krenko, Tin Street Kingpin: `edhrec_rank` is
+      deck count, not commander popularity. Fix would need EDHREC's
+      commander ranking.
 - [ ] Decide: is EDHREC's unofficial JSON acceptable long-term, or add a
       fallback (Moxfield / Archidekt public decklists)? (Open decision.)
 
@@ -170,8 +177,12 @@ curve, Game Changers count vs requested bracket.
       README "Evals". Opus 93% valid first try, 100% after retries, 96%
       budget used, 52% avg-deck overlap (baseline 59%), $0.20/deck. Measured
       spend $8.75 (estimate from pilot: ~$8.14).
-- [ ] Not measured: does Claude's deck *play* better? Needs a blind pairwise
-      judge (different model than the one judged) or human review.
+- [x] Does Claude's deck *play* better? `judge_decks.py` (done 2026-11-18):
+      blind pairwise, Sonnet 5.5 judging Opus decks vs baseline, both
+      orders. Claude wins 26/30, baseline 0, 4 splits; $1.52. README
+      "Blind pairwise judge".
+- [ ] Firm up the judge: a second judge family or a human look at a few
+      cases (the judge is also a Claude model; it misread some lands).
 - [ ] Errors sidecar doesn't record usage of failed attempts (one truncated
       Haiku attempt is missing from the spend total).
 - [ ] Haiku once ran past 32k output tokens: lower `MAX_TOKENS` or effort
