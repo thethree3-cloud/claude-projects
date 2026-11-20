@@ -5,6 +5,7 @@ Data and storage live in ``watchlist.py``; this page only shows them.
 """
 
 import datetime as dt
+import time
 from urllib.parse import quote
 
 import streamlit as st
@@ -156,6 +157,59 @@ date, _, days_of_history, edhrec_days = take_snapshot()
 st.caption(f"Popularity from EDHREC (past week vs past 2 years); prices from Scryfall. Both saved daily: "
            f"{days_of_history} day{'s' if days_of_history != 1 else ''} of prices, {edhrec_days} of popularity "
            f"(latest {date}). Signals to research, not predictions.")
+
+import updater
+
+STEP_OF_SOURCE = {"Card data (Scryfall)": "card data", "Prices": "prices", "Buylist (Card Kingdom)": "buylist",
+                  "EDHREC popularity": "popularity", "Digest": "digest", "Casual decks (Archidekt)": "casual decks",
+                  "Tournaments (EDHTop16)": "tournaments", "Card tags (Scryfall Tagger)": "card tags"}
+
+
+@st.fragment(run_every="3s" if updater.running() else None)
+def data_status():
+    """Freshness of every source, the last update run, and the Update button. Polls while running."""
+    pid = updater.running()
+    status = updater.load_status()
+    was_running = st.session_state.get("update_was_running", False)
+    st.session_state.update_was_running = bool(pid)
+    if was_running and not pid:
+        st.cache_data.clear()  # new data: reload every view
+        st.rerun()
+    started, finished = status.get("started"), status.get("finished")
+    label = ("Updating now..." if pid else
+             f"Data status: last update {finished[:16] if finished else 'never (cron runs it hourly)'}")
+    with st.expander(label, expanded=bool(pid), icon=":material/sync:" if pid else ":material/database:"):
+        rows = []
+        for source, latest, detail in updater.freshness():
+            step = status["steps"].get(STEP_OF_SOURCE.get(source, ""), {})
+            rows.append({"Source": source, "Latest": latest or "n/a", "Detail": detail,
+                         "Last update": (("ok" if step.get("ok") else "failed") + f" {step.get('at', '')}") if step else "",
+                         "Result": step.get("message", "")})
+        st.dataframe(rows, hide_index=True, key="status_table")
+        with st.container(horizontal=True, vertical_alignment="center"):
+            force = st.checkbox("Force (re-run today's daily steps)", key="update_force", disabled=bool(pid),
+                                help="Normally steps that already ran today are skipped. Sources still only change "
+                                     "when they publish (Scryfall about 3 AM).")
+            if st.button("Update everything now", type="primary", icon=":material/sync:", key="update_now",
+                         disabled=bool(pid), help="Runs the daily job in the background (about 5-6 minutes "
+                                                  "when everything is due); the app stays usable."):
+                if updater.start_background(force=force):
+                    st.session_state.update_was_running = True
+                    time.sleep(1)
+                    st.rerun(scope="app")
+                else:
+                    st.warning("An update is already running.", icon=":material/hourglass_top:")
+        if pid:
+            st.caption(f"Running since {started} (process {pid}). This panel refreshes every few seconds.")
+        try:
+            log_lines = updater.LOG_PATH.read_text().splitlines()
+        except OSError:
+            log_lines = []
+        if log_lines:
+            st.code("\n".join(log_lines[-12:]), language=None, height="content")
+
+
+data_status()
 
 view = st.segmented_control("View", VIEWS, default=VIEWS[0], key="watch_view", required=True,
                             label_visibility="collapsed", persist_state="session")

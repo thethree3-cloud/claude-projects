@@ -529,6 +529,27 @@ cards rising there (no score weight until it can be backtested). Card pages
 show the **salt score** and the card's jobs. The change column fills in
 once there are decks from before the latest week.
 
+## Update everything: one job for cron and a button (added 2026-11-20)
+
+`updater.py` holds every daily step: card data (Scryfall check every 6 h),
+price snapshot, EDHREC popularity, owned-card tracking, MTGJSON prices +
+buylist, Archidekt sample, tournament auto-import, card tags (weekly) and
+the digest. Each step's result is saved in `data/update_status.json`; a
+failing step is recorded and the rest still run; once-a-day steps are
+skipped if they already ran today (a **force** option re-runs them; tags
+stay weekly because full refreshes get rate-limited). A lock file makes
+sure only one update runs at a time (cron or the button), and a lock left
+by a crashed run is cleared.
+
+- **Cron** still runs `watchlist.py snapshot` hourly, which now just calls
+  the updater (crontab unchanged).
+- **App:** a **Data status** panel at the top of the Watch list page shows
+  each source's latest date and the last run's result per step, and
+  **Update everything now** starts the job in the background (the app stays
+  usable; the panel refreshes every few seconds with the live log, then
+  reloads the views). Useful after the laptop slept through cron runs.
+- CLI: `python updater.py` / `--force` / `--status`.
+
 ## Brackets, salt and automatic tournaments (added 2026-11-20)
 
 - **Bracket estimate** (`brackets.py`): Commander Spellbook's

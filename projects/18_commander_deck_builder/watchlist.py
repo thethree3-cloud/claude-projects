@@ -688,58 +688,16 @@ def main(argv=None):
 
     # Check Scryfall every few hours (not the app's 24 h), so a new day's prices are
     # snapshotted soon after Scryfall publishes them instead of up to a day late.
+    if args.command == "snapshot":
+        # The daily job (cron runs this): every step lives in updater.py, shared with the app's button.
+        import updater
+        return updater.main([])
     db = card_db.open_db(max_age_hours=SCRYFALL_CHECK_HOURS, log=lambda m: print(m, file=sys.stderr))
     wl = WatchList()
     try:
         date, new = wl.snapshot(db)  # every command keeps history going
         if args.command == "snapshot":
-            import alerts
-            import portfolio
-            portfolio.track_owned(db, wl)  # owned cards are snapshotted from now on, however cheap
-            print(f"Price snapshot for {date}: {'saved' if new else 'already saved'} "
-                  f"({len(wl.dates())} days of history).")
-            try:
-                saved = wl.snapshot_edhrec(fetch_top("week"))
-                print(f"EDHREC popularity snapshot: {'saved' if saved else 'already saved'} "
-                      f"({len(wl.edhrec_dates())} days of history).")
-            except edhrec_client.EdhrecError as exc:
-                print(f"EDHREC popularity snapshot skipped: {exc}")
-            if wl.get_meta("digest_date") != date:  # one digest per new price date
-                from dotenv import load_dotenv
-                from scan_binder import ENV_PATH
-                load_dotenv(ENV_PATH)
-                try:
-                    import price_history
-                    print(f"MTGJSON prices + buylist stored for {price_history.update_buylist(db, wl, log=print):,} cards.")
-                except price_history.HistoryError as exc:
-                    print(f"Buylist update skipped: {exc}")
-                try:
-                    import archidekt
-                    a = archidekt.Archidekt()
-                    try:
-                        if a.get_meta("sampled_on") != dt.date.today().isoformat():
-                            a.sample(max_new=150, log=print)
-                            a.set_meta("sampled_on", dt.date.today().isoformat())
-                    finally:
-                        a.close()
-                except Exception as exc:  # network trouble shouldn't stop the digest
-                    print(f"Archidekt sample skipped: {exc}")
-                try:
-                    import tournaments
-                    names = tournaments.auto_import(log=print)
-                    if names:
-                        print("Tournaments imported: " + "; ".join(names))
-                except Exception as exc:
-                    print(f"Tournament auto-import skipped: {exc}")
-                try:
-                    import scryfall_tags
-                    if scryfall_tags.is_stale():
-                        scryfall_tags.refresh(log=print)
-                        card_db.ensure_db(log=print, rebuild=True)
-                except Exception as exc:
-                    print(f"Scryfall tag refresh skipped: {exc}")
-                path, _ = alerts.daily_digest(db, wl, date, log=print)
-                print(f"Digest written to {path}.")
+            pass  # handled before the database opens (see below)
         elif args.command == "spec":
             for r in spec_signals(db, wl, min_usd=args.min_usd, max_usd=args.max_usd,
                                   out_of_print_only=args.out_of_print)[: args.limit]:
