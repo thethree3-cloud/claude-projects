@@ -529,6 +529,33 @@ cards rising there (no score weight until it can be backtested). Card pages
 show the **salt score** and the card's jobs. The change column fills in
 once there are decks from before the latest week.
 
+## Brackets, salt and automatic tournaments (added 2026-11-20)
+
+- **Bracket estimate** (`brackets.py`): Commander Spellbook's
+  `estimate-bracket` classifies a decklist (Game Changers, mass land
+  denial, extra-turn cards, combos: two-card or not, chaining extra turns)
+  and gives its own tag (Exhibition / Core / Powerful / Oddball / Spicy /
+  Ruthless / Banned, shown as is). The **official bracket** is worked out
+  from those flags by Wizards' published rules (1-2: none of them; 3: up to
+  3 Game Changers, two-card combos only late; 4: anything legal), as the
+  *lowest* bracket the deck fits, with every reason. Shown for built decks
+  and tournament lists. MagicCon Atlanta's winner: bracket 4 (14 Game
+  Changers; Spellbook: Ruthless). A $100 Kestia deck: bracket 2.
+- **Target bracket** in the builder (app sidebar, `build_deck.py --bracket`):
+  2 removes Game Changers from the pool, 3 keeps the 3 most played, and the
+  validator checks the limit.
+- **Salt** (`salt.py`): EDHREC's salt ranking (top 2,000 cards, weekly),
+  Archidekt's salt as fallback. Card pages show it; built and tournament
+  decks show a salt total and the saltiest cards; the builder's **Table**
+  setting leaves out cards at 2.0+ ("skip the saltiest") or 1.75+
+  ("friendly table"; Sol Ring itself is ~1.6, so a lower cut would drop
+  staples). CLI: `build_deck.py --max-salt 2.0`.
+- **Automatic tournaments** (`tournaments.auto_import`): the daily job reads
+  EDHTop16's list and imports up to 2 new events a day with 64+ players
+  from the last 30 days (test events skipped), so "played in top decks"
+  stays current. The Tournaments page lists them and has an "import now"
+  button. CLI: `python tournaments.py auto`.
+
 ## Tournaments: MagicCon and other cEDH events (added 2026-11-19)
 
 `tournaments.py` imports cEDH events from **EDHTop16** (results and

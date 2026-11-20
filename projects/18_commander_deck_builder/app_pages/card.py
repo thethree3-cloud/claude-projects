@@ -124,12 +124,12 @@ with right:
             st.badge("Game Changer", color="orange")
         if card_db.can_be_commander(card):
             st.badge("Can be a commander", color="blue")
-        import archidekt
-        _a = archidekt.Archidekt()
+        import salt as salt_mod
+        _db = deck_service.open_db()
         try:
-            _salt = _a.salt(card["oracle_id"])
+            _salt = salt_mod.salt_map([card["name"]], _db).get(card["name"]) or None
         finally:
-            _a.close()
+            _db.close()
         if _salt is not None:
             st.badge(f"Salt {_salt:.2f}", color="violet" if _salt < 1.5 else "red",
                      help="EDHREC salt score (via Archidekt): how much players dislike facing this card, 0-4")

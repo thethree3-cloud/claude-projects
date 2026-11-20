@@ -99,13 +99,19 @@ def card_role(card):
 # ---------------------------------------------------------------------------
 
 
-def candidate_pool(commander, edhrec_cards, db, owned=frozenset(), max_card_price=None):
+BRACKET_GC_LIMIT = {1: 0, 2: 0, 3: 3}  # Game Changers a target bracket allows (4-5: any)
+
+
+def candidate_pool(commander, edhrec_cards, db, owned=frozenset(), max_card_price=None, max_salt=None, salt=None,
+                   bracket=None):
     """Legal, priced-or-owned cards for this commander, with role and cost.
 
     EDHREC-listed cards come first (``listed=True``). Owned legal cards that
     EDHREC doesn't list are added with ``listed=False`` as a last resort.
     ``max_card_price`` drops cards you'd have to buy that cost more (owned
-    cards are free, so they always stay).
+    cards are free, so they always stay). ``max_salt`` (with ``salt``, a
+    ``{name: salt}`` map) drops cards at or above that salt score. ``bracket``
+    keeps only as many Game Changers as that bracket allows (the most played).
     """
     identity = commander["color_identity"]
     pool, seen = [], {c["name"] for c in card_db.commander_members(commander)}
@@ -120,11 +126,14 @@ def candidate_pool(commander, edhrec_cards, db, owned=frozenset(), max_card_pric
             return  # can't price it, can't budget it
         if max_card_price is not None and not is_owned and card["usd"] > max_card_price + 1e-9:
             return
+        if max_salt is not None and salt and salt.get(card["name"], 0.0) >= max_salt:
+            return
         seen.add(card["name"])
         pool.append({
             "name": card["name"],
             "role": card_role(card),
             "tags": card.get("tags") or "",
+            "game_changer": bool(card.get("game_changer")),
             "inclusion": inclusion,
             "usd": card["usd"],
             "owned": is_owned,
@@ -140,6 +149,11 @@ def candidate_pool(commander, edhrec_cards, db, owned=frozenset(), max_card_pric
         add(info.get(c["name"]), c["inclusion"], True)
     for name in sorted(owned):
         add(db.get(name), 0.0, False)
+    limit = BRACKET_GC_LIMIT.get(bracket)
+    if limit is not None:
+        gcs = [c["name"] for c in sorted(pool, key=lambda c: -c["inclusion"]) if c["game_changer"]]
+        drop = set(gcs[limit:])
+        pool = [c for c in pool if c["name"] not in drop]
     return pool
 
 
@@ -379,6 +393,8 @@ def main(argv=None):
     parser.add_argument("--partner", help="second commander: a partner, Background, Doctor... (fuzzy)")
     parser.add_argument("--budget", type=float, required=True, help="max USD to spend on cards you don't own")
     parser.add_argument("--max-card-price", type=float, help="no card you buy may cost more than this (USD)")
+    parser.add_argument("--bracket", type=int, choices=range(1, 6), help="target bracket (limits Game Changers)")
+    parser.add_argument("--max-salt", type=float, help="leave out cards with an EDHREC salt score this high or more")
     parser.add_argument("--owned", action="store_true", help="use cards from your collection first ($0)")
     parser.add_argument("--binder", help="with --owned: only this binder")
     parser.add_argument("--no-upgrade", action="store_true", help="skip the leftover-money upgrade pass")
@@ -413,14 +429,19 @@ def main(argv=None):
         print(f"Error: {commander['name']} alone costs ${commander_cost:.2f}, over the ${args.budget:.2f} budget.",
               file=sys.stderr)
         return 1
-    pool = candidate_pool(commander, loaded["cards"], db, owned, args.max_card_price)
+    salt_values = None
+    if args.max_salt is not None:
+        import salt as salt_mod
+        salt_values = salt_mod.salt_map([c["name"] for c in loaded["cards"]], db)
+    pool = candidate_pool(commander, loaded["cards"], db, owned, args.max_card_price, args.max_salt, salt_values,
+                          args.bracket)
     deck = build_deck(commander, pool, args.budget, owned_mode=args.owned, upgrade=not args.no_upgrade,
                       commander_cost=commander_cost)
     problems = check_deck(commander, deck, args.budget)
     text = import_text(commander, deck)
     # Every deck goes through the full validator before it is shown.
     check = validate_text(text, db, budget=args.budget, owned=owned, max_card_price=args.max_card_price,
-                          **commander_args(commander))
+                          bracket=args.bracket, **commander_args(commander))
     problems += check["errors"]
     if problems:
         print("Error: built deck failed checks: " + "; ".join(problems), file=sys.stderr)

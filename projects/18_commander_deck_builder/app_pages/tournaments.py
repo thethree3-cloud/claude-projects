@@ -42,6 +42,24 @@ def load_check(tid, imported_at, deck_id):
         db.close()
 
 
+@st.cache_data(ttl="1d", show_spinner="Checking bracket and salt...")
+def load_profile(tid, imported_at, deck_id):
+    import brackets
+    import salt as salt_mod
+    event = tournaments.load_event(tid)
+    entry = next(e for e in event["entries"] if e["id"] == deck_id)
+    db = deck_service.open_db()
+    try:
+        s = salt_mod.deck_salt([c["name"] for c in entry["cards"]], db)
+    finally:
+        db.close()
+    try:
+        b = brackets.for_entry(entry)
+    except brackets.BracketError:
+        b = None
+    return {"salt": s, "bracket": b}
+
+
 def add_cards(names):
     db, wl = deck_service.open_db(), watchlist.WatchList()
     try:
@@ -77,6 +95,24 @@ with st.form("import_event", border=True):
             st.toast(f"Imported {len(event['entries'])} decklists.", icon=":material/check:")
         except tournaments.TournamentError as exc:
             st.error(str(exc), icon=":material/error:")
+
+with st.expander(f"Big recent events on EDHTop16 ({tournaments.AUTO_MIN_SIZE}+ players, last "
+                 f"{tournaments.AUTO_DAYS} days): the daily job imports {tournaments.AUTO_MAX_PER_DAY} new ones a day"):
+    try:
+        recent = tournaments.recent_events()
+    except tournaments.TournamentError as exc:
+        recent = []
+        st.caption(f"Couldn't read EDHTop16's list: {exc}")
+    have = {e["tid"] for e in tournaments.saved_events()}
+    for ev in recent[:15]:
+        st.markdown(f"- {ev['date']} **{ev['name']}** ({ev['size']} players)" + (" - imported" if ev["tid"] in have else ""))
+    if any(ev["tid"] not in have for ev in recent):
+        if st.button("Import the next new ones now (a minute or two each)", icon=":material/download:",
+                     key="auto_import"):
+            with st.spinner("Importing (about 1 second per decklist)..."):
+                names = tournaments.auto_import(log=lambda *_: None)
+            st.toast(f"Imported: {'; '.join(names) or 'nothing new'}", icon=":material/check:")
+            st.rerun()
 
 events = tournaments.saved_events()
 if not events:
@@ -177,6 +213,12 @@ with decks_tab:
                                icon=":material/download:", key=f"dl-{entry['id']}")
         for e in check["errors"]:
             st.error(e, icon=":material/error:")
+        prof = load_profile(tid, meta["imported_at"], entry["id"])
+        if prof["bracket"]:
+            st.markdown(f"**Bracket {prof['bracket']['lowest']} ({prof['bracket']['name']})**, Spellbook: "
+                        f"{prof['bracket']['spellbook_tag']}. " + " ".join(f"{r[0].upper()}{r[1:]}." for r in prof["bracket"]["reasons"][:3]))
+        st.caption(f"Salt {prof['salt']['total']:.1f} (saltiest: "
+                   + ", ".join(f"{n} {s:.2f}" for n, s in prof["salt"]["saltiest"][:4]) + ")")
         groups = {}
         for c in entry["cards"]:
             kind = deck_service.card_type({"type_line": c["type"]})

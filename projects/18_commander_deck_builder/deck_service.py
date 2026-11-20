@@ -25,28 +25,35 @@ def partner_names(commander_name, db):
     return db.partner_names(card) if card else []
 
 
-def prepare(commander_name, db, owned=frozenset(), partner_name=None, max_card_price=None):
+def prepare(commander_name, db, owned=frozenset(), partner_name=None, max_card_price=None, max_salt=None,
+            bracket=None):
     """Commander row (combined for a pair), its checked candidate pool, and
     what the commander(s) cost you."""
     if db.get(commander_name) is None:
         raise LookupError(f"No card named {commander_name!r}.")
     loaded = commander_lookup.load_commanders(commander_name, db, partner_name, owned)
     commander = loaded["commander"]
-    pool = build_deck.candidate_pool(commander, loaded["cards"], db, owned, max_card_price)
+    salt_values = None
+    if max_salt is not None:
+        import salt as salt_mod
+        salt_values = salt_mod.salt_map([c["name"] for c in loaded["cards"]], db)
+    pool = build_deck.candidate_pool(commander, loaded["cards"], db, owned, max_card_price, max_salt, salt_values,
+                                     bracket)
     oracle = db.get_many([c["name"] for c in pool])
     for c in pool:
         c["oracle_text"] = oracle[c["name"]]["oracle_text"]
         c["type_line"] = oracle[c["name"]]["type_line"]
         c["cmc"] = oracle[c["name"]]["cmc"]
     return {"commander": commander, "pool": pool, "commander_cost": loaded["commander_cost"],
-            "warnings": loaded["warnings"], "max_card_price": max_card_price}
+            "warnings": loaded["warnings"], "max_card_price": max_card_price, "max_salt": max_salt,
+            "bracket": bracket}
 
 
 def _finish(prep, deck, budget, db, owned):
     deck["warnings"] = prep.get("warnings", []) + deck["warnings"]  # e.g. thin EDHREC data
     text = build_deck.import_text(prep["commander"], deck)
     check = validate_text(text, db, budget=budget, owned=owned, max_card_price=prep.get("max_card_price"),
-                          **build_deck.commander_args(prep["commander"]))
+                          bracket=prep.get("bracket"), **build_deck.commander_args(prep["commander"]))
     return {"deck": deck, "text": text, "check": check}
 
 
@@ -121,7 +128,7 @@ def swap(prep, result, out_name, in_name, budget, db, owned=frozenset()):
     new_deck = {**deck, "cards": cards, "spent": round(deck["spent"] - out["cost"] + new["cost"], 2)}
     text = build_deck.import_text(prep["commander"], new_deck)
     check = validate_text(text, db, budget=budget, owned=owned, max_card_price=prep.get("max_card_price"),
-                          **build_deck.commander_args(prep["commander"]))
+                          bracket=prep.get("bracket"), **build_deck.commander_args(prep["commander"]))
     if not check["ok"]:
         return None, check["errors"]
     swaps = result.get("swaps", []) + [{"out": out_name, "in": in_name, "extra": round(new["cost"] - out["cost"], 2)}]
@@ -132,6 +139,19 @@ def deck_combos(commander, deck, db):
     """Combos in a built deck (Commander Spellbook); raises combos.ComboError."""
     import combos
     return combos.deck_combos(commander, deck, db)
+
+
+def deck_profile(commander, deck, db):
+    """Salt total and Spellbook bracket estimate for a built deck (bracket None if Spellbook is unreachable)."""
+    import brackets
+    import salt as salt_mod
+    members = [c["name"] for c in card_db.commander_members(commander)]
+    s = salt_mod.deck_salt(members + [c["name"] for c in deck["cards"]], db)
+    try:
+        b = brackets.for_builder_deck(commander, deck)
+    except brackets.BracketError:
+        b = None
+    return {"salt": s, "bracket": b}
 
 
 def grouped(deck):

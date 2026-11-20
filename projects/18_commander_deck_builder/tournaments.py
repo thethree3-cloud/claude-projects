@@ -262,6 +262,44 @@ def check_deck(entry, db):
                          partner_name=members[1] if len(members) > 1 else None)
 
 
+AUTO_MIN_SIZE = 64  # players
+AUTO_DAYS = 30
+AUTO_MAX_PER_DAY = 2  # each event is ~1 request per decklist
+
+
+def recent_events(min_size=AUTO_MIN_SIZE, days=AUTO_DAYS, fetch=None, today=None, cache_dir=CACHE_DIR):
+    """Big recent events from EDHTop16's tournament list: ``[{tid, name, size, date}]``, newest first."""
+    import datetime as dt
+    html = _cached(f"{BASE}/tournaments?sortBy=DATE&minSize={min_size}",
+                   Path(cache_dir) / f"_list_{min_size}.html", EVENT_PAGE_MAX_AGE, fetch)
+    today = dt.date.fromisoformat(today) if today else dt.date.today()
+    out = {}
+    for m in re.finditer(r'"TID":"([^"]+)","name":"((?:[^"\\]|\\.)*)","size":(\d+),"tournamentDate":"([^"]+)"', html):
+        tid, name, size, date = m.group(1), json.loads(f'"{m.group(2)}"'), int(m.group(3)), m.group(4)[:10]
+        if re.search(r"\btest\b", name, re.I):
+            continue  # organizers' test events
+        if size >= min_size and date and (today - dt.date.fromisoformat(date)).days <= days:
+            out.setdefault(tid, {"tid": tid, "name": name, "size": size, "date": date})
+    return sorted(out.values(), key=lambda e: e["date"], reverse=True)
+
+
+def auto_import(max_events=AUTO_MAX_PER_DAY, data_dir=DATA_DIR, fetch=None, today=None, log=print, **kwargs):
+    """Import up to ``max_events`` big recent events not saved yet. Returns their names."""
+    saved = {e["tid"] for e in saved_events(data_dir)}
+    done = []
+    for ev in recent_events(fetch=fetch, today=today, **kwargs):
+        if len(done) >= max_events:
+            break
+        if ev["tid"] in saved:
+            continue
+        try:
+            event = import_event(ev["tid"], data_dir=data_dir, fetch=fetch, log=log)
+            done.append(event["name"])
+        except TournamentError as exc:
+            log(f"  {ev['name']}: {exc}")
+    return done
+
+
 def card_play(db=None, days=60, top=16, data_dir=DATA_DIR, today=None):
     """``{card name: (top_decks, top_size, event name)}`` from saved events in the last
     ``days`` days, keeping each card's best showing (for the watch list)."""
@@ -285,6 +323,8 @@ def main(argv=None):
     p_imp = sub.add_parser("import", help="fetch an event and its decklists")
     p_imp.add_argument("event", help="EDHTop16 tournament link or its name in the link")
     sub.add_parser("list", help="saved events")
+    p_auto = sub.add_parser("auto", help=f"import big recent events ({AUTO_MIN_SIZE}+ players, last {AUTO_DAYS} days)")
+    p_auto.add_argument("--max", type=int, default=AUTO_MAX_PER_DAY)
     p_stats = sub.add_parser("stats", help="commanders and most-played cards")
     p_stats.add_argument("event")
     p_stats.add_argument("--top", type=int, default=16)
@@ -295,6 +335,9 @@ def main(argv=None):
             event = import_event(args.event, log=lambda m: print(m, file=sys.stderr))
             print(f"Saved {len(event['entries'])} decklists from {event['name']}"
                   + (f" ({len(event['failed'])} could not be read)" if event["failed"] else "") + ".")
+        elif args.command == "auto":
+            names = auto_import(args.max, log=lambda m: print(m, file=sys.stderr))
+            print(f"Imported {len(names)} event(s)" + (": " + "; ".join(names) if names else " (none new)."))
         elif args.command == "list":
             for e in saved_events():
                 print(f"{e['date']}  {e['name']}  ({e['decks']} decklists, {e['size']} players)  [{e['tid']}]")

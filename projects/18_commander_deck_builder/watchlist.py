@@ -725,6 +725,13 @@ def main(argv=None):
                 except Exception as exc:  # network trouble shouldn't stop the digest
                     print(f"Archidekt sample skipped: {exc}")
                 try:
+                    import tournaments
+                    names = tournaments.auto_import(log=print)
+                    if names:
+                        print("Tournaments imported: " + "; ".join(names))
+                except Exception as exc:
+                    print(f"Tournament auto-import skipped: {exc}")
+                try:
                     import scryfall_tags
                     if scryfall_tags.is_stale():
                         scryfall_tags.refresh(log=print)

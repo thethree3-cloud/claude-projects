@@ -61,10 +61,19 @@ def load_collection():
 
 
 @st.cache_data(ttl="1h", max_entries=20, show_spinner="Fetching EDHREC data...")
-def load_prep(commander, partner, owned, max_card_price):
+def load_prep(commander, partner, owned, max_card_price, max_salt=None, bracket=None):
     db = deck_service.open_db()
     try:
-        return deck_service.prepare(commander, db, frozenset(owned), partner, max_card_price)
+        return deck_service.prepare(commander, db, frozenset(owned), partner, max_card_price, max_salt, bracket)
+    finally:
+        db.close()
+
+
+@st.cache_data(ttl="1d", max_entries=50, show_spinner="Checking bracket and salt...")
+def load_profile(deck_key, commander, deck):
+    db = deck_service.open_db()
+    try:
+        return deck_service.deck_profile(commander, deck, db)
     finally:
         db.close()
 
@@ -133,6 +142,15 @@ with st.sidebar:
                                step=1.0, key="max_card_price", persist_state="session", placeholder="No limit",
                                help="Cards you'd have to buy above this price are left out. Owned cards and the "
                                     "commander don't count.")
+    import salt as salt_mod
+    bracket_target = st.selectbox(
+        "Target bracket", [None, 2, 3, 4], key="target_bracket", persist_state="session",
+        format_func=lambda b: "Any" if b is None else {2: "2 (Core): no Game Changers", 3: "3 (Upgraded): up to 3 Game Changers",
+                                                       4: "4 (Optimized): anything"}[b],
+        help="Limits Game Changers to what the bracket allows; the built deck is then checked by Commander Spellbook "
+             "for combos and land denial too.")
+    table = st.selectbox("Table", list(salt_mod.FRIENDLY), key="salt_table", persist_state="session",
+                         help="Leave out cards players hate facing, by EDHREC's salt score (0-4).")
     use_owned = st.toggle("Use my collection (owned cards cost $0)", key="use_owned", persist_state="session",
                           disabled=not collection["all"],
                           help=None if collection["all"] else "Scan binder pages first (scan_binder.py --binder).")
@@ -158,7 +176,7 @@ st.title("Commander deck builder")
 if build:
     owned = owned_names(binder) if use_owned else ()
     try:
-        prep = load_prep(commander, partner, owned, max_card)
+        prep = load_prep(commander, partner, owned, max_card, salt_mod.FRIENDLY[table], bracket_target)
         db = deck_service.open_db()
         try:
             if builder == "Claude":
@@ -207,6 +225,23 @@ with st.container(horizontal=True):
     if result.get("cost_usd") is not None:
         st.metric("API cost", f"${result['cost_usd']:.2f}", border=True,
                   help=f"{len(result['attempts'])} attempt(s)")
+
+profile = load_profile(result["text"], cmd, deck)
+b = profile["bracket"]
+with st.container(horizontal=True):
+    st.metric("Bracket (estimate)", f"{b['lowest']} - {b['name']}" if b and b["lowest"] else (b["name"] if b else "n/a"),
+              border=True, help="Lowest official bracket this deck fits, from Commander Spellbook's check "
+                                "(Game Changers, combos, land denial, extra turns)")
+    st.metric("Salt", f"{profile['salt']['total']:.1f}", border=True,
+              help=f"Sum of EDHREC salt scores; average {profile['salt']['average']:.2f} per card")
+if b or profile["salt"]["saltiest"]:
+    with st.expander("Why this bracket, and the saltiest cards"):
+        if b:
+            for r in b["reasons"]:
+                st.markdown(f"- {r}")
+            st.caption(f"Commander Spellbook's own tag: {b['spellbook_tag']}.")
+        if profile["salt"]["saltiest"]:
+            st.markdown("**Saltiest:** " + ", ".join(f"{n} ({s:.2f})" for n, s in profile["salt"]["saltiest"]))
 
 if result.get("strategy"):
     st.markdown(f":material/lightbulb: **Strategy:** {result['strategy']}")
