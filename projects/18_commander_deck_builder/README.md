@@ -465,6 +465,34 @@ A **Watch list** page (top menu of the app; also `python watchlist.py`):
 - **Moxfield isn't a source:** it blocks outside requests (Cloudflare 403)
   and its API needs approval from Moxfield, so it isn't used.
 
+## Tournaments: MagicCon and other cEDH events (added 2026-11-19)
+
+`tournaments.py` imports cEDH events from **EDHTop16** (results and
+decklists from TopDeck.gg). EDHTop16's GraphQL API only accepts its own
+pre-set queries, so the importer reads the public pages, which embed their
+data as JSON (decoded directly, not scraped from the layout). robots.txt
+allows it; requests are 1 s apart with polite retries; decklists are cached
+for good (results are final), event pages for a day.
+
+- **Imported so far:** MagicCon Atlanta cEDH Open (2026-11-13, 36 players,
+  30 lists, won by Dargo + Tymna) and the MagicCon EU Qualifier (2026-07-18,
+  32 players, 28 lists, won by Magda). All 58 lists add up to 100 cards and
+  all 30 Atlanta lists pass our validator, a good check on the parser.
+  Casual MagicCon Commander play publishes no lists, so cEDH events are
+  what exists.
+- **App: Tournaments page** (top menu): import any EDHTop16 event by link;
+  per event: date, players, winner, links; **most-played cards** (top 4 / 8
+  / 16 vs all decks, today's price, overall EDHREC rank; "hide staples"
+  leaves out EDHREC's top 1,000 so unusual picks stand out, e.g. The
+  Cabbage Merchant in 4 of the 7 top-8 Atlanta decks with a list);
+  **commanders** with best / average finish and record; **decklists** with
+  the validator's verdict, cards by type (linked to card pages) and an
+  import-list download. Select cards to watch them.
+- **Watch-list tie-in:** cards in 2+ top-16 decks of an event saved in the
+  last 60 days get a reason line in spec signals ("in 3 of 13 top decks at
+  ...") and x1.1 when that's a quarter of the top decks or more.
+- CLI: `python tournaments.py import <link>` / `list` / `stats <event>`.
+
 ## Hosted demo (Streamlit Community Cloud)
 
 Ready to deploy; the deploy itself needs a Streamlit account:

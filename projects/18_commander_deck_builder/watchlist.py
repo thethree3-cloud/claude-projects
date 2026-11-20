@@ -224,8 +224,20 @@ def market_factor(us_pct, eu_pct):
     return 1.0, None
 
 
+TOURNAMENT_SHARE = 0.25  # in this share of a recent event's top decks -> small boost
+
+
+def tournament_factor(play):
+    """(multiplier, label) from ``tournaments.card_play`` for one card: ``(top_decks, top_size, event)``."""
+    if not play or not play[1] or play[0] < 2:
+        return 1.0, None  # one deck is noise
+    top, size, event = play
+    label = f"in {top} of {size} top decks at {event}"
+    return (1.1, label) if top / size >= TOURNAMENT_SHARE else (1.0, label)
+
+
 def spec_signals(db, wl, rising=None, min_usd=0.5, max_usd=None, include_new=False, today=None, days=7,
-                 out_of_print_only=False):
+                 out_of_print_only=False, tournament_play=None):
     """Cards gaining players while their price hasn't caught up, scarcest first.
 
     score = EDHREC trend (+ popularity gain over ``days`` from our own daily
@@ -234,6 +246,9 @@ def spec_signals(db, wl, rising=None, min_usd=0.5, max_usd=None, include_new=Fal
     """``out_of_print_only`` keeps cards last printed over a year ago (no set still being opened)."""
     rising = rising_cards(db) if rising is None else rising
     today = today or dt.date.today().isoformat()
+    if tournament_play is None:
+        import tournaments
+        tournament_play = tournaments.card_play(today=today)
     year_ago = (dt.date.fromisoformat(today) - dt.timedelta(days=365)).isoformat()
     _, _, pop_change = wl.popularity_change(days)
     price_change = wl.price_changes(days)
@@ -259,16 +274,18 @@ def spec_signals(db, wl, rising=None, min_usd=0.5, max_usd=None, include_new=Fal
         eu = eur_change.get(card["oracle_id"]) if card else None
         p_mult, p_label = price_factor(us)
         e_mult, e_label = market_factor(us, eu)
+        t_mult, t_label = tournament_factor(tournament_play.get(r["name"]))
         base = r["trend"] + (max(accel, 0) * 5 if accel is not None else 0)
         reasons = [f"EDHREC trend {r['trend']:.1f}",
                    "new on the weekly list" if r["new"] else f"{r['change_pts']:+.1f} pts vs 2 years"]
         if accel is not None:
             reasons.append(f"{accel:+.2f} pts in {days} days")
-        reasons += [s_label, p_label] + ([e_label] if e_label else [])
+        reasons += [s_label, p_label] + ([e_label] if e_label else []) + ([t_label] if t_label else [])
         if card and card["usd_max"] and card["usd"] and card["usd_max"] >= card["usd"] * 1.5:
             reasons.append(f"printings ${card['usd']:,.2f}-${card['usd_max']:,.2f}")
         reasons += ["new card (first printed in the last 30 days)"] if is_new else []
-        rows.append({**r, "score": round(base * s_mult * p_mult * e_mult, 1), "supply": s_label,
+        rows.append({**r, "score": round(base * s_mult * p_mult * e_mult * t_mult, 1), "supply": s_label,
+                     "tournament": t_label,
                      "eur": card["eur"] if card else None, "usd_max": card["usd_max"] if card else None,
                      "eur_change_pct": eu,
                      "printings": sup["printings"] if sup else None, "last_printed": sup["last"] if sup else None,

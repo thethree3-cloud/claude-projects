@@ -18,6 +18,7 @@ eval results; git history has the story.
 | Interfaces | CLIs, Streamlit app (3D flip, combos tab), MCP server (5 tools), blind review page |
 | Combos (`combos.py`) | Commander Spellbook: combos in the deck + one card away |
 | Card page | click a card name: every printing (picture, set, look, prices, Scryfall link) |
+| Tournaments (`tournaments.py`) | EDHTop16 cEDH events (MagicCon Atlanta + EU Qualifier imported): cards, commanders, lists |
 | Watch list (`watchlist.py`) | EDHREC rising cards, daily price snapshots -> price risers, your watched cards |
 
 Quick resume:

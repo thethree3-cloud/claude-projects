@@ -24,6 +24,14 @@ def view(name, num, potential, z=None):
     return {"name": name, "num_decks": num, "potential_decks": potential, "trend_zscore": z}
 
 
+def setUpModule():
+    """Keep tests independent of tournaments saved on this machine."""
+    from unittest import mock as _mock
+    patcher = _mock.patch("tournaments.card_play", return_value={})
+    patcher.start()
+    unittest.addModuleCleanup(patcher.stop)
+
+
 class Case(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
