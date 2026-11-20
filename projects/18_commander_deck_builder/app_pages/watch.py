@@ -493,6 +493,9 @@ elif view == "My cards":
     with st.container(horizontal=True):
         st.metric("Value today", f"${b['total']:,.2f}", border=True)
         st.metric("Cards", f"{b['cards']} ({b['copies']} copies)", border=True)
+        st.metric("Card Kingdom would pay", f"${b['buylist_total']:,.2f}", border=True,
+                  help=f"Buylist offers for the {b['buylist_cards']} cards Card Kingdom buys (MTGJSON); "
+                       "stores pay less than market price.")
     if len(b["history"]) >= 2:
         st.line_chart([{"Date": d, "Value": v} for d, v in b["history"]], x="Date", y="Value", y_label="USD",
                       alt="Binder value over time")
@@ -521,15 +524,17 @@ elif view == "My cards":
         st.metric("If sold now", signed_money(summary["unrealized"]), border=True,
                   help=f"After {portfolio.FEE_RATE:.0%} fees and ${portfolio.SHIPPING:.2f} shipping per sale")
         st.metric("Realized", signed_money(summary["realized"]), border=True)
+        st.metric("Card Kingdom would pay", f"${summary['open_buylist']:,.2f}", border=True,
+                  help="Buylist offers for your open buys, no fees")
     rows = summary["rows"]
     if rows:
         event = st.dataframe(
             [{"#": r["id"], "Card": r["name"], "Status": r["status"], "Qty": r["qty"], "Paid each": r["price_each"],
-              "Now": r["usd_now"], "Sold each": r["sold_each"], "Profit": r["profit"],
+              "Now": r["usd_now"], "Buylist": r["buylist_now"], "Sold each": r["sold_each"], "Profit": r["profit"],
               "Profit %": None if r["profit_pct"] is None else r["profit_pct"] / 100, "Bought": r["bought_on"]}
              for r in rows],
             column_config={c: st.column_config.NumberColumn(format="dollar")
-                           for c in ("Paid each", "Now", "Sold each", "Profit")}
+                           for c in ("Paid each", "Now", "Buylist", "Sold each", "Profit")}
             | {"Profit %": st.column_config.NumberColumn(format="percent")},
             hide_index=True, on_select="rerun", selection_mode="single-row", key="buy_table",
         )

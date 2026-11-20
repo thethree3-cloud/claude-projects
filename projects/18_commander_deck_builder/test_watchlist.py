@@ -176,19 +176,20 @@ class SupplyTests(unittest.TestCase):
 
     def test_supply_factor_order(self):
         f = {n: watchlist.supply_factor(v, self.today) for n, v in self.sup.items()}
-        self.assertEqual(f["Reserved Thing"], (1.5, "Reserved List"))
-        self.assertEqual(f["Reprinted Soon"][0], 0.5)
+        self.assertEqual(f["Reserved Thing"], (1.1, "Reserved List"))
+        self.assertEqual(f["Reprinted Soon"][0], 0.7)
         self.assertIn("reprint coming: Future Set", f["Reprinted Soon"][1])
-        self.assertEqual(f["Old Gem"], (1.3, "1 printing, last 2015"))
-        self.assertEqual(f["Common Staple"][0], 0.85)
-        self.assertEqual(f["In Print Card"][0], 0.9)
+        self.assertEqual(f["Old Gem"], (1.0, "1 printing, last 2015"))
+        self.assertEqual(f["Common Staple"][0], 1.0)
+        self.assertEqual(f["In Print Card"][0], 0.75)  # the backtest's clearest pattern
         self.assertIn("in print", f["In Print Card"][1])
 
     def test_price_factor(self):
         self.assertEqual(watchlist.price_factor(None)[0], 1.0)
         self.assertEqual(watchlist.price_factor(5)[0], 1.0)
-        self.assertEqual(watchlist.price_factor(20)[0], 0.7)
-        self.assertEqual(watchlist.price_factor(80), (0.4, "price already up +80%"))
+        self.assertEqual(watchlist.price_factor(20)[0], 0.8)
+        self.assertEqual(watchlist.price_factor(80), (0.5, "price already up +80%"))
+        self.assertEqual(watchlist.price_factor(-20), (0.8, "price falling (-20%)"))
 
     def test_spec_signals(self):
         wl = watchlist.WatchList(Path(self.db.path).with_name("w.sqlite"))
@@ -204,9 +205,9 @@ class SupplyTests(unittest.TestCase):
         self.assertNotIn("Fresh Card", names)   # new-set hype hidden by default
         self.assertNotIn("Falling", names)      # trend <= 0
         self.assertNotIn("Penny", names)        # under min price
-        self.assertEqual(names[0], "Old Gem")   # 5.0 x 1.3 = 6.5 beats 6.0 x 0.85 and 9.0 x 0.5
-        self.assertEqual(rows[0]["score"], 6.5)
-        self.assertIn("1 printing, last 2015", rows[0]["reasons"])
+        self.assertEqual(names[:3], ["Reprinted Soon", "Common Staple", "Old Gem"])  # 9 x 0.7, 6 x 1.0, 5 x 1.0
+        self.assertEqual(rows[0]["score"], 6.3)
+        self.assertIn("1 printing, last 2015", rows[2]["reasons"])
         self.assertIn("Fresh Card", [r["name"] for r in watchlist.spec_signals(
             self.db, wl, rising, include_new=True, today=self.today)])
         oop = [r["name"] for r in watchlist.spec_signals(self.db, wl, rising, today=self.today,
@@ -238,8 +239,8 @@ class PopularityHistoryTests(WatchCase):
         [row] = watchlist.spec_signals(self.db, self.wl, rising, today="2026-11-19")
         self.assertEqual(row["pop_change_pts"], 4.0)
         self.assertEqual(row["price_change_pct"], 50.0)
-        # (3.0 + 4.0 x 5) x 1.0 supply (1 printing, no date in fixture) x 0.4 price already up
-        self.assertEqual(row["score"], round((3.0 + 20.0) * 1.3 * 0.4, 1))
+        # (3.0 + 4.0 x 5) x 1.0 supply (1 printing) x 0.5 price already up
+        self.assertEqual(row["score"], round((3.0 + 20.0) * 1.0 * 0.5, 1))
         self.assertIn("price already up +50%", row["reasons"])
 
 

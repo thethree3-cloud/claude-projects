@@ -73,7 +73,11 @@ Reserved List, scheduled reprints), #3 new-commander radar.
 
 - [ ] Email the daily digest: add `WATCH_SMTP_*` + `WATCH_EMAIL_TO` to `.env`
       (needs your OK and an app password; nothing is sent until then).
-- [ ] Re-tune spec weights from `backtest.py` once 4-6 weeks of history exist.
+- [x] Re-tune spec weights: done 2026-11-19 from 89 days of MTGJSON prices
+      (price/supply parts). Re-check monthly; the EDHREC part waits for its
+      own snapshots (first 7-day check 2026-11-26).
+- [ ] Optional: delete `data/cache/mtgjson/AllPrices.json.gz` (148 MB, only
+      needed to re-run the backfill).
 
 - [x] Daily price snapshot: user crontab runs `watchlist.py snapshot` hourly
       and at WSL start (2026-11-18). Log in `data/watchlist_cron.log`.

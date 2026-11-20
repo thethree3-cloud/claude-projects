@@ -3,6 +3,8 @@
 - **Binder value:** the scanned collection (``collection.py``) priced with the
   daily snapshots. Owned cards are always snapshotted, even cheap ones.
 - **Risers you own:** owned cards up 10%+ over 7 days (possible sells).
+- **Buylist:** Card Kingdom's offer per card (from MTGJSON, see
+  ``price_history.py``): what a store would actually pay today, no fees.
 - **Buy log:** what you bought (date, quantity, price each) and, once sold,
   the sale price. Profit counts selling costs: ``FEE_RATE`` of the sale
   (TCGplayer-style ~13% marketplace + payment fees) plus ``SHIPPING`` per sale.
@@ -97,6 +99,9 @@ class Portfolio:
                 if_sold = net_sale(now, b["qty"], fee_rate, shipping) if now is not None else None
                 row = {"status": "open", "value_now": value, "if_sold_now": if_sold, "kept": None,
                        "profit": round(if_sold - cost, 2) if if_sold is not None else None}
+            offer = self.wl.buylist([b["oracle_id"]]).get(b["oracle_id"])
+            row["buylist_now"] = round(offer[0] * b["qty"], 2) if offer and b["sold_on"] is None else None
+            row["profit_buylist"] = round(row["buylist_now"] - cost, 2) if row["buylist_now"] is not None else None
             row.update({"id": b["id"], "name": b["name"], "bought_on": b["bought_on"], "qty": b["qty"],
                         "price_each": b["price_each"], "cost": cost, "usd_now": now, "note": b["note"],
                         "sold_on": b["sold_on"], "sold_each": b["sold_each"],
@@ -113,6 +118,7 @@ class Portfolio:
             "open_value": round(sum(r["value_now"] or 0 for r in open_rows), 2),
             "unrealized": round(sum(r["profit"] or 0 for r in open_rows), 2),
             "realized": round(sum(r["profit"] for r in rows if r["status"] == "sold"), 2),
+            "open_buylist": round(sum(r["buylist_now"] or 0 for r in open_rows), 2),
             "rows": rows,
         }
 
@@ -162,8 +168,13 @@ def binder_value(db, wl, collection=None, days=7):
         ({**c, "change_pct": changes[c["oracle_id"]]} for c in owned
          if changes.get(c["oracle_id"]) is not None and changes[c["oracle_id"]] >= OWNED_RISE_PCT),
         key=lambda c: -c["change_pct"])
+    offers = wl.buylist([c["oracle_id"] for c in owned])
+    for c in owned:
+        c["buylist"] = offers.get(c["oracle_id"], (None, None))[0]
+    buylist_total = round(sum((c["buylist"] or 0) * c["qty"] for c in owned), 2)
     top = sorted(owned, key=lambda c: -((c["usd"] or 0) * c["qty"]))[:10]
-    return {"total": total, "cards": len(owned), "copies": sum(c["qty"] for c in owned),
+    return {"total": total, "buylist_total": buylist_total,
+            "buylist_cards": sum(1 for c in owned if c["buylist"] is not None), "cards": len(owned), "copies": sum(c["qty"] for c in owned),
             "history": sorted((d, round(v, 2)) for d, v in by_day.items()), "risers": risers, "top": top}
 
 
@@ -206,7 +217,8 @@ def main(argv=None):
         elif args.command == "binder":
             track_owned(db, wl)
             b = binder_value(db, wl)
-            print(f"{b['cards']} cards ({b['copies']} copies) worth ${b['total']:.2f} today.")
+            print(f"{b['cards']} cards ({b['copies']} copies) worth ${b['total']:.2f} today; Card Kingdom would "
+                  f"pay ${b['buylist_total']:.2f} for the {b['buylist_cards']} it buys.")
             for c in b["top"]:
                 print(f"  ${(c['usd'] or 0) * c['qty']:8.2f}  {c['qty']}x {c['name']}")
             for c in b["risers"]:

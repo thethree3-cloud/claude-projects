@@ -465,6 +465,46 @@ A **Watch list** page (top menu of the app; also `python watchlist.py`):
 - **Moxfield isn't a source:** it blocks outside requests (Cloudflare 403)
   and its API needs approval from Moxfield, so it isn't used.
 
+## Price history from MTGJSON, and what it says (added 2026-11-19)
+
+`price_history.py` backfilled **89 days of prices (2026-08-21 to
+2026-11-19, 1.46 M card-days, ~45 s)** from MTGJSON's free `AllPrices`
+file, plus **Card Kingdom buylist offers** (what a store pays). The files
+are gigabytes unzipped, so a small standard-library streaming reader reads
+them one printing at a time (no new package; checked identical to a full
+load). MTGJSON ids map to our cards through `AllIdentifiers` (saved as a
+7.7 MB map, rebuilt weekly).
+
+- **One source for the whole history:** MTGJSON and Scryfall can pick
+  different printings as "cheapest" (Nicol Bolas, Dragon-God: ~$21 vs
+  Scryfall's $13.72 alternate-art printing), which made fake jumps where
+  they met. MTGJSON now supplies every history day, and the daily cron job
+  adds each new day plus buylist from the 5.6 MB "today" file; Scryfall is
+  the fallback and still sets deck-builder prices.
+- **Buylist in My cards:** "Card Kingdom would pay" for the binder and the
+  buy log (e.g. The One Ring $104.56 market, $65 buylist).
+- **Price-only backtest** (`backtest.price_patterns`, possible now): 8-10
+  start days, ~50k card-weeks, cards $1+, price 30 days later:
+
+  | Group | Mean | Median | Rose 10%+ |
+  |---|--:|--:|--:|
+  | Already up 30%+ in the prior week | -1.3% | **-11.6%** | 25% |
+  | Up 10-30% | -0.9% | -3.4% | 22% |
+  | Flat | -2.0% | -0.6% | 11% |
+  | Fell 10%+ | **-7.9%** | -6.6% | 22% |
+  | Still in print (printed within a year) | **-9.7%** | -4.3% | 14% |
+  | Reserved List | +1.0% | 0.0% | 6% |
+  | 1 printing, out of print | -0.1% | -0.6% | 14% |
+  | 8+ printings | +1.0% | +0.7% | 12% |
+
+  Jumps fall back, falls keep falling, and cards still in print sink; a
+  single printing on its own doesn't beat plentiful cards, and the Reserved
+  List is steady but rarely spikes. **The spec weights were retuned to
+  this** (supply: in print 0.75, reprint coming 0.7, Reserved 1.1, others
+  1.0; price: up 30%+ 0.5, up 10-30% 0.8, falling 10%+ 0.8). One market
+  period only, so re-check as more history arrives. The EDHREC part of the
+  score still needs its own daily snapshots (first 7-day check 2026-11-26).
+
 ## Tournaments: MagicCon and other cEDH events (added 2026-11-19)
 
 `tournaments.py` imports cEDH events from **EDHTop16** (results and

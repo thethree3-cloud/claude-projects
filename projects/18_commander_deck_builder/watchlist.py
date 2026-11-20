@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS snapshots (
     card INTEGER NOT NULL,       -- card_ids.id
     cents INTEGER NOT NULL,
     eur_cents INTEGER,           -- cheapest regular Cardmarket price (None if unknown)
+    buy_cents INTEGER,           -- Card Kingdom buylist offer for that printing (MTGJSON)
     PRIMARY KEY (day, card)
 ) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS tracked (     -- always snapshotted and never pruned (owned / bought cards)
@@ -173,15 +174,26 @@ def rising_cards(db, week=None, year=None):
 # ---------------------------------------------------------------------------
 
 
+# Weights tuned 2026-11-19 from 89 days of backfilled prices (backtest.price_patterns,
+# ~50k card-weeks, cards $1+). 30 days after a start day: still in print -9.7% mean,
+# Reserved List +1.0%, 1 printing -0.1%, 8+ printings +1.0%, reprint coming -1.1%
+# (n=131); cards up 30%+ in the prior week -11.6% median, up 10-30% -3.4%, down 10%+
+# -7.9% mean. First guesses were: Reserved 1.5, 1 printing 1.3/1.15, 2-3 1.15,
+# 8+ 0.85, in print 0.9, reprint 0.5; price up 10-30% 0.7, up 30%+ 0.4, falling 1.0.
+SUPPLY_WEIGHTS = {"reprint": 0.7, "reserved": 1.1, "in_print": 0.75, "one": 1.0, "few": 1.0, "some": 1.0,
+                  "many": 1.0}
+PRICE_WEIGHTS = {"up_big": 0.5, "up": 0.8, "down": 0.8, "flat": 1.0}
+
+
 def supply_factor(sup, today=None):
-    """(multiplier, label) for how scarce a card is. A starting guess, to be
-    checked against real price moves once history builds up (watch-list #8)."""
+    """(multiplier, label) for how scarce a card is (weights from the price backtest above)."""
+    w = SUPPLY_WEIGHTS
     if sup is None:
         return 1.0, "unknown"
     if sup["upcoming"]:
-        return 0.5, "reprint coming: " + ", ".join(sup["upcoming"][:2])
+        return w["reprint"], "reprint coming: " + ", ".join(sup["upcoming"][:2])
     if sup["reserved"]:
-        return 1.5, "Reserved List"
+        return w["reserved"], "Reserved List"
     n = sup["printings"]
     years = None
     if sup["last"]:
@@ -190,26 +202,31 @@ def supply_factor(sup, today=None):
     since = f", last {sup['last'][:4]}" if sup["last"] else ""
     plural = "printing" if n == 1 else "printings"
     if years is not None and years < 1:
-        # Printed within the year: that set is still being opened, so supply is still growing.
-        return 0.9, f"in print ({n} {plural}, last {sup['last']})"
+        # Printed within the year: that set is still being opened, so supply is still growing
+        # (the clearest pattern in the backtest: these fell ~10% over the next 30 days).
+        return w["in_print"], f"in print ({n} {plural}, last {sup['last']})"
     if n <= 1:
-        return (1.3 if years is None or years >= 2 else 1.15), f"1 printing{since}"
+        return w["one"], f"1 printing{since}"
     if n <= 3:
-        return 1.15, f"{n} printings{since}"
+        return w["few"], f"{n} printings{since}"
     if n <= 7:
-        return 1.0, f"{n} printings{since}"
-    return 0.85, f"{n} printings (plentiful){since}"
+        return w["some"], f"{n} printings{since}"
+    return w["many"], f"{n} printings (plentiful){since}"
 
 
 def price_factor(change_pct):
-    """(multiplier, label): a card whose price already jumped is less of a find."""
+    """(multiplier, label): cards that already jumped tend to fall back, and falling
+    cards tend to keep falling (backtest above)."""
+    w = PRICE_WEIGHTS
     if change_pct is None:
         return 1.0, "price history building"
     if change_pct > 30:
-        return 0.4, f"price already up {change_pct:+.0f}%"
+        return w["up_big"], f"price already up {change_pct:+.0f}%"
     if change_pct > 10:
-        return 0.7, f"price up {change_pct:+.0f}%"
-    return 1.0, f"price flat ({change_pct:+.0f}%)"
+        return w["up"], f"price up {change_pct:+.0f}%"
+    if change_pct < -10:
+        return w["down"], f"price falling ({change_pct:+.0f}%)"
+    return w["flat"], f"price flat ({change_pct:+.0f}%)"
 
 
 def market_factor(us_pct, eu_pct):
@@ -366,6 +383,8 @@ class WatchList:
         with self.conn:
             if "eur_cents" not in columns("snapshots"):
                 self.conn.execute("ALTER TABLE snapshots ADD COLUMN eur_cents INTEGER")
+            if "buy_cents" not in columns("snapshots"):
+                self.conn.execute("ALTER TABLE snapshots ADD COLUMN buy_cents INTEGER")
             for col in ("target_above", "target_below"):
                 if col not in columns("watched"):
                     self.conn.execute(f"ALTER TABLE watched ADD COLUMN {col} REAL")
@@ -463,6 +482,17 @@ class WatchList:
                          "color_identity": card["color_identity"], "type_line": card["type_line"]})
         rows.sort(key=lambda r: (-r["change_pct"], -r["change_usd"]))
         return {"from": old_date, "to": new_date, "rows": rows[:limit]}
+
+    def buylist(self, oracle_ids):
+        """``{oracle_id: (usd, date)}``: each card's latest Card Kingdom buylist offer."""
+        out = {}
+        for oid in dict.fromkeys(oracle_ids):
+            row = self.conn.execute(
+                "SELECT s.day, s.buy_cents FROM snapshots s JOIN card_ids c ON c.id = s.card "
+                "WHERE c.oracle_id = ? AND s.buy_cents IS NOT NULL ORDER BY s.day DESC LIMIT 1", (oid,)).fetchone()
+            if row:
+                out[oid] = (row[1] / 100, _date(row[0]))
+        return out
 
     def history(self, oracle_id):
         """[(date, usd)] for one card, oldest first."""
@@ -659,6 +689,11 @@ def main(argv=None):
                 from dotenv import load_dotenv
                 from scan_binder import ENV_PATH
                 load_dotenv(ENV_PATH)
+                try:
+                    import price_history
+                    print(f"MTGJSON prices + buylist stored for {price_history.update_buylist(db, wl, log=print):,} cards.")
+                except price_history.HistoryError as exc:
+                    print(f"Buylist update skipped: {exc}")
                 path, _ = alerts.daily_digest(db, wl, date, log=print)
                 print(f"Digest written to {path}.")
         elif args.command == "spec":

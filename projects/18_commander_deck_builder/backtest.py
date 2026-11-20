@@ -102,6 +102,81 @@ def run(db, wl, horizon=7, top=20, min_usd=0.5, today=None):
             "all": _summary(all_returns), "needed": needed}
 
 
+# ---------------------------------------------------------------------------
+# Price-only checks (possible now, from backfilled history)
+# ---------------------------------------------------------------------------
+
+MOMENTUM_BUCKETS = (("fell 10%+", None, -10), ("flat (-10% to +10%)", -10, 10), ("up 10-30%", 10, 30),
+                    ("up 30%+", 30, None))
+
+
+def _supply_bucket(label):
+    for key, name in (("reprint coming", "reprint on the way"), ("Reserved List", "Reserved List"),
+                      ("in print", "still in print"), ("plentiful", "8+ printings"),
+                      ("1 printing", "1 printing (out of print)")):
+        if key in label:
+            return name
+    return "2-7 printings" if "printings" in label else "unknown"
+
+
+def price_patterns(db, wl, horizon=14, lookback=7, min_usd=1.0, step=7, today=None):
+    """What prices did next, grouped two ways (no EDHREC data needed):
+
+    - momentum: price change over the ``lookback`` days before a start day ->
+      change over the ``horizon`` days after (tests the "price already up" penalty)
+    - supply: printings / Reserved List / in print -> change over ``horizon``
+      (tests the supply weights)
+
+    Start days are every ``step`` days with prices ``lookback`` before and
+    ``horizon`` after. Supply uses today's printing data (a small look-ahead)."""
+    dates = wl.dates()
+    today = today or dt.date.today().isoformat()
+    starts = []
+    for d in dates:
+        back = (dt.date.fromisoformat(d) - dt.timedelta(days=lookback)).isoformat()
+        fwd = (dt.date.fromisoformat(d) + dt.timedelta(days=horizon)).isoformat()
+        if back in dates and fwd in dates and (not starts or
+                                               (dt.date.fromisoformat(d) - dt.date.fromisoformat(starts[-1][0])).days >= step):
+            starts.append((d, back, fwd))
+    if not starts:
+        return {"starts": [], "momentum": [], "supply": [], "needed": f"needs {lookback + horizon}+ days of prices"}
+    names = {r["oracle_id"]: r["name"] for r in db.conn.execute("SELECT oracle_id, name FROM cards")}
+    supply = db.supply(list(names.values()), today)
+    labels = {oid: watchlist.supply_factor(supply.get(n), today)[1] for oid, n in names.items() if n in supply}
+    mom = {b[0]: [] for b in MOMENTUM_BUCKETS}
+    sup = {}
+    for d, back, fwd in starts:
+        p0, pb, p1 = _price_on(wl, d), _price_on(wl, back), _price_on(wl, fwd)
+        for oid, now in p0.items():
+            if now < min_usd or oid not in p1 or not pb.get(oid):
+                continue
+            prior = (now - pb[oid]) / pb[oid] * 100
+            nxt = (p1[oid] - now) / now * 100
+            for name, lo, hi in MOMENTUM_BUCKETS:
+                if (lo is None or prior >= lo) and (hi is None or prior < hi):
+                    mom[name].append(nxt)
+            if oid in labels:
+                sup.setdefault(_supply_bucket(labels[oid]), []).append(nxt)
+    return {"starts": [s[0] for s in starts], "horizon": horizon, "lookback": lookback, "needed": None,
+            "momentum": [{"group": n, **_summary(mom[n])} for n, _, _ in MOMENTUM_BUCKETS],
+            "supply": sorted(({"group": g, **_summary(v)} for g, v in sup.items()), key=lambda r: -(r["mean"] or 0))}
+
+
+def format_patterns(res):
+    if res["needed"]:
+        return f"Price patterns: not enough history yet ({res['needed']})."
+    lines = [f"Price patterns over {len(res['starts'])} start days ({res['starts'][0]} to {res['starts'][-1]}), "
+             f"next {res['horizon']} days, cards $1+:", "", f"After the price moved over the prior {res['lookback']} days:"]
+    for r in res["momentum"]:
+        lines.append(f"  {r['group']:<22} mean {r['mean']:+6.1f}%  median {r['median']:+6.1f}%  "
+                     f"{r['hit_rate']:4.0f}% rose 10%+  (n={r['n']:,})" if r["n"] else f"  {r['group']:<22} no cards")
+    lines += ["", "By supply:"]
+    for r in res["supply"]:
+        lines.append(f"  {r['group']:<26} mean {r['mean']:+6.1f}%  median {r['median']:+6.1f}%  "
+                     f"{r['hit_rate']:4.0f}% rose 10%+  (n={r['n']:,})")
+    return "\n".join(lines)
+
+
 def format_report(res):
     if res["needed"]:
         return f"Not enough history yet: {res['needed']}."
@@ -125,6 +200,8 @@ def main(argv=None):
     wl = watchlist.WatchList()
     try:
         print(format_report(run(db, wl, args.horizon, args.top)))
+        print()
+        print(format_patterns(price_patterns(db, wl, horizon=args.horizon)))
     finally:
         wl.close()
         db.close()
