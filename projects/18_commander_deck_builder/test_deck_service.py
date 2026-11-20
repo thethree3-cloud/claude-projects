@@ -111,6 +111,19 @@ class DeckServiceTests(unittest.TestCase):
         self.assertEqual(deck_service.swap(self.prep, result, out, already, 40, self.db)[1],
                          [f"{already} is already in the deck."])
 
+    def test_combo_removal_can_be_turned_off(self):
+        page = {"commander": {"legal_commander": True, "num_decks": 100},
+                "cards": [{"name": f"Spell {i}", "inclusion": 0.5 - i / 200} for i in range(80)]}
+        with mock.patch("edhrec_client.fetch_commander_page", return_value={}), \
+             mock.patch("edhrec_client.parse_commander_page", return_value=page), \
+             mock.patch("brackets.cut_combos", side_effect=lambda c, pool, b: (pool[1:], ["Spell 0 (two-card combo)"])) as cut:
+            on = deck_service.prepare("Green Commander", self.db, bracket=2)
+            off = deck_service.prepare("Green Commander", self.db, bracket=2, cut_combos=False)
+        self.assertEqual(cut.call_count, 1)  # only the "on" build asked Spellbook
+        self.assertIn("Spell 0 (two-card combo)", on["bracket_notes"])
+        self.assertEqual(len(off["pool"]), len(on["pool"]) + 1)
+        self.assertFalse(off["cut_combos"])
+
     def test_price_label(self):
         self.assertEqual(deck_service.price_label({"owned": True, "usd": 3.0}), "owned")
         self.assertEqual(deck_service.price_label({"owned": False, "usd": 3.0}), "$3.00")

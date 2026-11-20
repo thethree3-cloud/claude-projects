@@ -552,7 +552,10 @@ once there are decks from before the latest week.
     speed 1-3 combos need ~7+ more mana, i.e. late game).
   - Claude's instructions name the target bracket and its rules.
   - The app lists what was left out and why ("Basalt Monolith (two-card
-    combo with Kinnan, Bonder Prodigy)").
+    combo with Kinnan, Bonder Prodigy)"). A **Remove two-card combos**
+    toggle (on by default) can keep the combos in to build around them;
+    the deck then may land above the target, and the page says so (Kinnan
+    $150, bracket 2: on -> bracket 2; off -> bracket 3 with Basalt Monolith).
   Checked on 5 combo-heavy commanders x $150 / $500 x brackets 2 and 3:
   **20/20 decks came out at or under their target** and all validated
   (untargeted, Thrasios + Tymna $500 is bracket 4).

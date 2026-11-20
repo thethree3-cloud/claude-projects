@@ -26,7 +26,7 @@ def partner_names(commander_name, db):
 
 
 def prepare(commander_name, db, owned=frozenset(), partner_name=None, max_card_price=None, max_salt=None,
-            bracket=None):
+            bracket=None, cut_combos=True):
     """Commander row (combined for a pair), its checked candidate pool, and
     what the commander(s) cost you."""
     if db.get(commander_name) is None:
@@ -48,8 +48,9 @@ def prepare(commander_name, db, owned=frozenset(), partner_name=None, max_card_p
         bracket_notes += [f"{c['name']} (mass land denial or extra turns)" for c in unfiltered
                           if c["name"] not in kept and set((c.get("tags") or "").split(",")) & set(build_deck.BRACKET_FLAG_TAGS)]
         try:
-            pool, combo_notes = brackets.cut_combos(commander, pool, bracket)
-            bracket_notes += combo_notes
+            if cut_combos:
+                pool, combo_notes = brackets.cut_combos(commander, pool, bracket)
+                bracket_notes += combo_notes
         except brackets.BracketError as exc:
             loaded["warnings"].append(f"Couldn't check combos for bracket {bracket} ({exc}); "
                                       "two-card combos weren't removed.")
@@ -60,7 +61,7 @@ def prepare(commander_name, db, owned=frozenset(), partner_name=None, max_card_p
         c["cmc"] = oracle[c["name"]]["cmc"]
     return {"commander": commander, "pool": pool, "commander_cost": loaded["commander_cost"],
             "warnings": loaded["warnings"], "max_card_price": max_card_price, "max_salt": max_salt,
-            "bracket": bracket, "bracket_notes": bracket_notes}
+            "bracket": bracket, "bracket_notes": bracket_notes, "cut_combos": cut_combos}
 
 
 def _finish(prep, deck, budget, db, owned):

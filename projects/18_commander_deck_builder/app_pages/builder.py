@@ -61,10 +61,11 @@ def load_collection():
 
 
 @st.cache_data(ttl="1h", max_entries=20, show_spinner="Fetching EDHREC data...")
-def load_prep(commander, partner, owned, max_card_price, max_salt=None, bracket=None):
+def load_prep(commander, partner, owned, max_card_price, max_salt=None, bracket=None, cut_combos=True):
     db = deck_service.open_db()
     try:
-        return deck_service.prepare(commander, db, frozenset(owned), partner, max_card_price, max_salt, bracket)
+        return deck_service.prepare(commander, db, frozenset(owned), partner, max_card_price, max_salt, bracket,
+                                    cut_combos)
     finally:
         db.close()
 
@@ -149,6 +150,11 @@ with st.sidebar:
                                                        4: "4 (Optimized): anything"}[b],
         help="Limits Game Changers to what the bracket allows; the built deck is then checked by Commander Spellbook "
              "for combos and land denial too.")
+    remove_combos = st.toggle(
+        "Remove two-card combos", value=True, key="remove_combos", persist_state="session",
+        disabled=bracket_target not in (2, 3),
+        help="On: one piece of each two-card combo is left out, as the bracket rules require (bracket 3: only fast "
+             "combos). Off: combos stay in, so you can build around them; the deck may then land above the target.")
     table = st.selectbox("Table", list(salt_mod.FRIENDLY), key="salt_table", persist_state="session",
                          help="Leave out cards players hate facing, by EDHREC's salt score (0-4).")
     use_owned = st.toggle("Use my collection (owned cards cost $0)", key="use_owned", persist_state="session",
@@ -176,7 +182,8 @@ st.title("Commander deck builder")
 if build:
     owned = owned_names(binder) if use_owned else ()
     try:
-        prep = load_prep(commander, partner, owned, max_card, salt_mod.FRIENDLY[table], bracket_target)
+        prep = load_prep(commander, partner, owned, max_card, salt_mod.FRIENDLY[table], bracket_target,
+                         remove_combos)
         db = deck_service.open_db()
         try:
             if builder == "Claude":
@@ -234,7 +241,12 @@ with st.container(horizontal=True):
                                 "(Game Changers, combos, land denial, extra turns)")
     st.metric("Salt", f"{profile['salt']['total']:.1f}", border=True,
               help=f"Sum of EDHREC salt scores; average {profile['salt']['average']:.2f} per card")
-notes = (result.get("prep") or {}).get("bracket_notes") or []
+prep_used = result.get("prep") or {}
+if prep_used.get("bracket") in (2, 3) and not prep_used.get("cut_combos", True):
+    st.info(f"Two-card combos were kept (Remove two-card combos is off), so this deck can land above bracket "
+            f"{prep_used['bracket']}; the estimate below says where it actually sits. Open the Combos tab to see them.",
+            icon=":material/join_inner:")
+notes = prep_used.get("bracket_notes") or []
 if notes:
     with st.expander(f"Left out for bracket {result['prep']['bracket']} ({len(notes)} cards)"):
         st.caption("Removed from the candidate cards before building: mass land denial and extra-turn cards "
