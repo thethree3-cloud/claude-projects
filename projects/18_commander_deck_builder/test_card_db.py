@@ -1,0 +1,421 @@
+import gzip
+import json
+import os
+import sqlite3
+import tempfile
+import time
+import unittest
+from pathlib import Path
+from unittest import mock
+
+import card_db
+
+
+def printing(oracle_id, name, **overrides):
+    """A minimal Scryfall-style printing."""
+    card = {
+        "object": "card",
+        "oracle_id": oracle_id,
+        "name": name,
+        "layout": "normal",
+        "set": "tst",
+        "set_type": "expansion",
+        "collector_number": "1",
+        "type_line": "Artifact",
+        "oracle_text": "",
+        "color_identity": [],
+        "cmc": 1,
+        "legalities": {"commander": "legal"},
+        "prices": {"usd": None, "usd_foil": None, "usd_etched": None},
+        "promo": False,
+        "digital": False,
+    }
+    card.update(overrides)
+    return card
+
+
+def prices(usd=None, foil=None):
+    return {"usd": usd, "usd_foil": foil, "usd_etched": None}
+
+
+SAMPLE = [
+    # Sol Ring: default printing has no USD; cheapest non-promo wins over a cheaper promo/digital.
+    printing("sol", "Sol Ring", set="frc", edhrec_rank=None, prices=prices(None, "5.00")),
+    printing("sol", "Sol Ring", set="cmm", collector_number="1", edhrec_rank=1, prices=prices("1.50"),
+             image_uris={"normal": "https://img/cmm/1.jpg"}),
+    printing("sol", "Sol Ring", set="c21", prices=prices("2.00")),
+    printing("sol", "Sol Ring", set="sld", promo=True, prices=prices("0.90")),
+    printing("sol", "Sol Ring", set="arena", digital=True, prices=prices("0.10")),
+    # Only a promo printing has a plain USD price.
+    printing("tower", "Command Tower", promo=True, prices=prices("0.50", "1.00"), edhrec_rank=2),
+    # Foil-only pricing.
+    printing("foily", "Foily Card", prices=prices(None, "3.00")),
+    printing("free", "Priceless Card"),
+    # Double-faced: data lives on the faces.
+    printing(
+        "esika",
+        "Esika, God of the Tree // The Prismatic Bridge",
+        layout="modal_dfc",
+        type_line=None,
+        oracle_text=None,
+        color_identity=["G", "W"],
+        card_faces=[
+            {"type_line": "Legendary Creature — God", "oracle_text": "Vigilance",
+             "image_uris": {"normal": "https://img/esika-front.jpg"}},
+            {"type_line": "Legendary Artifact", "oracle_text": "Reveal cards",
+             "image_uris": {"normal": "https://img/esika-back.jpg"}},
+        ],
+        prices=prices("0.60"),
+    ),
+    printing("mul", "Muldrotha, the Gravetide", type_line="Legendary Creature — Elemental Avatar",
+             color_identity=["B", "G", "U"], cmc=6, edhrec_rank=1137, prices=prices("0.80")),
+    printing("lotus", "Black Lotus", legalities={"commander": "banned"}, prices=prices("9000")),
+    # Game Changer flag is card-level; only one printing needs to carry it.
+    printing("rhy", "Rhystic Study", color_identity=["U"], prices=prices("30.00")),
+    printing("rhy", "Rhystic Study", color_identity=["U"], set="pcy", game_changer=True, prices=prices("40.00")),
+    printing("cheap_u", "Cheap Blue Spell", color_identity=["U"], edhrec_rank=50, prices=prices("0.20")),
+    printing("pricey_u", "Pricey Blue Spell", color_identity=["U"], edhrec_rank=10, prices=prices("40.00")),
+    # Not real cards: token, no oracle id, memorabilia, digital-only.
+    printing("tok", "Goblin", layout="token", prices=prices("0.01")),
+    printing(None, "Art Card", layout="art_series"),
+    printing("mem", "Memorabilia Card", set_type="memorabilia", prices=prices("0.01")),
+    printing("dig", "Digital Only", digital=True, prices=prices("0.01")),
+]
+
+
+def write_bulk(path, cards=SAMPLE):
+    with gzip.open(path, "wt", encoding="utf-8") as f:
+        for card in cards:
+            f.write(json.dumps(card) + "\n")
+
+
+class TempDirCase(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+
+
+class DownloadUrlTests(unittest.TestCase):
+    def test_new_key(self):
+        self.assertEqual(card_db.bulk_download_url({"jsonl_download_uri": "https://x/a.jsonl.gz"}), "https://x/a.jsonl.gz")
+
+    def test_old_key_fallback(self):
+        self.assertEqual(card_db.bulk_download_url({"download_uri": "https://x/a.json"}), "https://x/a.json")
+
+    def test_missing_raises(self):
+        with self.assertRaises(card_db.BulkDataError):
+            card_db.bulk_download_url({"object": "bulk_data"})
+
+
+class AggregateTests(unittest.TestCase):
+    def setUp(self):
+        self.cards = card_db.aggregate_cards(json.dumps(c) for c in SAMPLE)
+
+    def test_one_row_per_oracle_id_and_non_cards_skipped(self):
+        names = {c["name"] for c in self.cards.values()}
+        self.assertNotIn("Goblin", names)
+        self.assertNotIn("Art Card", names)
+        self.assertNotIn("Memorabilia Card", names)
+        self.assertNotIn("Digital Only", names)
+        self.assertEqual(len([c for c in self.cards.values() if c["name"] == "Sol Ring"]), 1)
+
+    def test_cheapest_non_promo_non_digital_price_wins(self):
+        sol = self.cards["sol"]
+        self.assertEqual(sol["usd"], 1.50)
+        self.assertEqual(sol["price_source"], "non_promo")
+        self.assertEqual(sol["price_printing"], "cmm #1")
+
+    def test_edhrec_rank_taken_from_any_printing(self):
+        self.assertEqual(self.cards["sol"]["edhrec_rank"], 1)
+
+    def test_promo_used_when_no_non_promo_price(self):
+        self.assertEqual((self.cards["tower"]["usd"], self.cards["tower"]["price_source"]), (0.50, "promo"))
+
+    def test_foil_only_price_is_last_resort(self):
+        self.assertEqual((self.cards["foily"]["usd"], self.cards["foily"]["price_source"]), (3.00, "foil"))
+
+    def test_no_price_stays_none(self):
+        self.assertIsNone(self.cards["free"]["usd"])
+
+    def test_double_faced_card_reads_faces(self):
+        esika = self.cards["esika"]
+        self.assertIn("Legendary Creature — God", esika["type_line"])
+        self.assertIn("Vigilance", esika["oracle_text"])
+        self.assertEqual(esika["front_name_lower"], "esika, god of the tree")
+
+    def test_color_identity_in_wubrg_order(self):
+        self.assertEqual(self.cards["esika"]["color_identity"], "WG")
+        self.assertEqual(self.cards["mul"]["color_identity"], "UBG")
+        self.assertEqual(self.cards["sol"]["color_identity"], "")
+
+    def test_game_changer_flag_from_any_printing(self):
+        self.assertEqual(self.cards["rhy"]["game_changer"], 1)
+        self.assertEqual(self.cards["sol"]["game_changer"], 0)
+
+    def test_image_from_the_priced_printing(self):
+        sol = self.cards["sol"]
+        self.assertEqual(sol["price_printing"], "cmm #1")
+        self.assertEqual(sol["image_url"], "https://img/cmm/1.jpg")
+        self.assertIsNone(sol["image_url_back"])
+
+    def test_two_faced_card_has_back_image(self):
+        esika = self.cards["esika"]
+        self.assertEqual((esika["image_url"], esika["image_url_back"]),
+                         ("https://img/esika-front.jpg", "https://img/esika-back.jpg"))
+
+    def test_commander_legality(self):
+        self.assertEqual(self.cards["lotus"]["legal_commander"], 0)
+        self.assertEqual(self.cards["sol"]["legal_commander"], 1)
+
+
+class BuildAndQueryTests(TempDirCase):
+    def setUp(self):
+        super().setUp()
+        bulk = self.dir / "bulk.jsonl.gz"
+        write_bulk(bulk)
+        self.db_path = self.dir / "cards.sqlite"
+        card_db.build_db(bulk, self.db_path, updated_at="2026-09-24T00:00:00Z")
+        self.db = card_db.CardDB(self.db_path)
+        self.addCleanup(self.db.close)
+
+    def test_meta_and_count(self):
+        self.assertEqual(self.db.meta()["updated_at"], "2026-09-24T00:00:00Z")
+        self.assertEqual(self.db.count(), int(self.db.meta()["card_count"]))
+
+    def test_get_is_case_insensitive_and_matches_front_face(self):
+        self.assertEqual(self.db.get("sol ring")["usd"], 1.50)
+        self.assertEqual(self.db.get("Esika, God of the Tree")["name"], "Esika, God of the Tree // The Prismatic Bridge")
+        self.assertIsNone(self.db.get("Nope"))
+
+    def test_get_many_omits_unknown(self):
+        found = self.db.get_many(["Sol Ring", "Nope", "Command Tower"])
+        self.assertEqual(sorted(found), ["Command Tower", "Sol Ring"])
+
+    def test_every_real_printing_is_stored_newest_first(self):
+        sol = self.db.printings("sol ring")
+        # frc, cmm, c21, sld promo; the digital (arena) printing is left out.
+        self.assertEqual(sorted(p["set_code"] for p in sol), ["c21", "cmm", "frc", "sld"])
+        by_set = {p["set_code"]: p for p in sol}
+        self.assertEqual((by_set["cmm"]["usd"], by_set["cmm"]["image_url"]), (1.50, "https://img/cmm/1.jpg"))
+        self.assertEqual((by_set["frc"]["usd"], by_set["frc"]["usd_foil"]), (None, 5.00))
+        self.assertEqual(by_set["sld"]["promo"], 1)
+        esika = self.db.printings("Esika, God of the Tree")  # front-face name works
+        self.assertEqual(esika[0]["image_url_back"], "https://img/esika-back.jpg")
+        self.assertEqual(self.db.printings("Nope"), [])
+
+    def test_game_changers_listed(self):
+        self.assertEqual(self.db.game_changers(), ["Rhystic Study"])
+        self.assertEqual(self.db.get("Rhystic Study")["game_changer"], 1)
+
+    def test_find_name_exact_substring_and_typo(self):
+        self.assertEqual(self.db.find_name("Sol Ring"), "Sol Ring")
+        self.assertEqual(self.db.find_name("muldrotha"), "Muldrotha, the Gravetide")
+        self.assertEqual(self.db.find_name("muldrotha the gravtide"), "Muldrotha, the Gravetide")
+        self.assertIsNone(self.db.find_name("zzzzqqq"))
+
+    def test_candidates_respect_identity_price_legality_and_rank(self):
+        names = [c["name"] for c in self.db.candidates("U")]
+        self.assertEqual(names[:3], ["Sol Ring", "Command Tower", "Pricey Blue Spell"])
+        self.assertNotIn("Muldrotha, the Gravetide", names)  # needs B and G
+        self.assertNotIn("Black Lotus", names)  # banned
+        cheap = [c["name"] for c in self.db.candidates("U", max_price=1)]
+        self.assertNotIn("Pricey Blue Spell", cheap)
+        self.assertNotIn("Priceless Card", cheap)  # unpriced excluded by a price cap
+        self.assertEqual([c["name"] for c in self.db.candidates("U", limit=2)], ["Sol Ring", "Command Tower"])
+
+    def test_rebuild_replaces_old_database(self):
+        bulk = self.dir / "small.jsonl.gz"
+        write_bulk(bulk, [SAMPLE[1]])
+        card_db.build_db(bulk, self.db_path, updated_at="new")
+        db = card_db.CardDB(self.db_path)
+        self.addCleanup(db.close)
+        self.assertEqual(db.count(), 1)
+
+
+class PrintingRowTests(unittest.TestCase):
+    def test_treatment_and_fields(self):
+        card = printing("x", "Fancy", set="abc", collector_number="7", border_color="borderless",
+                        frame_effects=["showcase", "legendary"], full_art=True, released_at="2025-02-01",
+                        rarity="mythic", artist="Some Artist", finishes=["nonfoil", "foil"],
+                        scryfall_uri="https://scryfall.com/card/abc/7/fancy?utm_source=api",
+                        prices={"usd": "2.50", "usd_foil": "9.00", "usd_etched": None})
+        row = card_db.printing_row(card, "x")
+        self.assertEqual(row["treatment"], "borderless, showcase")  # full art is implied by borderless
+        self.assertEqual((row["usd"], row["usd_foil"], row["usd_etched"]), (2.5, 9.0, None))
+        self.assertEqual(row["finishes"], "nonfoil,foil")
+        self.assertEqual(row["scryfall_url"], "https://scryfall.com/card/abc/7/fancy")
+        self.assertEqual((row["rarity"], row["artist"], row["released_at"]), ("mythic", "Some Artist", "2025-02-01"))
+        self.assertEqual(card_db.printing_row(printing("y", "Plain"), "y")["treatment"], "")
+
+
+class BuildFailureTests(TempDirCase):
+    def test_empty_bulk_raises(self):
+        bulk = self.dir / "empty.jsonl.gz"
+        write_bulk(bulk, [])
+        with self.assertRaises(card_db.BulkDataError):
+            card_db.build_db(bulk, self.dir / "cards.sqlite")
+
+    def test_corrupt_bulk_raises(self):
+        bulk = self.dir / "bad.jsonl.gz"
+        bulk.write_bytes(b"not gzip")
+        with self.assertRaises(card_db.BulkDataError):
+            card_db.build_db(bulk, self.dir / "cards.sqlite")
+        self.assertFalse((self.dir / "cards.sqlite").exists())
+
+
+class EnsureDbTests(TempDirCase):
+    META = {"updated_at": "2026-09-24T00:00:00Z", "jsonl_download_uri": "https://x/b.jsonl.gz", "compressed_size": 1}
+
+    def fake_download(self, url, dest):
+        write_bulk(dest)
+
+    def make_db(self, updated_at, age_hours=0):
+        bulk = self.dir / card_db.BULK_NAME
+        write_bulk(bulk)
+        db_path = self.dir / card_db.DB_NAME
+        card_db.build_db(bulk, db_path, updated_at=updated_at)
+        old = time.time() - age_hours * 3600
+        os.utime(db_path, (old, old))
+        return db_path
+
+    def ensure(self, **kwargs):
+        return card_db.ensure_db(data_dir=self.dir, log=lambda *_: None, **kwargs)
+
+    def test_fresh_db_makes_no_network_calls(self):
+        self.make_db("x", age_hours=1)
+        with mock.patch("card_db.fetch_bulk_metadata") as meta:
+            self.ensure()
+        meta.assert_not_called()
+
+    def test_first_run_downloads_and_builds(self):
+        with mock.patch("card_db.fetch_bulk_metadata", return_value=self.META), \
+             mock.patch("card_db.download_bulk", side_effect=self.fake_download) as dl:
+            path = self.ensure()
+        dl.assert_called_once()
+        self.assertTrue(path.exists())
+
+    def test_stale_but_unchanged_upstream_skips_download(self):
+        self.make_db(self.META["updated_at"], age_hours=48)
+        with mock.patch("card_db.fetch_bulk_metadata", return_value=self.META), \
+             mock.patch("card_db.download_bulk") as dl:
+            path = self.ensure()
+        dl.assert_not_called()
+        self.assertLess(card_db._db_age_hours(path), 1)  # touched, so fresh again
+
+    def test_stale_and_changed_upstream_redownloads(self):
+        self.make_db("older", age_hours=48)
+        with mock.patch("card_db.fetch_bulk_metadata", return_value=self.META), \
+             mock.patch("card_db.download_bulk", side_effect=self.fake_download) as dl:
+            path = self.ensure()
+        dl.assert_called_once()
+        db = card_db.CardDB(path)
+        self.addCleanup(db.close)
+        self.assertEqual(db.meta()["updated_at"], self.META["updated_at"])
+
+    def test_old_schema_rebuilds_from_cached_bulk_even_offline(self):
+        db_path = self.make_db("x", age_hours=1)
+        conn = sqlite3.connect(db_path)
+        conn.execute("DELETE FROM meta WHERE key = 'schema_version'")
+        conn.commit()
+        conn.close()
+        with mock.patch("card_db.fetch_bulk_metadata", side_effect=OSError("offline")):
+            path = self.ensure()
+        self.assertEqual(card_db._schema_version(path), card_db.SCHEMA_VERSION)
+
+    def test_offline_with_existing_db_uses_it(self):
+        path = self.make_db("x", age_hours=48)
+        with mock.patch("card_db.fetch_bulk_metadata", side_effect=OSError("offline")):
+            self.assertEqual(self.ensure(), path)
+
+    def test_offline_without_db_raises(self):
+        with mock.patch("card_db.fetch_bulk_metadata", side_effect=OSError("offline")):
+            with self.assertRaises(card_db.BulkDataError):
+                self.ensure()
+
+
+COMMANDER_SAMPLE = [
+    printing("esika", "Esika, God of the Tree // The Prismatic Bridge", layout="modal_dfc",
+             type_line=None, oracle_text=None, color_identity=["G", "W"], edhrec_rank=900,
+             card_faces=[{"type_line": "Legendary Creature — God", "oracle_text": "Vigilance"},
+                         {"type_line": "Legendary Artifact", "oracle_text": "Reveal cards"}]),
+    # More popular than Esika and also starts with "esika", but not a commander.
+    printing("chariot", "Esika's Chariot", type_line="Legendary Artifact — Vehicle", edhrec_rank=40),
+    # The old fuzzy winner for "esika".
+    printing("amnesia", "Amnesia", type_line="Sorcery", edhrec_rank=5000),
+    printing("atx1", "Atraxa, Praetors' Voice", type_line="Legendary Creature — Phyrexian Angel Horror",
+             edhrec_rank=100),
+    printing("atx2", "Atraxa, Grand Unifier", type_line="Legendary Creature — Phyrexian Angel",
+             edhrec_rank=300),
+    printing("mul", "Muldrotha, the Gravetide", type_line="Legendary Creature — Elemental Avatar",
+             edhrec_rank=1137),
+    printing("grist", "Grist, the Hunger Tide", type_line="Legendary Planeswalker — Grist",
+             oracle_text="As long as Grist isn't on the battlefield, it's a 1/1 Insect creature in addition to its other types.",
+             edhrec_rank=700),
+    printing("banned", "Banned Legend", type_line="Legendary Creature — Human",
+             legalities={"commander": "banned"}),
+    printing("sol", "Sol Ring", edhrec_rank=1),
+    printing("urd", "The Ur-Dragon", type_line="Legendary Creature — Dragon Avatar", edhrec_rank=2000),
+    printing("urdrago", "Ur-Drago", type_line="Legendary Creature — Elemental", edhrec_rank=9000),
+]
+
+
+class FindCommanderTests(TempDirCase):
+    def setUp(self):
+        super().setUp()
+        bulk = self.dir / "bulk.jsonl.gz"
+        write_bulk(bulk, COMMANDER_SAMPLE)
+        card_db.build_db(bulk, self.dir / "cards.sqlite")
+        self.db = card_db.CardDB(self.dir / "cards.sqlite")
+        self.addCleanup(self.db.close)
+
+    def test_commander_names_only_legal_commanders_most_played_first(self):
+        self.assertEqual(self.db.commander_names(), [
+            "Atraxa, Praetors' Voice", "Atraxa, Grand Unifier", "Grist, the Hunger Tide",
+            "Esika, God of the Tree // The Prismatic Bridge", "Muldrotha, the Gravetide",
+            "The Ur-Dragon", "Ur-Drago",
+        ])
+
+    def test_punctuation_counts_as_space(self):
+        self.assertEqual(self.db.find_commander("ur dragon"), "The Ur-Dragon")
+        self.assertEqual(self.db.find_commander("atraxa praetors voice"), "Atraxa, Praetors' Voice")
+
+    def test_esika_is_not_amnesia_or_the_chariot(self):
+        self.assertEqual(self.db.find_commander("esika"), "Esika, God of the Tree // The Prismatic Bridge")
+
+    def test_exact_and_front_face_names(self):
+        self.assertEqual(self.db.find_commander("atraxa, grand unifier"), "Atraxa, Grand Unifier")
+        self.assertEqual(self.db.find_commander("Esika, God of the Tree"),
+                         "Esika, God of the Tree // The Prismatic Bridge")
+
+    def test_ties_go_to_most_played(self):
+        self.assertEqual(self.db.find_commander("atraxa"), "Atraxa, Praetors' Voice")
+
+    def test_word_start_beats_mid_word(self):
+        # "tide" starts a word in neither name, but "hunger" does in Grist's.
+        self.assertEqual(self.db.find_commander("hunger"), "Grist, the Hunger Tide")
+        self.assertEqual(self.db.find_commander("gravetide"), "Muldrotha, the Gravetide")
+
+    def test_typo_and_extra_spaces(self):
+        self.assertEqual(self.db.find_commander("  muldrota  "), "Muldrotha, the Gravetide")
+
+    def test_popularity_breaks_ties_by_decks_led(self):
+        # Card popularity says Praetors' Voice; commander popularity can say otherwise.
+        self.assertEqual(self.db.find_commander("atraxa", popularity={"Atraxa, Grand Unifier": 900}),
+                         "Atraxa, Grand Unifier")
+        names = self.db.commander_names({"Ur-Drago": 5})
+        self.assertEqual(names[0], "Ur-Drago")
+        self.assertEqual(names[1:3], ["Atraxa, Praetors' Voice", "Atraxa, Grand Unifier"])  # unranked keep order
+
+    def test_leading_the_is_skipped_for_prefix_matches(self):
+        self.assertEqual(self.db.find_commander("ur-dragon"), "The Ur-Dragon")
+
+    def test_non_commanders_and_nonsense_give_none(self):
+        self.assertIsNone(self.db.find_commander("sol ring"))
+        self.assertIsNone(self.db.find_commander("banned legend"))
+        self.assertIsNone(self.db.find_commander("zzzzqqq"))
+        self.assertIsNone(self.db.find_commander("   "))
+
+
+if __name__ == "__main__":
+    unittest.main()

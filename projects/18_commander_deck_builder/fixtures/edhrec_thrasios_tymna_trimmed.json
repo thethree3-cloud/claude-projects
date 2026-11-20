@@ -1,0 +1,356 @@
+{
+ "header": "Thrasios, Triton Hero // Tymna the Weaver (Commander)",
+ "container": {
+  "json_dict": {
+   "card": {
+    "name": "Thrasios, Triton Hero // Tymna the Weaver",
+    "color_identity": [
+     "G",
+     "W",
+     "U",
+     "B"
+    ],
+    "num_decks": 11565,
+    "legal_commander": true
+   },
+   "cardlists": [
+    {
+     "header": "New Cards",
+     "cardviews": [
+      {
+       "name": "Samut, Tyrant of Naktamun",
+       "num_decks": 324,
+       "potential_decks": 1673,
+       "synergy": 0.15334872083823808
+      },
+      {
+       "name": "Pia, Aether Ascetic",
+       "num_decks": 144,
+       "potential_decks": 1717,
+       "synergy": 0.05032405253723512
+      },
+      {
+       "name": "Khan, Vengeful Heart",
+       "num_decks": 22,
+       "potential_decks": 912,
+       "synergy": 0.012810589822973723
+      },
+      {
+       "name": "Fblthp, Impossibly Lost",
+       "num_decks": 42,
+       "potential_decks": 1782,
+       "synergy": 0.017590943197054124
+      }
+     ]
+    },
+    {
+     "header": "Top Cards",
+     "cardviews": [
+      {
+       "name": "Birds of Paradise",
+       "num_decks": 10599,
+       "potential_decks": 11565,
+       "synergy": 0.4665223481544898
+      },
+      {
+       "name": "Mystic Remora",
+       "num_decks": 10176,
+       "potential_decks": 11565,
+       "synergy": 0.6139990100985773
+      },
+      {
+       "name": "Rhystic Study",
+       "num_decks": 10170,
+       "potential_decks": 11565,
+       "synergy": 0.4975253894649965
+      },
+      {
+       "name": "Demonic Tutor",
+       "num_decks": 10075,
+       "potential_decks": 11565,
+       "synergy": 0.5314340104334072
+      }
+     ]
+    },
+    {
+     "header": "High Lift Cards",
+     "cardviews": [
+      {
+       "name": "Hazel's Brewmaster",
+       "num_decks": 7614,
+       "potential_decks": 11565,
+       "synergy": 0.5629456308419034
+      },
+      {
+       "name": "Oboro Breezecaller",
+       "num_decks": 2183,
+       "potential_decks": 11565,
+       "synergy": 0.16124074764286597
+      },
+      {
+       "name": "Swift Reconfiguration",
+       "num_decks": 7636,
+       "potential_decks": 11565,
+       "synergy": 0.5639290072931256
+      },
+      {
+       "name": "Candelabra of Tawnos",
+       "num_decks": 880,
+       "potential_decks": 11565,
+       "synergy": 0.06483188472927517
+      }
+     ]
+    },
+    {
+     "header": "Creatures",
+     "cardviews": [
+      {
+       "name": "Thassa's Oracle",
+       "num_decks": 9282,
+       "potential_decks": 11565,
+       "synergy": 0.6253047102888821
+      },
+      {
+       "name": "Noble Hierarch",
+       "num_decks": 9240,
+       "potential_decks": 11565,
+       "synergy": 0.5234349293324612
+      },
+      {
+       "name": "Devoted Druid",
+       "num_decks": 8737,
+       "potential_decks": 11565,
+       "synergy": 0.6393427430859377
+      },
+      {
+       "name": "Orcish Bowmasters",
+       "num_decks": 8708,
+       "potential_decks": 11565,
+       "synergy": 0.5853024270255992
+      }
+     ]
+    },
+    {
+     "header": "Instants",
+     "cardviews": [
+      {
+       "name": "Flusterstorm",
+       "num_decks": 9271,
+       "potential_decks": 11565,
+       "synergy": 0.6329178518802232
+      },
+      {
+       "name": "Enlightened Tutor",
+       "num_decks": 9154,
+       "potential_decks": 11565,
+       "synergy": 0.5536619598834074
+      },
+      {
+       "name": "Pact of Negation",
+       "num_decks": 8873,
+       "potential_decks": 11565,
+       "synergy": 0.6041641872251737
+      },
+      {
+       "name": "Mental Misstep",
+       "num_decks": 8793,
+       "potential_decks": 11565,
+       "synergy": 0.6084697784964463
+      }
+     ]
+    },
+    {
+     "header": "Sorceries",
+     "cardviews": [
+      {
+       "name": "Finale of Devastation",
+       "num_decks": 8641,
+       "potential_decks": 11565,
+       "synergy": 0.5936726274013397
+      },
+      {
+       "name": "Eldritch Evolution",
+       "num_decks": 7765,
+       "potential_decks": 11565,
+       "synergy": 0.5459966312331792
+      },
+      {
+       "name": "Imperial Seal",
+       "num_decks": 6177,
+       "potential_decks": 11565,
+       "synergy": 0.4097762252604498
+      },
+      {
+       "name": "Nature's Rhythm",
+       "num_decks": 4924,
+       "potential_decks": 9761,
+       "synergy": 0.41405950728323676
+      }
+     ]
+    },
+    {
+     "header": "Utility Artifacts",
+     "cardviews": [
+      {
+       "name": "The One Ring",
+       "num_decks": 5799,
+       "potential_decks": 11565,
+       "synergy": 0.32753125431151076
+      },
+      {
+       "name": "Wishclaw Talisman",
+       "num_decks": 4079,
+       "potential_decks": 11565,
+       "synergy": 0.25778433071797346
+      },
+      {
+       "name": "Birthing Pod",
+       "num_decks": 930,
+       "potential_decks": 11565,
+       "synergy": 0.060407203988057497
+      },
+      {
+       "name": "Isochron Scepter",
+       "num_decks": 827,
+       "potential_decks": 11565,
+       "synergy": 0.05041057580600958
+      }
+     ]
+    },
+    {
+     "header": "Enchantments",
+     "cardviews": [
+      {
+       "name": "Smothering Tithe",
+       "num_decks": 8844,
+       "potential_decks": 11565,
+       "synergy": 0.440478939899673
+      },
+      {
+       "name": "Gleaming Splendor",
+       "num_decks": 1270,
+       "potential_decks": 2624,
+       "synergy": 0.37469748796711916
+      },
+      {
+       "name": "Carpet of Flowers",
+       "num_decks": 2900,
+       "potential_decks": 11565,
+       "synergy": 0.1777947465175706
+      },
+      {
+       "name": "Necropotence",
+       "num_decks": 1322,
+       "potential_decks": 11565,
+       "synergy": 0.0792323728594367
+      }
+     ]
+    },
+    {
+     "header": "Planeswalkers",
+     "cardviews": [
+      {
+       "name": "Teferi, Time Raveler",
+       "num_decks": 899,
+       "potential_decks": 11565,
+       "synergy": -0.06804212302930684
+      },
+      {
+       "name": "Tyvar, Jubilant Brawler",
+       "num_decks": 580,
+       "potential_decks": 11565,
+       "synergy": 0.03677191703122124
+      }
+     ]
+    },
+    {
+     "header": "Utility Lands",
+     "cardviews": [
+      {
+       "name": "Boseiju, Who Endures",
+       "num_decks": 9279,
+       "potential_decks": 11565,
+       "synergy": 0.5299682405832314
+      },
+      {
+       "name": "Otawara, Soaring City",
+       "num_decks": 8784,
+       "potential_decks": 11565,
+       "synergy": 0.536739082408483
+      },
+      {
+       "name": "Ancient Tomb",
+       "num_decks": 8547,
+       "potential_decks": 11565,
+       "synergy": 0.5377855823174735
+      },
+      {
+       "name": "Gaea's Cradle",
+       "num_decks": 8154,
+       "potential_decks": 11565,
+       "synergy": 0.5751605491006648
+      }
+     ]
+    },
+    {
+     "header": "Mana Artifacts",
+     "cardviews": [
+      {
+       "name": "Sol Ring",
+       "num_decks": 11175,
+       "potential_decks": 11565,
+       "synergy": 0.09787843396488893
+      },
+      {
+       "name": "Chrome Mox",
+       "num_decks": 9446,
+       "potential_decks": 11565,
+       "synergy": 0.6310436626746745
+      },
+      {
+       "name": "Lotus Petal",
+       "num_decks": 9416,
+       "potential_decks": 11565,
+       "synergy": 0.6254233357326031
+      },
+      {
+       "name": "Mox Amber",
+       "num_decks": 8622,
+       "potential_decks": 11565,
+       "synergy": 0.6004960090725391
+      }
+     ]
+    },
+    {
+     "header": "Lands",
+     "cardviews": [
+      {
+       "name": "Command Tower",
+       "num_decks": 11193,
+       "potential_decks": 11565,
+       "synergy": 0.04542715981721057
+      },
+      {
+       "name": "Polluted Delta",
+       "num_decks": 10293,
+       "potential_decks": 11565,
+       "synergy": 0.4390340194469576
+      },
+      {
+       "name": "Misty Rainforest",
+       "num_decks": 10254,
+       "potential_decks": 11565,
+       "synergy": 0.43602934158588075
+      },
+      {
+       "name": "Flooded Strand",
+       "num_decks": 10234,
+       "potential_decks": 11565,
+       "synergy": 0.429729915443298
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

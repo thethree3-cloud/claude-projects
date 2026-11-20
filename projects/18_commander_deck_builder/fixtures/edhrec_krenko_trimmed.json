@@ -1,0 +1,336 @@
+{
+ "header": "Krenko, Mob Boss (Commander)",
+ "container": {
+  "json_dict": {
+   "card": {
+    "name": "Krenko, Mob Boss",
+    "color_identity": [
+     "R"
+    ],
+    "num_decks": 44609,
+    "legal_commander": true
+   },
+   "cardlists": [
+    {
+     "header": "New Cards",
+     "cardviews": [
+      {
+       "name": "Samut, Hazoret's Champion",
+       "num_decks": 120,
+       "potential_decks": 3153,
+       "synergy": -0.002648222141773779
+      },
+      {
+       "name": "Hall of Echoes",
+       "num_decks": 69,
+       "potential_decks": 3153,
+       "synergy": -0.0022179186791861163
+      },
+      {
+       "name": "Pompous Battlemage",
+       "num_decks": 70,
+       "potential_decks": 3923,
+       "synergy": 0.011261185175685107
+      },
+      {
+       "name": "Ajani's Anguish",
+       "num_decks": 37,
+       "potential_decks": 3316,
+       "synergy": -0.025214445300934925
+      }
+     ]
+    },
+    {
+     "header": "Top Cards",
+     "cardviews": [
+      {
+       "name": "Goblin Warchief",
+       "num_decks": 39021,
+       "potential_decks": 44609,
+       "synergy": 0.723853387254088
+      },
+      {
+       "name": "Skirk Prospector",
+       "num_decks": 38518,
+       "potential_decks": 44609,
+       "synergy": 0.6851250626185832
+      },
+      {
+       "name": "Impact Tremors",
+       "num_decks": 37735,
+       "potential_decks": 44609,
+       "synergy": 0.6094130287309382
+      },
+      {
+       "name": "Goblin Matron",
+       "num_decks": 37312,
+       "potential_decks": 44609,
+       "synergy": 0.6753289183878756
+      }
+     ]
+    },
+    {
+     "header": "High Lift Cards",
+     "cardviews": [
+      {
+       "name": "Umbral Mantle",
+       "num_decks": 8911,
+       "potential_decks": 44609,
+       "synergy": 0.17379363687703953
+      },
+      {
+       "name": "Mob Justice",
+       "num_decks": 9821,
+       "potential_decks": 44609,
+       "synergy": 0.19129246848983417
+      },
+      {
+       "name": "Sword of the Paruns",
+       "num_decks": 4638,
+       "potential_decks": 44609,
+       "synergy": 0.09012716230049031
+      },
+      {
+       "name": "Battle Squadron",
+       "num_decks": 8902,
+       "potential_decks": 44609,
+       "synergy": 0.1722922297432515
+      }
+     ]
+    },
+    {
+     "header": "Creatures",
+     "cardviews": [
+      {
+       "name": "Krenko, Tin Street Kingpin",
+       "num_decks": 27973,
+       "potential_decks": 44609,
+       "synergy": 0.4873684331911188
+      },
+      {
+       "name": "Hobgoblin Bandit Lord",
+       "num_decks": 27822,
+       "potential_decks": 44609,
+       "synergy": 0.530239099613411
+      },
+      {
+       "name": "Goblin Trashmaster",
+       "num_decks": 27443,
+       "potential_decks": 44609,
+       "synergy": 0.5141023476929775
+      },
+      {
+       "name": "Conspicuous Snoop",
+       "num_decks": 27391,
+       "potential_decks": 44609,
+       "synergy": 0.5155909975654517
+      }
+     ]
+    },
+    {
+     "header": "Instants",
+     "cardviews": [
+      {
+       "name": "Chaos Warp",
+       "num_decks": 23216,
+       "potential_decks": 44609,
+       "synergy": -0.08880335674161488
+      },
+      {
+       "name": "Battle Hymn",
+       "num_decks": 23012,
+       "potential_decks": 44609,
+       "synergy": 0.3767210491027738
+      },
+      {
+       "name": "Abrade",
+       "num_decks": 17436,
+       "potential_decks": 44609,
+       "synergy": -0.03265409657630791
+      },
+      {
+       "name": "Thrill of Possibility",
+       "num_decks": 13123,
+       "potential_decks": 44609,
+       "synergy": -0.03543075082816327
+      }
+     ]
+    },
+    {
+     "header": "Sorceries",
+     "cardviews": [
+      {
+       "name": "Krenko's Command",
+       "num_decks": 26945,
+       "potential_decks": 44609,
+       "synergy": 0.4723627457317482
+      },
+      {
+       "name": "Dragon Fodder",
+       "num_decks": 24272,
+       "potential_decks": 44609,
+       "synergy": 0.4188460428021774
+      },
+      {
+       "name": "Hordeling Outburst",
+       "num_decks": 19889,
+       "potential_decks": 44609,
+       "synergy": 0.34339130003825125
+      },
+      {
+       "name": "Blasphemous Act",
+       "num_decks": 16749,
+       "potential_decks": 44609,
+       "synergy": -0.16162495676339417
+      }
+     ]
+    },
+    {
+     "header": "Utility Artifacts",
+     "cardviews": [
+      {
+       "name": "Skullclamp",
+       "num_decks": 27515,
+       "potential_decks": 44609,
+       "synergy": 0.44856932219332046
+      },
+      {
+       "name": "Swiftfoot Boots",
+       "num_decks": 24435,
+       "potential_decks": 44609,
+       "synergy": 0.14779086398963565
+      },
+      {
+       "name": "Ruby Medallion",
+       "num_decks": 22126,
+       "potential_decks": 44609,
+       "synergy": -0.07256081001560116
+      },
+      {
+       "name": "Lightning Greaves",
+       "num_decks": 21904,
+       "potential_decks": 44609,
+       "synergy": 0.1572493257389706
+      }
+     ]
+    },
+    {
+     "header": "Enchantments",
+     "cardviews": [
+      {
+       "name": "Shared Animosity",
+       "num_decks": 22827,
+       "potential_decks": 44609,
+       "synergy": 0.40579631246042064
+      },
+      {
+       "name": "Blood Moon",
+       "num_decks": 14325,
+       "potential_decks": 44609,
+       "synergy": 0.1278288120768751
+      },
+      {
+       "name": "Boggart Shenanigans",
+       "num_decks": 13617,
+       "potential_decks": 44609,
+       "synergy": 0.2593373049190205
+      },
+      {
+       "name": "Raid Bombardment",
+       "num_decks": 12837,
+       "potential_decks": 44609,
+       "synergy": 0.23253174224206177
+      }
+     ]
+    },
+    {
+     "header": "Utility Lands",
+     "cardviews": [
+      {
+       "name": "Castle Embereth",
+       "num_decks": 17786,
+       "potential_decks": 44609,
+       "synergy": 0.23796305178008412
+      },
+      {
+       "name": "Three Tree City",
+       "num_decks": 13047,
+       "potential_decks": 44609,
+       "synergy": 0.23045543236689167
+      },
+      {
+       "name": "Den of the Bugbear",
+       "num_decks": 12807,
+       "potential_decks": 44609,
+       "synergy": 0.21191635410543339
+      },
+      {
+       "name": "Arena of Glory",
+       "num_decks": 11680,
+       "potential_decks": 44609,
+       "synergy": 0.051215856867403625
+      }
+     ]
+    },
+    {
+     "header": "Mana Artifacts",
+     "cardviews": [
+      {
+       "name": "Sol Ring",
+       "num_decks": 38044,
+       "potential_decks": 44609,
+       "synergy": 0.011246076375754033
+      },
+      {
+       "name": "Arcane Signet",
+       "num_decks": 23494,
+       "potential_decks": 44609,
+       "synergy": -0.07931705459712646
+      },
+      {
+       "name": "Patriar's Seal",
+       "num_decks": 11640,
+       "potential_decks": 44609,
+       "synergy": 0.21722778179329238
+      },
+      {
+       "name": "Heraldic Banner",
+       "num_decks": 10323,
+       "potential_decks": 44609,
+       "synergy": 0.14185772000857425
+      }
+     ]
+    },
+    {
+     "header": "Lands",
+     "cardviews": [
+      {
+       "name": "Mountain",
+       "num_decks": 43594,
+       "potential_decks": 44609,
+       "synergy": 0.028279130472888103
+      },
+      {
+       "name": "Path of Ancestry",
+       "num_decks": 13104,
+       "potential_decks": 44609,
+       "synergy": 0.215359131622943
+      },
+      {
+       "name": "Cavern of Souls",
+       "num_decks": 9875,
+       "potential_decks": 44609,
+       "synergy": 0.12474803423565001
+      },
+      {
+       "name": "Myriad Landscape",
+       "num_decks": 6869,
+       "potential_decks": 44609,
+       "synergy": -0.07808710933415189
+      }
+     ]
+    }
+   ]
+  }
+ }
+}
