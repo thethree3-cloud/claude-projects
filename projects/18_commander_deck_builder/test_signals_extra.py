@@ -30,6 +30,9 @@ def setUpModule():
     patcher = _mock.patch("tournaments.card_play", return_value={})
     patcher.start()
     unittest.addModuleCleanup(patcher.stop)
+    patcher = _mock.patch("archidekt.card_trend", return_value={})
+    patcher.start()
+    unittest.addModuleCleanup(patcher.stop)
 
 
 class Case(unittest.TestCase):

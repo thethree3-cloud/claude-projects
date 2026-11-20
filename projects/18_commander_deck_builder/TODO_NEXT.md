@@ -19,6 +19,8 @@ eval results; git history has the story.
 | Combos (`combos.py`) | Commander Spellbook: combos in the deck + one card away |
 | Card page | click a card name: every printing (picture, set, look, prices, Scryfall link) |
 | Tournaments (`tournaments.py`) | EDHTop16 cEDH events (MagicCon Atlanta + EU Qualifier imported): cards, commanders, lists |
+| Card jobs (`scryfall_tags.py`) | Scryfall Tagger roles incl. tutors, weekly, in the card DB |
+| Casual meta (`archidekt.py`) | newest Archidekt decks daily: rising cards / commanders by bracket, salt |
 | Watch list (`watchlist.py`) | EDHREC rising cards, daily price snapshots -> price risers, your watched cards |
 
 Quick resume:

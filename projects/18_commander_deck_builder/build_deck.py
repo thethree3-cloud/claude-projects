@@ -53,7 +53,8 @@ ROLE_TARGETS = {"wipe": 2, "removal": 8, "ramp": 10, "draw": 10}
 NONBASIC_BY_COLORS = {0: 5, 1: 5, 2: 10, 3: 15, 4: 17, 5: 20}
 FAIR_SHARE_MULT = 4  # one card may cost at most this many times the money left per open slot
 BASIC_BY_COLOR = {"W": "Plains", "U": "Island", "B": "Swamp", "R": "Mountain", "G": "Forest"}
-ROLES = ("land", "ramp", "draw", "removal", "wipe", "synergy")
+ROLES = ("land", "ramp", "draw", "removal", "wipe", "tutor", "synergy")
+TAG_ORDER = ("wipe", "removal", "ramp", "draw", "tutor")  # first job that applies wins
 
 _WIPE = re.compile(r"\b(destroy|exile) all\b|\ball (other )?creatures get -|\beach creature\b.*\b(destroy|damage)", re.I)
 _REMOVAL = re.compile(
@@ -76,10 +77,16 @@ _DRAW = re.compile(r"\bdraws? (a|two|three|four|x|that many) cards?\b", re.I)
 
 
 def card_role(card):
-    """One job per card, from type line and rules text. First match wins."""
+    """One job per card. Lands by type line; then Scryfall Tagger jobs when the card
+    database has them (``tags``: "ramp,draw", or "-" for none: more accurate, and
+    the only source of tutors); otherwise guessed from rules text. First match wins."""
     front_type = card["type_line"].split(" // ")[0]
     if "Land" in front_type:
         return "land"
+    tags = card.get("tags") or ""
+    if tags:
+        have = set(tags.split(","))
+        return next((role for role in TAG_ORDER if role in have), "synergy")
     text = card["oracle_text"]
     for role, pattern in (("wipe", _WIPE), ("removal", _REMOVAL), ("ramp", _RAMP), ("draw", _DRAW)):
         if pattern.search(text):
@@ -117,6 +124,7 @@ def candidate_pool(commander, edhrec_cards, db, owned=frozenset(), max_card_pric
         pool.append({
             "name": card["name"],
             "role": card_role(card),
+            "tags": card.get("tags") or "",
             "inclusion": inclusion,
             "usd": card["usd"],
             "owned": is_owned,

@@ -39,7 +39,7 @@ BULK_NAME = "default-cards.jsonl.gz"
 MAX_AGE_HOURS = 24
 CHUNK = 1024 * 1024
 WUBRG = "WUBRG"
-SCHEMA_VERSION = "6"  # bump when the cards table changes; ensure_db rebuilds locally
+SCHEMA_VERSION = "7"  # bump when the cards table changes; ensure_db rebuilds locally
 
 # Layouts that are not real cards (no place in a Commander deck).
 EXCLUDED_LAYOUTS = {
@@ -75,7 +75,8 @@ CREATE TABLE cards (
     price_source TEXT,              -- non_promo | promo | foil
     price_printing TEXT,            -- e.g. "cmm #1"
     image_url TEXT,                 -- Scryfall "normal" image of that printing
-    image_url_back TEXT             -- back face, two-faced cards only
+    image_url_back TEXT,            -- back face, two-faced cards only
+    tags TEXT NOT NULL DEFAULT ''   -- Scryfall Tagger jobs ("ramp,draw"); '-' = none; '' = tags not loaded
 );
 CREATE INDEX idx_cards_name ON cards(name_lower);
 CREATE INDEX idx_cards_front ON cards(front_name_lower);
@@ -337,8 +338,12 @@ def aggregate_cards(lines, printings=None):
     return cards
 
 
-def build_db(bulk_path, db_path, updated_at=""):
-    """Stream a bulk .jsonl.gz into a fresh SQLite database (replacing any old one)."""
+def build_db(bulk_path, db_path, updated_at="", tags=None):
+    """Stream a bulk .jsonl.gz into a fresh SQLite database (replacing any old one).
+
+    ``tags``: ``{oracle_id: "ramp,draw"}`` from ``scryfall_tags.load()``. With it, every
+    card gets its jobs, or "-" for none; without it, tags stay "" and card jobs are
+    guessed from rules text."""
     db_path = Path(db_path)
     tmp_path = db_path.with_suffix(".building")
     tmp_path.unlink(missing_ok=True)
@@ -358,7 +363,10 @@ def build_db(bulk_path, db_path, updated_at=""):
             "oracle_id", "name", "name_lower", "front_name_lower", "type_line",
             "oracle_text", "color_identity", "cmc", "edhrec_rank", "legal_commander",
             "game_changer", "reserved", "usd", "usd_max", "eur", "price_source", "price_printing", "image_url", "image_url_back",
+            "tags",
         ]  # fmt: skip
+        for oid, row in cards.items():
+            row["tags"] = "" if tags is None else (tags.get(oid) or "-")
         conn.executemany(
             f"INSERT INTO cards ({', '.join(columns)}) VALUES ({', '.join('?' * len(columns))})",
             [tuple(row[c] for c in columns) for row in cards.values()],
@@ -705,7 +713,16 @@ def _schema_version(db_path):
         db.close()
 
 
-def ensure_db(data_dir=DATA_DIR, max_age_hours=MAX_AGE_HOURS, refresh=False, log=print):
+def _tags():
+    """Scryfall Tagger jobs saved by ``scryfall_tags.py`` (None until it has run)."""
+    try:
+        import scryfall_tags
+    except ImportError:
+        return None
+    return scryfall_tags.load()
+
+
+def ensure_db(data_dir=DATA_DIR, max_age_hours=MAX_AGE_HOURS, refresh=False, log=print, rebuild=False):
     """Return the path to an up-to-date database, downloading/building only if needed.
 
     - Younger than ``max_age_hours``: used as is (no network).
@@ -716,14 +733,15 @@ def ensure_db(data_dir=DATA_DIR, max_age_hours=MAX_AGE_HOURS, refresh=False, log
     db_path = data_dir / DB_NAME
     bulk_path = data_dir / BULK_NAME
 
-    if db_path.exists() and bulk_path.exists() and _schema_version(db_path) != SCHEMA_VERSION:
-        log("Card database format changed; rebuilding from the cached bulk file...")
+    if db_path.exists() and bulk_path.exists() and (rebuild or _schema_version(db_path) != SCHEMA_VERSION):
+        log("Card database format changed; rebuilding from the cached bulk file..." if not rebuild
+            else "Rebuilding the card database from the cached bulk file...")
         db = CardDB(db_path)
         try:
             updated_at = db.meta().get("updated_at", "")
         finally:
             db.close()
-        build_db(bulk_path, db_path, updated_at=updated_at)
+        build_db(bulk_path, db_path, updated_at=updated_at, tags=_tags())
         refresh_check = True  # the rebuild reset the file age; still ask Scryfall
     else:
         refresh_check = False
@@ -753,7 +771,7 @@ def ensure_db(data_dir=DATA_DIR, max_age_hours=MAX_AGE_HOURS, refresh=False, log
     log(f"Downloading Scryfall bulk data (~{metadata.get('compressed_size', 0) // 1_000_000} MB)...")
     download_bulk(bulk_download_url(metadata), bulk_path)
     log("Building local card database...")
-    build_db(bulk_path, db_path, updated_at=updated_at)
+    build_db(bulk_path, db_path, updated_at=updated_at, tags=_tags())
     return db_path
 
 

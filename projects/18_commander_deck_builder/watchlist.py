@@ -253,8 +253,22 @@ def tournament_factor(play):
     return (1.1, label) if top / size >= TOURNAMENT_SHARE else (1.0, label)
 
 
+CASUAL_MIN_DECKS = 50  # new Archidekt decks needed before their trend is shown
+CASUAL_MIN_PTS = 2.0
+
+
+def casual_label(trend):
+    """Reason line from ``archidekt.card_trend`` for one card (no score weight until it's backtested)."""
+    if not trend:
+        return None
+    share, change, n = trend
+    if n < CASUAL_MIN_DECKS or change is None or change < CASUAL_MIN_PTS:
+        return None
+    return f"in {share:.0%} of new Archidekt decks ({change:+.1f} pts vs the 4 weeks before)"
+
+
 def spec_signals(db, wl, rising=None, min_usd=0.5, max_usd=None, include_new=False, today=None, days=7,
-                 out_of_print_only=False, tournament_play=None):
+                 out_of_print_only=False, tournament_play=None, casual_trend=None):
     """Cards gaining players while their price hasn't caught up, scarcest first.
 
     score = EDHREC trend (+ popularity gain over ``days`` from our own daily
@@ -266,6 +280,9 @@ def spec_signals(db, wl, rising=None, min_usd=0.5, max_usd=None, include_new=Fal
     if tournament_play is None:
         import tournaments
         tournament_play = tournaments.card_play(today=today)
+    if casual_trend is None:
+        import archidekt
+        casual_trend = archidekt.card_trend(today=today)
     year_ago = (dt.date.fromisoformat(today) - dt.timedelta(days=365)).isoformat()
     _, _, pop_change = wl.popularity_change(days)
     price_change = wl.price_changes(days)
@@ -297,7 +314,9 @@ def spec_signals(db, wl, rising=None, min_usd=0.5, max_usd=None, include_new=Fal
                    "new on the weekly list" if r["new"] else f"{r['change_pts']:+.1f} pts vs 2 years"]
         if accel is not None:
             reasons.append(f"{accel:+.2f} pts in {days} days")
-        reasons += [s_label, p_label] + ([e_label] if e_label else []) + ([t_label] if t_label else [])
+        c_label = casual_label(casual_trend.get(r["name"]))
+        reasons += [s_label, p_label] + ([e_label] if e_label else []) + ([t_label] if t_label else []) \
+            + ([c_label] if c_label else [])
         if card and card["usd_max"] and card["usd"] and card["usd_max"] >= card["usd"] * 1.5:
             reasons.append(f"printings ${card['usd']:,.2f}-${card['usd_max']:,.2f}")
         reasons += ["new card (first printed in the last 30 days)"] if is_new else []
@@ -694,6 +713,24 @@ def main(argv=None):
                     print(f"MTGJSON prices + buylist stored for {price_history.update_buylist(db, wl, log=print):,} cards.")
                 except price_history.HistoryError as exc:
                     print(f"Buylist update skipped: {exc}")
+                try:
+                    import archidekt
+                    a = archidekt.Archidekt()
+                    try:
+                        if a.get_meta("sampled_on") != dt.date.today().isoformat():
+                            a.sample(max_new=150, log=print)
+                            a.set_meta("sampled_on", dt.date.today().isoformat())
+                    finally:
+                        a.close()
+                except Exception as exc:  # network trouble shouldn't stop the digest
+                    print(f"Archidekt sample skipped: {exc}")
+                try:
+                    import scryfall_tags
+                    if scryfall_tags.is_stale():
+                        scryfall_tags.refresh(log=print)
+                        card_db.ensure_db(log=print, rebuild=True)
+                except Exception as exc:
+                    print(f"Scryfall tag refresh skipped: {exc}")
                 path, _ = alerts.daily_digest(db, wl, date, log=print)
                 print(f"Digest written to {path}.")
         elif args.command == "spec":

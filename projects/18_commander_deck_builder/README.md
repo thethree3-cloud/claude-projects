@@ -505,6 +505,30 @@ load). MTGJSON ids map to our cards through `AllIdentifiers` (saved as a
   period only, so re-check as more history arrives. The EDHREC part of the
   score still needs its own daily snapshots (first 7-day check 2026-11-26).
 
+## Card jobs from Scryfall Tagger, and the casual meta from Archidekt (added 2026-11-20)
+
+**Scryfall Tagger jobs** (`scryfall_tags.py`): the community "oracle tags"
+`otag:board-wipe`, `removal`, `counterspell` (counted as removal), `ramp`,
+`draw` and `tutor` for every Commander-legal card (12,850 cards; ~90 search
+pages, polite gap, backs off on 429), saved weekly and built into the card
+database (schema 7 `tags`). Card jobs now come from the tags (first that
+applies: wipe, removal, ramp, draw, tutor), with the old rules-text guess
+only when tags aren't loaded. Fixes real misses (Demonic Tutor and Mystical
+Tutor were "synergy", Cyclonic Rift wasn't a wipe) and adds **tutors** as a
+job (a "Tutors" group in the builder). All 30 eval baseline decks still pass
+the validator (now ~11 interaction cards each, counterspells included).
+
+**Casual meta** (`archidekt.py`): Archidekt's public API lists the newest
+Commander decks. The daily job samples up to 150 new complete decks (99+
+cards; 1 request/s; each deck once) into `data/archidekt.sqlite`, with
+cards matched by oracle id, the deck's bracket (when set: few are) and
+Archidekt's salt scores. The Watch list's **Casual meta** view shows cards
+in this week's new decks vs the 28 days before (by bracket, staples
+hidden) and the commanders being built; spec signals add a reason line for
+cards rising there (no score weight until it can be backtested). Card pages
+show the **salt score** and the card's jobs. The change column fills in
+once there are decks from before the latest week.
+
 ## Tournaments: MagicCon and other cEDH events (added 2026-11-19)
 
 `tournaments.py` imports cEDH events from **EDHTop16** (results and

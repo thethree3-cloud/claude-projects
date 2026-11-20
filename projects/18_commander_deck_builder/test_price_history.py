@@ -18,6 +18,9 @@ def setUpModule():
     patcher = mock.patch("tournaments.card_play", return_value={})
     patcher.start()
     unittest.addModuleCleanup(patcher.stop)
+    patcher = mock.patch("archidekt.card_trend", return_value={})
+    patcher.start()
+    unittest.addModuleCleanup(patcher.stop)
 
 
 def gz_json(path, data):

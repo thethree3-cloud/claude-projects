@@ -124,6 +124,18 @@ with right:
             st.badge("Game Changer", color="orange")
         if card_db.can_be_commander(card):
             st.badge("Can be a commander", color="blue")
+        import archidekt
+        _a = archidekt.Archidekt()
+        try:
+            _salt = _a.salt(card["oracle_id"])
+        finally:
+            _a.close()
+        if _salt is not None:
+            st.badge(f"Salt {_salt:.2f}", color="violet" if _salt < 1.5 else "red",
+                     help="EDHREC salt score (via Archidekt): how much players dislike facing this card, 0-4")
+        if card.get("tags") and card["tags"] != "-":
+            st.badge("Jobs: " + card["tags"].replace(",", ", "), color="gray",
+                     help="Scryfall Tagger: what the card does, used by the deck builders")
     if card["usd"] is not None:
         st.markdown(f"**Deck builder price:** {money(card['usd'])} "
                     f"({card['price_printing']}, the cheapest regular printing)")

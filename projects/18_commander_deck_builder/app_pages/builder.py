@@ -22,7 +22,7 @@ CARD_PAGE = "app_pages/card.py"
 GRID_COLUMNS = 5  # the alternates panel takes the right quarter
 MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
 ROLE_TITLES = {"land": "Lands", "ramp": "Ramp", "draw": "Card draw", "removal": "Removal",
-               "wipe": "Board wipes", "synergy": "Synergy"}
+               "wipe": "Board wipes", "tutor": "Tutors", "synergy": "Synergy"}
 
 st.session_state.setdefault("result", None)
 st.session_state.setdefault("swap_history", [])  # earlier results, for Undo

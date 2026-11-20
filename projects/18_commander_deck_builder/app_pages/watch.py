@@ -10,6 +10,7 @@ from urllib.parse import quote
 import streamlit as st
 
 import alerts
+import archidekt
 import backtest
 import card_db
 import combos
@@ -20,8 +21,8 @@ import portfolio
 import watchlist
 
 COLORS = {"W": "White", "U": "Blue", "B": "Black", "R": "Red", "G": "Green"}
-VIEWS = ["Spec signals", "New commanders", "Combo spikes", "Rising on EDHREC", "Price risers", "My watch list",
-         "My cards", "Digest"]
+VIEWS = ["Spec signals", "New commanders", "Combo spikes", "Casual meta", "Rising on EDHREC", "Price risers",
+         "My watch list", "My cards", "Digest"]
 
 
 def with_db(fn, *args):
@@ -316,6 +317,68 @@ elif view == "Combo spikes":
     if st.button(f"Watch {len(picked)} selected" if picked else "Select cards to watch", key="spike_add",
                  icon=":material/star:", disabled=not picked):
         add_cards(picked)
+
+# ---------------------------------------------------------------------------
+# Casual meta (Archidekt)
+# ---------------------------------------------------------------------------
+
+elif view == "Casual meta":
+    a = archidekt.Archidekt()
+    try:
+        counts = a.brackets()
+        total = sum(counts.values())
+        with st.container(horizontal=True, vertical_alignment="bottom"):
+            options = [None] + [b for b in (1, 2, 3, 4, 5) if counts.get(b)]
+            bracket = st.segmented_control(
+                "Bracket", options, default=None, key="casual_bracket",
+                format_func=lambda b: "All" if b is None else f"Bracket {b} ({counts.get(b, 0)})")
+            if st.button("Fetch new decks now (about 2 minutes)", icon=":material/refresh:", key="casual_sample"):
+                with st.spinner("Reading Archidekt's newest decks, 1 per second..."):
+                    try:
+                        a.sample(max_new=100, log=lambda *_: None)
+                    except archidekt.ArchidektError as exc:
+                        st.error(str(exc), icon=":material/error:")
+                st.rerun()
+        t = a.trends(bracket=bracket)
+    finally:
+        a.close()
+    st.caption(f"New public Commander decks on Archidekt (complete 99+ card lists), sampled daily: {total:,} saved, "
+               f"{counts.get(None, 0):,} without a bracket. Last 7 days ({t['recent_decks']} decks) vs the 28 days "
+               f"before ({t['base_decks']}). Casual players, so this complements EDHREC's long-run averages.")
+    if not t["recent_decks"]:
+        st.info("No decks yet for this filter; the daily job adds about 150 a day.", icon=":material/hourglass_top:")
+        st.stop()
+    if not t["base_decks"]:
+        st.info("Change vs earlier weeks shows once there are decks from before the last 7 days; for now this is "
+                "what's in this week's new decks.", icon=":material/hourglass_top:")
+    with st.container(horizontal=True):
+        hide_staples = st.toggle("Hide staples", value=True, key="casual_staples",
+                                 help="Leave out cards in EDHREC's overall top 300")
+    db = deck_service.open_db()
+    try:
+        info = db.get_many([c["name"] for c in t["cards"][:600]])
+    finally:
+        db.close()
+    rows = [c for c in t["cards"][:600]
+            if not (hide_staples and info.get(c["name"]) and (info[c["name"]]["edhrec_rank"] or 99999) <= 300)][:200]
+    event = st.dataframe(
+        [{"Card": c["name"], "New decks": c["share"], "Change": None if c["change_pts"] is None else c["change_pts"],
+          "Before": c["base_share"], "Price": info[c["name"]]["usd"] if c["name"] in info else None,
+          "Page": card_url(c["name"])} for c in rows],
+        column_config={"New decks": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1),
+                       "Change": st.column_config.NumberColumn(format="%+.1f pts"),
+                       "Before": st.column_config.NumberColumn(format="percent"),
+                       "Price": st.column_config.NumberColumn(format="dollar"),
+                       "Page": st.column_config.LinkColumn(display_text="Open")},
+        hide_index=True, on_select="rerun", selection_mode="multi-row", key="casual_table",
+    )
+    picked = selected_names(event, rows)
+    if st.button(f"Watch {len(picked)} selected" if picked else "Select cards to watch", key="casual_add",
+                 icon=":material/star:", disabled=not picked):
+        add_cards(picked)
+    st.markdown("**Commanders in new decks**")
+    st.dataframe([{"Commander": c["commander"], "Last 7 days": c["decks"], "28 days before": c["base_decks"]}
+                  for c in t["commanders"][:30]], hide_index=True, key="casual_commanders")
 
 # ---------------------------------------------------------------------------
 # Rising on EDHREC
