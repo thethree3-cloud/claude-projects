@@ -122,6 +122,40 @@ def official_bracket(raw):
             "spellbook_tag": SPELLBOOK_TAGS.get(tag, tag)}
 
 
+FAST_SPEED = 4  # Spellbook speed 4-5 = cheap, early combos (speed 1-3 need ~7+ more mana: late game)
+
+
+def cut_combos(commander, pool, bracket, classify_fn=None, **kwargs):
+    """Drop one piece of each two-card combo the pool could assemble, as the bracket requires.
+
+    Brackets 1-2: every two-card combo; bracket 3: only fast ones (Spellbook speed
+    >= ``FAST_SPEED``); 4-5: none. Of each combo's pieces the least-played card that
+    isn't a commander goes. Returns ``(new_pool, notes)``; notes say what left and why.
+    Raises BracketError if Spellbook can't be reached."""
+    if bracket not in (1, 2, 3):
+        return pool, []
+    members = [c["name"] for c in card_db.commander_members(commander)]
+    raw = (classify_fn or classify)(members, [(c["name"], 1) for c in pool], **kwargs)
+    by_name = {c["name"]: c for c in pool}
+    dropped, notes = set(), []
+    combos = sorted(raw.get("combos") or [], key=lambda v: -(v.get("speed") or 0))
+    for v in combos:
+        if not v.get("definitelyTwoCard"):
+            continue
+        speed = v.get("speed") or 0
+        if bracket == 3 and speed < FAST_SPEED:
+            continue
+        uses = [u["card"]["name"] for u in v["combo"].get("uses", [])]
+        pieces = [n for n in uses if n in by_name and n not in members]
+        if not pieces or any(n in dropped for n in pieces):
+            continue  # already broken, or only commanders (can't remove those)
+        out = min(pieces, key=lambda n: (by_name[n]["inclusion"], n))
+        dropped.add(out)
+        notes.append(f"{out} (two-card combo with {' + '.join(u for u in uses if u != out)}"
+                     + (f", fast: speed {speed}" if bracket == 3 else "") + ")")
+    return [c for c in pool if c["name"] not in dropped], notes
+
+
 def for_builder_deck(commander, deck, **kwargs):
     """Bracket estimate for a deck dict from ``build_deck`` / the app."""
     members = [c["name"] for c in card_db.commander_members(commander)]

@@ -234,6 +234,14 @@ with st.container(horizontal=True):
                                 "(Game Changers, combos, land denial, extra turns)")
     st.metric("Salt", f"{profile['salt']['total']:.1f}", border=True,
               help=f"Sum of EDHREC salt scores; average {profile['salt']['average']:.2f} per card")
+notes = (result.get("prep") or {}).get("bracket_notes") or []
+if notes:
+    with st.expander(f"Left out for bracket {result['prep']['bracket']} ({len(notes)} cards)"):
+        st.caption("Removed from the candidate cards before building: mass land denial and extra-turn cards "
+                   "(Scryfall tags), and one piece of each two-card combo (Commander Spellbook"
+                   + ("; only fast combos for bracket 3" if result["prep"]["bracket"] == 3 else "") + ").")
+        for n in notes:
+            st.markdown(f"- {n}")
 if b or profile["salt"]["saltiest"]:
     with st.expander("Why this bracket, and the saltiest cards"):
         if b:

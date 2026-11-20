@@ -84,7 +84,7 @@ Rules for your answer:
 - "inclusion" is the share of this commander's real decks (EDHREC) that play the card. It is a strong signal, not a rule: favor cards that work with the commander's text.
 - Keep a running total so the picks stay within ${money:.2f}.
 - Give a one-line reason per pick (at most 12 words) and a two-sentence strategy.
-
+{bracket_rules}
 Candidate cards (id | name | role | inclusion | price | rules text):
 {table}"""
 
@@ -129,7 +129,26 @@ def min_picks(pool, money, in_command_zone=1):
     return min(spell_slots, affordable)
 
 
-def first_prompt(commander, budget, commander_cost, table, minimum=None):
+BRACKET_RULES = {
+    1: "Exhibition: a casual theme deck. No Game Changers, no mass land denial, no extra-turn cards, no two-card "
+       "combos. Prefer flavorful, fair cards over the strongest ones.",
+    2: "Core: like a precon. No Game Changers, no mass land denial, no extra-turn cards, no two-card combos.",
+    3: "Upgraded: at most 3 Game Changers, no mass land denial, no extra-turn cards, and no two-card combo that "
+       "can come together early (cheap, fast combos).",
+    4: "Optimized: anything legal; play the strongest cards you can afford.",
+    5: "cEDH: the most competitive cards and combos you can afford.",
+}
+
+
+def bracket_text(bracket):
+    """The bracket section of Claude's instructions ("" when no target is set)."""
+    if bracket not in BRACKET_RULES:
+        return ""
+    return (f"- Target power level: bracket {bracket} ({BRACKET_RULES[bracket]}) Cards that break it have already been "
+            "removed from the candidate list below; stay within it and don't build a combo out of what's left.\n")
+
+
+def first_prompt(commander, budget, commander_cost, table, minimum=None, bracket=None):
     n = len(card_db.commander_members(commander))
     spell_slots = build_deck.DECK_SIZE - n - build_deck.LAND_TARGET
     return PROMPT.format(
@@ -147,6 +166,7 @@ def first_prompt(commander, budget, commander_cost, table, minimum=None):
         land_lo=34,
         land_hi=38,
         table=table,
+        bracket_rules=bracket_text(bracket),
     )
 
 
@@ -239,7 +259,8 @@ def estimated_cost(usage, model):
 
 
 def build_with_claude(commander, pool, budget, db, client, owned=frozenset(), commander_cost=0.0,
-                      model=MODEL, effort="medium", max_attempts=MAX_ATTEMPTS, log=print, max_card_price=None):
+                      model=MODEL, effort="medium", max_attempts=MAX_ATTEMPTS, log=print, max_card_price=None,
+                      bracket=None):
     """Ask Claude for a deck, validate, feed errors back. Returns a result dict with ``ok``."""
     table, by_id = card_table(pool)
     money = budget - commander_cost
@@ -248,7 +269,7 @@ def build_with_claude(commander, pool, budget, db, client, owned=frozenset(), co
         "role": "user",
         "content": [{
             "type": "text",
-            "text": first_prompt(commander, budget, commander_cost, table, minimum),
+            "text": first_prompt(commander, budget, commander_cost, table, minimum, bracket),
             "cache_control": {"type": "ephemeral"},  # retries re-send this; cache it
         }],
     }]
@@ -268,7 +289,7 @@ def build_with_claude(commander, pool, budget, db, client, owned=frozenset(), co
             raise
         deck, problems = assemble(commander, by_id, picks.picks, commander_cost, minimum)
         text = build_deck.import_text(commander, deck)
-        check = validate_text(text, db, budget=budget, owned=owned, max_card_price=max_card_price,
+        check = validate_text(text, db, budget=budget, owned=owned, max_card_price=max_card_price, bracket=bracket,
                               **build_deck.commander_args(commander))
         errors = problems + check["errors"]
         attempts.append({"attempt": attempt, "errors": errors, "picks": len(picks.picks),
@@ -356,6 +377,7 @@ def main(argv=None):
     parser.add_argument("--partner", help="second commander: a partner, Background, Doctor... (fuzzy)")
     parser.add_argument("--budget", type=float, required=True)
     parser.add_argument("--max-card-price", type=float, help="no card you buy may cost more than this (USD)")
+    parser.add_argument("--bracket", type=int, choices=range(1, 6), help="target bracket (pool rules + Claude's instructions)")
     parser.add_argument("--owned", action="store_true", help="cards in your collection cost $0")
     parser.add_argument("--binder", help="with --owned: only this binder")
     parser.add_argument("--model", default=MODEL)
@@ -378,7 +400,13 @@ def main(argv=None):
         commander, commander_cost = loaded["commander"], loaded["commander_cost"]
         if commander_cost > args.budget:
             raise LookupError(f"{commander['name']} alone costs ${commander_cost:.2f}, over the budget.")
-        pool = build_deck.candidate_pool(commander, loaded["cards"], db, owned, args.max_card_price)
+        pool = build_deck.candidate_pool(commander, loaded["cards"], db, owned, args.max_card_price,
+                                         bracket=args.bracket)
+        if args.bracket in (1, 2, 3):
+            import brackets
+            pool, notes = brackets.cut_combos(commander, pool, args.bracket)
+            for n in notes:
+                print(f"Left out for bracket {args.bracket}: {n}", file=sys.stderr)
         for w in loaded["warnings"]:
             print(f"Note: {w}", file=sys.stderr)
         oracle = db.get_many([c["name"] for c in pool])
@@ -386,7 +414,8 @@ def main(argv=None):
             c["oracle_text"] = oracle[c["name"]]["oracle_text"]
         log = (lambda *_: None) if args.json else (lambda m: print(m, file=sys.stderr))
         result = build_with_claude(commander, pool, args.budget, db, make_client(), owned, commander_cost,
-                                   args.model, args.effort, log=log, max_card_price=args.max_card_price)
+                                   args.model, args.effort, log=log, max_card_price=args.max_card_price,
+                                   bracket=args.bracket)
     except (LookupError, edhrec_client.EdhrecError, card_db.BulkDataError, ScanError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

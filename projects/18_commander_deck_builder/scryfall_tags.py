@@ -26,7 +26,9 @@ HEADERS = {"User-Agent": "commander-deck-builder/0.1", "Accept": "application/js
 TAGS_PATH = Path(__file__).parent / "data" / "cache" / "scryfall_tags.json"
 # Scryfall tag -> our job name.
 TAG_ROLES = {"board-wipe": "wipe", "removal": "removal", "counterspell": "removal", "ramp": "ramp", "draw": "draw",
-             "tutor": "tutor"}
+             "tutor": "tutor",
+             # Bracket flags (not jobs): left out of the pool for target brackets 1-3.
+             "mass-land-denial": "mld", "extra-turn": "extra_turn"}
 MAX_AGE_DAYS = 7
 GAP_S = 0.2
 RETRIES = 5
@@ -69,16 +71,24 @@ def fetch_tag(tag, get=None):
     return ids
 
 
-def refresh(path=TAGS_PATH, get=None, log=print):
-    """Fetch all tags; save ``{"fetched", "roles": {oracle_id: [job, ...]}}``."""
+def refresh(path=TAGS_PATH, get=None, log=print, only=None):
+    """Fetch tags; save ``{"fetched", "roles": {oracle_id: [job, ...]}}``. ``only`` (a list of
+    Scryfall tags) fetches just those and merges them into the saved file."""
     roles = {}
+    if only:
+        old = json.loads(Path(path).read_text())["roles"] if Path(path).exists() else {}
+        wanted = {TAG_ROLES[t] for t in only}
+        roles = {oid: [r for r in rs if r not in wanted] for oid, rs in old.items()}
     for tag, role in TAG_ROLES.items():
+        if only and tag not in only:
+            continue
         ids = fetch_tag(tag, get)
         log(f"  otag:{tag}: {len(ids):,} cards")
         for oid in ids:
             roles.setdefault(oid, []).append(role)
     if not roles:
         raise TagError("Scryfall returned no tagged cards (format changed?).")
+    roles = {oid: rs for oid, rs in roles.items() if rs}
     data = {"fetched": time.strftime("%Y-%m-%d"), "roles": roles}
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     Path(path).write_text(json.dumps(data))
@@ -103,10 +113,12 @@ def is_stale(path=TAGS_PATH, max_age_days=MAX_AGE_DAYS):
 
 
 def main(argv=None):
-    argparse.ArgumentParser(description="Fetch Scryfall Tagger card jobs and rebuild the card database.").parse_args(argv)
+    parser = argparse.ArgumentParser(description="Fetch Scryfall Tagger card jobs and rebuild the card database.")
+    parser.add_argument("--only", nargs="+", choices=sorted(TAG_ROLES), help="fetch just these tags and merge")
+    args = parser.parse_args(argv)
     import card_db
     try:
-        data = refresh(log=lambda m: print(m, file=sys.stderr))
+        data = refresh(log=lambda m: print(m, file=sys.stderr), only=args.only)
     except TagError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

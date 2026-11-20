@@ -541,9 +541,21 @@ once there are decks from before the latest week.
   *lowest* bracket the deck fits, with every reason. Shown for built decks
   and tournament lists. MagicCon Atlanta's winner: bracket 4 (14 Game
   Changers; Spellbook: Ruthless). A $100 Kestia deck: bracket 2.
-- **Target bracket** in the builder (app sidebar, `build_deck.py --bracket`):
-  2 removes Game Changers from the pool, 3 keeps the 3 most played, and the
-  validator checks the limit.
+- **Target bracket** in the builder (app sidebar, `build_deck.py --bracket`,
+  `llm_deck.py --bracket`) enforces the rules *before* building:
+  - Game Changers: none for brackets 1-2, the 3 most played for 3.
+  - Mass land denial and extra-turn cards (Scryfall tags `mass-land-denial`,
+    `extra-turn`) are left out for brackets 1-3.
+  - The candidate pool goes to Commander Spellbook first; for each two-card
+    combo it could assemble, its least-played non-commander piece is left
+    out (brackets 1-2: all; bracket 3: only fast ones, Spellbook speed 4-5;
+    speed 1-3 combos need ~7+ more mana, i.e. late game).
+  - Claude's instructions name the target bracket and its rules.
+  - The app lists what was left out and why ("Basalt Monolith (two-card
+    combo with Kinnan, Bonder Prodigy)").
+  Checked on 5 combo-heavy commanders x $150 / $500 x brackets 2 and 3:
+  **20/20 decks came out at or under their target** and all validated
+  (untargeted, Thrasios + Tymna $500 is bracket 4).
 - **Salt** (`salt.py`): EDHREC's salt ranking (top 2,000 cards, weekly),
   Archidekt's salt as fallback. Card pages show it; built and tournament
   decks show a salt total and the saltiest cards; the builder's **Table**

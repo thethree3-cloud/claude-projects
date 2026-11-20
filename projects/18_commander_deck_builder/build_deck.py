@@ -100,6 +100,7 @@ def card_role(card):
 
 
 BRACKET_GC_LIMIT = {1: 0, 2: 0, 3: 3}  # Game Changers a target bracket allows (4-5: any)
+BRACKET_FLAG_TAGS = ("mld", "extra_turn")  # Scryfall flags left out for target brackets 1-3
 
 
 def candidate_pool(commander, edhrec_cards, db, owned=frozenset(), max_card_price=None, max_salt=None, salt=None,
@@ -111,7 +112,9 @@ def candidate_pool(commander, edhrec_cards, db, owned=frozenset(), max_card_pric
     ``max_card_price`` drops cards you'd have to buy that cost more (owned
     cards are free, so they always stay). ``max_salt`` (with ``salt``, a
     ``{name: salt}`` map) drops cards at or above that salt score. ``bracket``
-    keeps only as many Game Changers as that bracket allows (the most played).
+    keeps only as many Game Changers as that bracket allows (the most played) and,
+    for brackets 1-3, leaves out mass land denial and extra-turn cards (Scryfall
+    tags). Two-card combos need Commander Spellbook: see ``brackets.cut_combos``.
     """
     identity = commander["color_identity"]
     pool, seen = [], {c["name"] for c in card_db.commander_members(commander)}
@@ -127,6 +130,8 @@ def candidate_pool(commander, edhrec_cards, db, owned=frozenset(), max_card_pric
         if max_card_price is not None and not is_owned and card["usd"] > max_card_price + 1e-9:
             return
         if max_salt is not None and salt and salt.get(card["name"], 0.0) >= max_salt:
+            return
+        if bracket in (1, 2, 3) and set((card.get("tags") or "").split(",")) & set(BRACKET_FLAG_TAGS):
             return
         seen.add(card["name"])
         pool.append({
@@ -435,6 +440,14 @@ def main(argv=None):
         salt_values = salt_mod.salt_map([c["name"] for c in loaded["cards"]], db)
     pool = candidate_pool(commander, loaded["cards"], db, owned, args.max_card_price, args.max_salt, salt_values,
                           args.bracket)
+    if args.bracket in (1, 2, 3):
+        import brackets
+        try:
+            pool, notes = brackets.cut_combos(commander, pool, args.bracket)
+            if notes:
+                loaded["warnings"].append(f"Left out for bracket {args.bracket}: " + "; ".join(notes))
+        except brackets.BracketError as exc:
+            loaded["warnings"].append(f"Couldn't check combos ({exc}); two-card combos weren't removed.")
     deck = build_deck(commander, pool, args.budget, owned_mode=args.owned, upgrade=not args.no_upgrade,
                       commander_cost=commander_cost)
     problems = check_deck(commander, deck, args.budget)

@@ -97,6 +97,62 @@ class SaltTests(unittest.TestCase):
         self.assertFalse([n for n in names(build_deck.candidate_pool(hero, edhrec, db, bracket=2)) if n.startswith("GC")])
 
 
+class BracketPoolTests(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        bulk = Path(tmp.name) / "bulk.jsonl.gz"
+        write_bulk(bulk, [printing("cmd", "Hero", type_line="Legendary Creature — Elf", color_identity=["G"]),
+                          *[printing(n.lower(), n, color_identity=["G"], prices={"usd": "1.00"})
+                            for n in ("Armageddon", "Time Warp", "Combo A", "Combo B", "Late A", "Late B", "Solo", "Plain")]])
+        tags = {"armageddon": "wipe,mld", "time warp": "extra_turn"}
+        card_db.build_db(bulk, Path(tmp.name) / "c.sqlite", tags=tags)
+        self.db = card_db.CardDB(Path(tmp.name) / "c.sqlite")
+        self.addCleanup(self.db.close)
+        self.hero = self.db.get("Hero")
+        names = ["Armageddon", "Time Warp", "Combo A", "Combo B", "Late A", "Late B", "Solo", "Plain"]
+        self.edhrec = [{"name": n, "inclusion": 0.9 - i / 20} for i, n in enumerate(names)]
+
+    def pool(self, bracket):
+        return build_deck.candidate_pool(self.hero, self.edhrec, self.db, bracket=bracket)
+
+    def test_land_denial_and_extra_turns_out_for_brackets_1_to_3(self):
+        for b in (1, 2, 3):
+            names = {c["name"] for c in self.pool(b)}
+            self.assertFalse({"Armageddon", "Time Warp"} & names, b)
+        self.assertTrue({"Armageddon", "Time Warp"} <= {c["name"] for c in self.pool(4)})
+
+    def test_two_card_combos_cut_by_bracket(self):
+        raw = {"bracketTag": "S", "cards": [], "combos": [
+            {"combo": {"uses": [{"card": {"name": "Combo A"}}, {"card": {"name": "Combo B"}}]},
+             "definitelyTwoCard": True, "speed": 5},
+            {"combo": {"uses": [{"card": {"name": "Late A"}}, {"card": {"name": "Late B"}}]},
+             "definitelyTwoCard": True, "speed": 2},
+            {"combo": {"uses": [{"card": {"name": "Hero"}}, {"card": {"name": "Solo"}}]},
+             "definitelyTwoCard": True, "speed": 5},
+            {"combo": {"uses": [{"card": {"name": "Plain"}}, {"card": {"name": "Combo A"}}, {"card": {"name": "X"}}]},
+             "definitelyTwoCard": False, "speed": 5},
+        ]}
+        fake = lambda members, main, **k: raw  # noqa: E731
+        pool2, notes2 = brackets.cut_combos(self.hero, self.pool(2), 2, classify_fn=fake)
+        out2 = {c["name"] for c in self.pool(2)} - {c["name"] for c in pool2}
+        self.assertEqual(out2, {"Combo B", "Late B", "Solo"})  # less-played piece; never the commander
+        self.assertTrue(any("Solo (two-card combo with Hero" in n for n in notes2))
+        pool3, notes3 = brackets.cut_combos(self.hero, self.pool(3), 3, classify_fn=fake)
+        out3 = {c["name"] for c in self.pool(3)} - {c["name"] for c in pool3}
+        self.assertEqual(out3, {"Combo B", "Solo"})  # the slow (speed 2) combo may stay in bracket 3
+        self.assertIn("fast: speed 5", notes3[0])
+        self.assertEqual(brackets.cut_combos(self.hero, self.pool(4), 4, classify_fn=fake)[1], [])
+
+    def test_claude_is_told_the_bracket(self):
+        import llm_deck
+        hero = {"name": "Hero", "oracle_text": "x", "color_identity": "G"}
+        text = llm_deck.first_prompt(hero, 100, 1.0, "T", bracket=3)
+        self.assertIn("Target power level: bracket 3 (Upgraded: at most 3 Game Changers", text)
+        self.assertNotIn("Target power level", llm_deck.first_prompt(hero, 100, 1.0, "T"))
+        self.assertEqual(llm_deck.bracket_text(None), "")
+
+
 class AutoImportTests(unittest.TestCase):
     def test_recent_big_events_skip_tests_and_saved(self):
         nodes = [("big-new", "Big New Open", 120, "2026-11-15"), ("small", "Small Thing", 20, "2026-11-15"),

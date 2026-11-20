@@ -39,6 +39,20 @@ def prepare(commander_name, db, owned=frozenset(), partner_name=None, max_card_p
         salt_values = salt_mod.salt_map([c["name"] for c in loaded["cards"]], db)
     pool = build_deck.candidate_pool(commander, loaded["cards"], db, owned, max_card_price, max_salt, salt_values,
                                      bracket)
+    bracket_notes = []
+    if bracket in (1, 2, 3):
+        import brackets
+        kept = {c["name"] for c in pool}
+        unfiltered = build_deck.candidate_pool(commander, loaded["cards"], db, owned, max_card_price, max_salt,
+                                               salt_values, None)
+        bracket_notes += [f"{c['name']} (mass land denial or extra turns)" for c in unfiltered
+                          if c["name"] not in kept and set((c.get("tags") or "").split(",")) & set(build_deck.BRACKET_FLAG_TAGS)]
+        try:
+            pool, combo_notes = brackets.cut_combos(commander, pool, bracket)
+            bracket_notes += combo_notes
+        except brackets.BracketError as exc:
+            loaded["warnings"].append(f"Couldn't check combos for bracket {bracket} ({exc}); "
+                                      "two-card combos weren't removed.")
     oracle = db.get_many([c["name"] for c in pool])
     for c in pool:
         c["oracle_text"] = oracle[c["name"]]["oracle_text"]
@@ -46,7 +60,7 @@ def prepare(commander_name, db, owned=frozenset(), partner_name=None, max_card_p
         c["cmc"] = oracle[c["name"]]["cmc"]
     return {"commander": commander, "pool": pool, "commander_cost": loaded["commander_cost"],
             "warnings": loaded["warnings"], "max_card_price": max_card_price, "max_salt": max_salt,
-            "bracket": bracket}
+            "bracket": bracket, "bracket_notes": bracket_notes}
 
 
 def _finish(prep, deck, budget, db, owned):
@@ -66,7 +80,7 @@ def build_code(prep, budget, db, owned=frozenset(), owned_mode=False):
 def build_claude(prep, budget, db, client, owned=frozenset(), model=llm_deck.MODEL):
     result = llm_deck.build_with_claude(prep["commander"], prep["pool"], budget, db, client, owned,
                                         prep["commander_cost"], model=model, log=lambda *_: None,
-                                        max_card_price=prep.get("max_card_price"))
+                                        max_card_price=prep.get("max_card_price"), bracket=prep.get("bracket"))
     meta = {"builder": f"Claude ({model})", "attempts": result["attempts"], "cost_usd": result["cost_usd"]}
     if not result["ok"]:
         return {"deck": None, "text": None, "check": None, **meta}
