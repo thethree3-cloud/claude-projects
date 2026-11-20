@@ -39,7 +39,7 @@ BULK_NAME = "default-cards.jsonl.gz"
 MAX_AGE_HOURS = 24
 CHUNK = 1024 * 1024
 WUBRG = "WUBRG"
-SCHEMA_VERSION = "5"  # bump when the cards table changes; ensure_db rebuilds locally
+SCHEMA_VERSION = "6"  # bump when the cards table changes; ensure_db rebuilds locally
 
 # Layouts that are not real cards (no place in a Commander deck).
 EXCLUDED_LAYOUTS = {
@@ -70,6 +70,8 @@ CREATE TABLE cards (
     game_changer INTEGER NOT NULL,  -- on the official WotC Game Changers list
     reserved INTEGER NOT NULL,      -- on the Reserved List (never reprinted)
     usd REAL,
+    usd_max REAL,                   -- priciest regular (non-promo, non-foil) printing
+    eur REAL,                       -- cheapest regular Cardmarket EUR price
     price_source TEXT,              -- non_promo | promo | foil
     price_printing TEXT,            -- e.g. "cmm #1"
     image_url TEXT,                 -- Scryfall "normal" image of that printing
@@ -91,6 +93,8 @@ CREATE TABLE printings (            -- every real printing, for the card page
     usd REAL,
     usd_foil REAL,
     usd_etched REAL,
+    eur REAL,
+    eur_foil REAL,
     image_url TEXT,
     image_url_back TEXT,
     scryfall_url TEXT
@@ -101,7 +105,7 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
 
 PRINTING_COLUMNS = [
     "oracle_id", "set_code", "set_name", "collector_number", "released_at", "rarity", "artist",
-    "finishes", "treatment", "promo", "usd", "usd_foil", "usd_etched", "image_url", "image_url_back",
+    "finishes", "treatment", "promo", "usd", "usd_foil", "usd_etched", "eur", "eur_foil", "image_url", "image_url_back",
     "scryfall_url",
 ]  # fmt: skip
 
@@ -246,6 +250,8 @@ def printing_row(card, oid):
         "usd": _price(prices.get("usd")),
         "usd_foil": _price(prices.get("usd_foil")),
         "usd_etched": _price(prices.get("usd_etched")),
+        "eur": _price(prices.get("eur")),
+        "eur_foil": _price(prices.get("eur_foil")),
         "image_url": front,
         "image_url_back": back,
         "scryfall_url": (card.get("scryfall_uri") or "").split("?")[0] or None,
@@ -296,6 +302,8 @@ def aggregate_cards(lines, printings=None):
                 "game_changer": int(bool(card.get("game_changer"))),
                 "reserved": int(bool(card.get("reserved"))),
                 "usd": None,
+                "usd_max": None,
+                "eur": None,
                 "price_source": None,
                 "price_printing": None,
                 "image_url": None,
@@ -308,6 +316,13 @@ def aggregate_cards(lines, printings=None):
         if card.get("game_changer"):
             row["game_changer"] = 1
 
+        if not card.get("promo"):
+            prices = card.get("prices") or {}
+            usd, eur = _price(prices.get("usd")), _price(prices.get("eur"))
+            if usd is not None and (row["usd_max"] is None or usd > row["usd_max"]):
+                row["usd_max"] = usd
+            if eur is not None and (row["eur"] is None or eur < row["eur"]):
+                row["eur"] = eur
         if row["image_url"] is None:
             row["image_url"], row["image_url_back"] = _images(card)  # until a priced printing wins
         current = (row["usd"], row["price_source"]) if row["usd"] is not None else None
@@ -342,7 +357,7 @@ def build_db(bulk_path, db_path, updated_at=""):
         columns = [
             "oracle_id", "name", "name_lower", "front_name_lower", "type_line",
             "oracle_text", "color_identity", "cmc", "edhrec_rank", "legal_commander",
-            "game_changer", "reserved", "usd", "price_source", "price_printing", "image_url", "image_url_back",
+            "game_changer", "reserved", "usd", "usd_max", "eur", "price_source", "price_printing", "image_url", "image_url_back",
         ]  # fmt: skip
         conn.executemany(
             f"INSERT INTO cards ({', '.join(columns)}) VALUES ({', '.join('?' * len(columns))})",

@@ -9,13 +9,19 @@ from urllib.parse import quote
 
 import streamlit as st
 
+import alerts
+import backtest
 import card_db
+import combos
 import deck_service
 import edhrec_client
+import explain
+import portfolio
 import watchlist
 
 COLORS = {"W": "White", "U": "Blue", "B": "Black", "R": "Red", "G": "Green"}
-VIEWS = ["Spec signals", "New commanders", "Rising on EDHREC", "Price risers", "My watch list"]
+VIEWS = ["Spec signals", "New commanders", "Combo spikes", "Rising on EDHREC", "Price risers", "My watch list",
+         "My cards", "Digest"]
 
 
 def with_db(fn, *args):
@@ -88,6 +94,30 @@ def all_names():
         db.close()
 
 
+@st.cache_data(ttl="6h", show_spinner="Asking Commander Spellbook about new cards (first time ~20 s)...")
+def load_spikes(max_usd):
+    rising = load_rising()
+    db = deck_service.open_db()
+    try:
+        return combos.combo_spikes(db, combos.new_cards(db, rising=rising), max_usd=max_usd)
+    finally:
+        db.close()
+
+
+@st.cache_data(ttl="1h", show_spinner=False)
+def load_backtest(horizon):
+    return with_db(lambda db, wl: backtest.run(db, wl, horizon=horizon))
+
+
+@st.cache_data(ttl="5m")
+def claude_available():
+    import os
+    from dotenv import load_dotenv
+    from scan_binder import ENV_PATH
+    load_dotenv(ENV_PATH)
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
 def watched_rows(rising):
     return with_db(lambda db, wl: wl.watched(db, rising))
 
@@ -95,6 +125,10 @@ def watched_rows(rising):
 def add_cards(names):
     added = with_db(lambda db, wl: [wl.add(db, n) for n in names])
     st.toast(f"Watching {', '.join(added)}.", icon=":material/star:")
+
+
+def signed_money(v):
+    return f"{'-' if v < 0 else '+'}${abs(v):,.2f}"
 
 
 def card_url(name):
@@ -173,6 +207,43 @@ if view == "Spec signals":
                  icon=":material/star:", disabled=not picked):
         add_cards(picked)
 
+    st.markdown("#### Why these cards?")
+    cached = sorted(explain.CACHE_DIR.glob(f"{dt.date.today().isoformat()}_*.json")) if explain.CACHE_DIR.exists() else []
+    if cached:
+        import json as _json
+        res = _json.loads(cached[-1].read_text())
+        for r in res["rows"]:
+            st.markdown(f"- **{r['name']}**: {r['why'] or '_no line returned_'}")
+        st.caption(f"Written by {res['model']} from the facts above only (today's top out-of-print signals, "
+                   f"cost ${res['cost_usd'] or 0:.3f}). Explanations, not advice.")
+    elif claude_available():
+        if st.button("Explain today's top 15 with Claude (about $0.02)", icon=":material/smart_toy:",
+                     key="spec_explain"):
+            from scan_binder import ScanError, make_client
+            try:
+                with st.spinner("Claude is writing one line per card..."):
+                    with_db(lambda db, wl: explain.explain_today(db, wl, make_client(), top=15,
+                                                                  rising=load_rising()))
+                st.rerun()
+            except ScanError as exc:
+                st.error(f"Claude couldn't explain: {exc}", icon=":material/error:")
+    else:
+        st.caption("Claude explanations need an ANTHROPIC_API_KEY.")
+
+    bt = load_backtest(7)
+    st.markdown("#### Do the signals work?")
+    if bt["needed"]:
+        st.caption(f"Backtest not possible yet: it {bt['needed']}. It checks whether the top-scored cards rose "
+                   "more than the rest over the next 7 days.")
+    else:
+        t, a = bt["top"], bt["all"]
+        with st.container(horizontal=True):
+            st.metric("Top 20: average 7-day change", f"{t['mean']:+.1f}%", border=True)
+            st.metric("All scored cards", f"{a['mean']:+.1f}%", border=True)
+            st.metric("Top 20 that rose 10%+", f"{t['hit_rate']:.0f}%", border=True,
+                      delta=f"{t['hit_rate'] - a['hit_rate']:+.0f} pts vs all")
+        st.caption(f"{len(bt['days'])} day(s) scored so far; noisy until several weeks of history.")
+
 # ---------------------------------------------------------------------------
 # New-commander radar
 # ---------------------------------------------------------------------------
@@ -212,6 +283,39 @@ elif view == "New commanders":
                 },
                 hide_index=True, key=f"radar-{c['commander']}",
             )
+
+# ---------------------------------------------------------------------------
+# Combo spikes
+# ---------------------------------------------------------------------------
+
+elif view == "Combo spikes":
+    max_usd = st.number_input("Max price", min_value=0.5, value=20.0, step=1.0, key="spike_max",
+                              persist_state="session")
+    try:
+        spikes = load_spikes(max_usd)
+    except combos.ComboError as exc:
+        st.error(f"Couldn't reach Commander Spellbook: {exc}", icon=":material/error:")
+        st.stop()
+    st.caption("Older cards (first printed over a year ago) that complete a combo with a new or upcoming card, "
+               "from Commander Spellbook. When a new card creates a combo, the older piece often jumps. "
+               "Select rows to watch them.")
+    if not spikes:
+        st.info("No older combo pieces under that price.", icon=":material/filter_alt_off:")
+        st.stop()
+    rows = spikes[:150]
+    event = st.dataframe(
+        [{"Card": e["name"], "Price": e["usd"], "New card(s)": ", ".join(dict.fromkeys(c["new_card"] for c in e["combos"])),
+          "Combo makes": ", ".join(e["combos"][0]["produces"][:2]), "Supply": e["supply"],
+          "Combo": e["combos"][0]["url"], "Page": card_url(e["name"])} for e in rows],
+        column_config={"Price": st.column_config.NumberColumn(format="dollar"),
+                       "Combo": st.column_config.LinkColumn(display_text="Spellbook"),
+                       "Page": st.column_config.LinkColumn(display_text="Open")},
+        hide_index=True, on_select="rerun", selection_mode="multi-row", key="spike_table",
+    )
+    picked = selected_names(event, rows)
+    if st.button(f"Watch {len(picked)} selected" if picked else "Select cards to watch", key="spike_add",
+                 icon=":material/star:", disabled=not picked):
+        add_cards(picked)
 
 # ---------------------------------------------------------------------------
 # Rising on EDHREC
@@ -302,7 +406,7 @@ elif view == "Price risers":
 # My watch list
 # ---------------------------------------------------------------------------
 
-else:
+elif view == "My watch list":
     with st.form("watch_add", border=True):
         with st.container(horizontal=True, vertical_alignment="bottom"):
             name = st.selectbox("Add a card", all_names(), index=None, placeholder="Type a card name...",
@@ -318,6 +422,9 @@ else:
     except edhrec_client.EdhrecError:
         rising = []  # the list still works without EDHREC
     rows = watched_rows(rising)
+    for h in with_db(lambda db, wl: wl.target_hits(db)):
+        st.success(f"**{h['name']}** is ${h['usd']:.2f}, {h['direction']} your ${h['target']:.2f} target.",
+                   icon=":material/notifications_active:")
     if not rows:
         st.info("Nothing on your list yet. Add a card above, star one on its card page, or select rows in "
                 "the rising lists.", icon=":material/star_border:")
@@ -343,6 +450,19 @@ else:
         hide_index=True, on_select="rerun", selection_mode="multi-row", key="watch_table",
     )
     picked = selected_names(event, rows)
+    if len(picked) == 1:
+        row = next(r for r in rows if r["name"] == picked[0])
+        with st.form(f"target-{row['name']}", border=True):
+            st.markdown(f"**Price alerts for {row['name']}** (shown here and in the daily digest)")
+            with st.container(horizontal=True, vertical_alignment="bottom"):
+                above = st.number_input("Alert at or above (USD)", min_value=0.0, value=row["target_above"],
+                                        step=0.5, placeholder="none", key=f"tgt_up-{row['name']}")
+                below = st.number_input("Alert at or below (USD)", min_value=0.0, value=row["target_below"],
+                                        step=0.5, placeholder="none", key=f"tgt_down-{row['name']}")
+                if st.form_submit_button("Save alerts", icon=":material/notifications:"):
+                    with_db(lambda db, wl: wl.set_target(row["name"], above, below))
+                    st.toast("Alerts saved.", icon=":material/notifications:")
+                    st.rerun()
     if st.button(f"Remove {len(picked)} selected" if picked else "Select cards to remove", key="watch_remove",
                  icon=":material/delete:", disabled=not picked):
         with_db(lambda db, wl: [wl.remove(n) for n in picked])
@@ -359,3 +479,91 @@ else:
                       y_label="USD", alt="Price history of watched cards")
     else:
         st.caption("Charts appear once there are two or more days of prices.")
+
+# ---------------------------------------------------------------------------
+# My cards: binder value + buy log
+# ---------------------------------------------------------------------------
+
+elif view == "My cards":
+    def _binder(db, wl):
+        portfolio.track_owned(db, wl)
+        return portfolio.binder_value(db, wl)
+    b = with_db(_binder)
+    st.subheader("Your binder")
+    with st.container(horizontal=True):
+        st.metric("Value today", f"${b['total']:,.2f}", border=True)
+        st.metric("Cards", f"{b['cards']} ({b['copies']} copies)", border=True)
+    if len(b["history"]) >= 2:
+        st.line_chart([{"Date": d, "Value": v} for d, v in b["history"]], x="Date", y="Value", y_label="USD",
+                      alt="Binder value over time")
+    if b["risers"]:
+        st.markdown("**Rising cards you own (7 days)**")
+        for c in b["risers"]:
+            st.markdown(f"- {c['name']}: {c['change_pct']:+.1f}% (now ${c['usd']:.2f})")
+    if b["top"]:
+        st.caption("Most valuable: " + ", ".join(f"{c['name']} ${(c['usd'] or 0) * c['qty']:.2f}" for c in b["top"][:5]))
+
+    st.subheader("Buy log")
+    with st.form("buy_add", border=True):
+        with st.container(horizontal=True, vertical_alignment="bottom"):
+            name = st.selectbox("Card", all_names(), index=None, placeholder="Type a card name...", key="buy_name")
+            qty = st.number_input("Copies", min_value=1, value=1, step=1, key="buy_qty")
+            price = st.number_input("Paid each (USD)", min_value=0.0, value=0.0, step=0.25, key="buy_price")
+            day = st.date_input("Bought on", value=dt.date.today(), key="buy_date")
+            if st.form_submit_button("Log buy", icon=":material/add_shopping_cart:") and name:
+                with_db(lambda db, wl: portfolio.Portfolio(wl).buy(db, name, int(qty), float(price), day.isoformat()))
+                st.toast(f"Logged {qty}x {name}.", icon=":material/check:")
+                st.rerun()
+    summary = with_db(lambda db, wl: portfolio.Portfolio(wl).summary(db))
+    with st.container(horizontal=True):
+        st.metric("Open: cost", f"${summary['open_cost']:,.2f}", border=True)
+        st.metric("Open: value today", f"${summary['open_value']:,.2f}", border=True)
+        st.metric("If sold now", signed_money(summary["unrealized"]), border=True,
+                  help=f"After {portfolio.FEE_RATE:.0%} fees and ${portfolio.SHIPPING:.2f} shipping per sale")
+        st.metric("Realized", signed_money(summary["realized"]), border=True)
+    rows = summary["rows"]
+    if rows:
+        event = st.dataframe(
+            [{"#": r["id"], "Card": r["name"], "Status": r["status"], "Qty": r["qty"], "Paid each": r["price_each"],
+              "Now": r["usd_now"], "Sold each": r["sold_each"], "Profit": r["profit"],
+              "Profit %": None if r["profit_pct"] is None else r["profit_pct"] / 100, "Bought": r["bought_on"]}
+             for r in rows],
+            column_config={c: st.column_config.NumberColumn(format="dollar")
+                           for c in ("Paid each", "Now", "Sold each", "Profit")}
+            | {"Profit %": st.column_config.NumberColumn(format="percent")},
+            hide_index=True, on_select="rerun", selection_mode="single-row", key="buy_table",
+        )
+        sel = event.selection.rows if event else []
+        if sel:
+            r = rows[sel[0]]
+            with st.container(horizontal=True, vertical_alignment="bottom"):
+                if r["status"] == "open":
+                    sold = st.number_input("Sold each (USD)", min_value=0.0, value=r["usd_now"] or 0.0, step=0.25,
+                                           key=f"sell-{r['id']}")
+                    if st.button("Mark sold", icon=":material/sell:", key=f"sell_btn-{r['id']}"):
+                        with_db(lambda db, wl: portfolio.Portfolio(wl).sell(r["id"], float(sold)))
+                        st.rerun()
+                if st.button("Delete entry", icon=":material/delete:", key=f"del_buy-{r['id']}"):
+                    with_db(lambda db, wl: portfolio.Portfolio(wl).remove(r["id"]))
+                    st.rerun()
+        st.caption(f"Profit counts {portfolio.FEE_RATE:.0%} selling fees and ${portfolio.SHIPPING:.2f} shipping per "
+                   "sale. \"Now\" is a market price, not a store's buylist offer (stores pay less).")
+    else:
+        st.caption("No buys logged yet.")
+
+# ---------------------------------------------------------------------------
+# Digest
+# ---------------------------------------------------------------------------
+
+else:
+    files = sorted(alerts.DIGEST_DIR.glob("*.md")) if alerts.DIGEST_DIR.exists() else []
+    settings_ok = alerts.email_settings() is not None
+    st.caption("A digest is written for each new price day (by the cron job or this app) to data/digests/. "
+               + ("It is also emailed." if settings_ok else
+                  "Email is off: add WATCH_SMTP_HOST, WATCH_SMTP_USER, WATCH_SMTP_PASSWORD and WATCH_EMAIL_TO "
+                  "to the repo's .env to get it by email."))
+    if not files:
+        st.info("No digest yet; one is written after the next new price snapshot.", icon=":material/mail:")
+        st.stop()
+    pick = st.selectbox("Day", [f.stem for f in reversed(files)], key="digest_day")
+    st.markdown((alerts.DIGEST_DIR / f"{pick}.md").read_text())

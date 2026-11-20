@@ -62,8 +62,14 @@ CREATE TABLE IF NOT EXISTS snapshots (
     day INTEGER NOT NULL,        -- Scryfall bulk date as YYYYMMDD
     card INTEGER NOT NULL,       -- card_ids.id
     cents INTEGER NOT NULL,
+    eur_cents INTEGER,           -- cheapest regular Cardmarket price (None if unknown)
     PRIMARY KEY (day, card)
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS tracked (     -- always snapshotted and never pruned (owned / bought cards)
+    oracle_id TEXT PRIMARY KEY,
+    why TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS edhrec_names (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE
@@ -81,7 +87,9 @@ CREATE TABLE IF NOT EXISTS watched (
     oracle_id TEXT NOT NULL,
     added_at TEXT NOT NULL,
     usd_when_added REAL,
-    note TEXT NOT NULL DEFAULT ''
+    note TEXT NOT NULL DEFAULT '',
+    target_above REAL,               -- alert when the price reaches this or more
+    target_below REAL                -- alert when the price drops to this or less
 );
 """
 
@@ -204,6 +212,18 @@ def price_factor(change_pct):
     return 1.0, f"price flat ({change_pct:+.0f}%)"
 
 
+def market_factor(us_pct, eu_pct):
+    """(multiplier, label) for US (TCGplayer) vs EU (Cardmarket) moves over the same days.
+    Cardmarket often moves first on European demand; a US-only jump is flagged too."""
+    if us_pct is None or eu_pct is None:
+        return 1.0, None
+    if eu_pct >= 10 and us_pct <= 3:
+        return 1.15, f"Cardmarket up first (EU {eu_pct:+.0f}%, US {us_pct:+.0f}%)"
+    if us_pct >= 10 and eu_pct <= 3:
+        return 1.0, f"US up, EU flat (US {us_pct:+.0f}%, EU {eu_pct:+.0f}%)"
+    return 1.0, None
+
+
 def spec_signals(db, wl, rising=None, min_usd=0.5, max_usd=None, include_new=False, today=None, days=7,
                  out_of_print_only=False):
     """Cards gaining players while their price hasn't caught up, scarcest first.
@@ -217,6 +237,7 @@ def spec_signals(db, wl, rising=None, min_usd=0.5, max_usd=None, include_new=Fal
     year_ago = (dt.date.fromisoformat(today) - dt.timedelta(days=365)).isoformat()
     _, _, pop_change = wl.popularity_change(days)
     price_change = wl.price_changes(days)
+    eur_change = wl.price_changes(days, currency="eur")
     supply = db.supply([r["name"] for r in rising if r["usd"] is not None], today)
     new_cutoff = (dt.date.fromisoformat(today) - dt.timedelta(days=NEW_CARD_DAYS)).isoformat()
     rows = []
@@ -234,14 +255,22 @@ def spec_signals(db, wl, rising=None, min_usd=0.5, max_usd=None, include_new=Fal
         card = db.get(r["name"])
         accel = pop_change.get(r["name"])
         s_mult, s_label = supply_factor(sup, today)
-        p_mult, p_label = price_factor(price_change.get(card["oracle_id"]) if card else None)
+        us = price_change.get(card["oracle_id"]) if card else None
+        eu = eur_change.get(card["oracle_id"]) if card else None
+        p_mult, p_label = price_factor(us)
+        e_mult, e_label = market_factor(us, eu)
         base = r["trend"] + (max(accel, 0) * 5 if accel is not None else 0)
         reasons = [f"EDHREC trend {r['trend']:.1f}",
                    "new on the weekly list" if r["new"] else f"{r['change_pts']:+.1f} pts vs 2 years"]
         if accel is not None:
             reasons.append(f"{accel:+.2f} pts in {days} days")
-        reasons += [s_label, p_label] + (["new card (first printed in the last 30 days)"] if is_new else [])
-        rows.append({**r, "score": round(base * s_mult * p_mult, 1), "supply": s_label,
+        reasons += [s_label, p_label] + ([e_label] if e_label else [])
+        if card and card["usd_max"] and card["usd"] and card["usd_max"] >= card["usd"] * 1.5:
+            reasons.append(f"printings ${card['usd']:,.2f}-${card['usd_max']:,.2f}")
+        reasons += ["new card (first printed in the last 30 days)"] if is_new else []
+        rows.append({**r, "score": round(base * s_mult * p_mult * e_mult, 1), "supply": s_label,
+                     "eur": card["eur"] if card else None, "usd_max": card["usd_max"] if card else None,
+                     "eur_change_pct": eu,
                      "printings": sup["printings"] if sup else None, "last_printed": sup["last"] if sup else None,
                      "reserved": bool(sup and sup["reserved"]), "price_change_pct": price_change.get(card["oracle_id"]) if card else None,
                      "pop_change_pts": accel, "new_card": is_new, "reasons": reasons})
@@ -311,6 +340,32 @@ class WatchList:
         self.conn = sqlite3.connect(self.path)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        self._migrate()
+
+    def _migrate(self):
+        """Add columns that older watchlist.sqlite files don't have yet."""
+        def columns(table):
+            return {r[1] for r in self.conn.execute(f"PRAGMA table_info({table})")}
+        with self.conn:
+            if "eur_cents" not in columns("snapshots"):
+                self.conn.execute("ALTER TABLE snapshots ADD COLUMN eur_cents INTEGER")
+            for col in ("target_above", "target_below"):
+                if col not in columns("watched"):
+                    self.conn.execute(f"ALTER TABLE watched ADD COLUMN {col} REAL")
+
+    def get_meta(self, key):
+        row = self.conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else None
+
+    def set_meta(self, key, value):
+        with self.conn:
+            self.conn.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", (key, value))
+
+    def set_tracked(self, oracle_ids, why):
+        """Mark cards to snapshot every day whatever their price (e.g. owned cards)."""
+        with self.conn:
+            self.conn.executemany("INSERT OR REPLACE INTO tracked VALUES (?, ?)",
+                                  [(oid, why) for oid in oracle_ids])
 
     def close(self):
         self.conn.close()
@@ -330,21 +385,24 @@ class WatchList:
         day = _day(date)
         if self.conn.execute("SELECT 1 FROM snapshots WHERE day = ? LIMIT 1", (day,)).fetchone():
             return date, False
-        watched = {r[0] for r in self.conn.execute("SELECT oracle_id FROM watched")}
+        always = {r[0] for r in self.conn.execute("SELECT oracle_id FROM watched UNION SELECT oracle_id FROM tracked")}
         ids = dict(self.conn.execute("SELECT oracle_id, id FROM card_ids"))
         rows = []
         with self.conn:
-            for r in db.conn.execute("SELECT oracle_id, usd FROM cards WHERE usd IS NOT NULL"):
-                if r["usd"] < MIN_TRACK_USD and r["oracle_id"] not in watched:
+            for r in db.conn.execute("SELECT oracle_id, usd, eur FROM cards WHERE usd IS NOT NULL"):
+                if r["usd"] < MIN_TRACK_USD and r["oracle_id"] not in always:
                     continue
                 if r["oracle_id"] not in ids:
                     ids[r["oracle_id"]] = self._card_id(r["oracle_id"])
-                rows.append((day, ids[r["oracle_id"]], round(r["usd"] * 100)))
-            self.conn.executemany("INSERT OR IGNORE INTO snapshots VALUES (?, ?, ?)", rows)
+                eur = round(r["eur"] * 100) if r["eur"] is not None else None
+                rows.append((day, ids[r["oracle_id"]], round(r["usd"] * 100), eur))
+            self.conn.executemany("INSERT OR IGNORE INTO snapshots (day, card, cents, eur_cents) VALUES (?, ?, ?, ?)",
+                                  rows)
             cutoff = _day((dt.date.fromisoformat(date) - dt.timedelta(days=keep_days)).isoformat())
             self.conn.execute(
-                "DELETE FROM snapshots WHERE day < ? AND card NOT IN "
-                "(SELECT c.id FROM card_ids c JOIN watched w ON w.oracle_id = c.oracle_id)", (cutoff,))
+                "DELETE FROM snapshots WHERE day < ? AND card NOT IN (SELECT c.id FROM card_ids c "
+                "WHERE c.oracle_id IN (SELECT oracle_id FROM watched UNION SELECT oracle_id FROM tracked))",
+                (cutoff,))
         return date, True
 
     def dates(self):
@@ -437,15 +495,17 @@ class WatchList:
                   for r in rows if r["np"] and r["op"]}
         return old, new, change
 
-    def price_changes(self, days=7):
-        """``{oracle_id: % change}`` over about ``days`` (or the history so far); {} with one snapshot."""
+    def price_changes(self, days=7, currency="usd"):
+        """``{oracle_id: % change}`` over about ``days`` (or the history so far); {} with one
+        snapshot. ``currency`` "eur" compares Cardmarket prices instead."""
         span = self._compare_dates(days)
         if span is None:
             return {}
+        col = "eur_cents" if currency == "eur" else "cents"
         rows = self.conn.execute(
-            "SELECT c.oracle_id, o.cents AS old, n.cents AS new FROM snapshots n "
+            f"SELECT c.oracle_id, o.{col} AS old, n.{col} AS new FROM snapshots n "
             "JOIN snapshots o ON o.card = n.card AND o.day = ? JOIN card_ids c ON c.id = n.card "
-            "WHERE n.day = ? AND o.cents > 0", (_day(span[0]), _day(span[1]))).fetchall()
+            f"WHERE n.day = ? AND o.{col} > 0 AND n.{col} IS NOT NULL", (_day(span[0]), _day(span[1]))).fetchall()
         return {r["oracle_id"]: round((r["new"] - r["old"]) / r["old"] * 100, 1) for r in rows}
 
     # -- watched cards -----------------------------------------------------
@@ -463,9 +523,29 @@ class WatchList:
             )
             if card["usd"] is not None:  # start its history now, even if it's under MIN_TRACK_USD
                 for date in self.dates()[-1:]:
-                    self.conn.execute("INSERT OR IGNORE INTO snapshots VALUES (?, ?, ?)",
-                                      (_day(date), self._card_id(card["oracle_id"]), round(card["usd"] * 100)))
+                    self.conn.execute("INSERT OR IGNORE INTO snapshots (day, card, cents, eur_cents) VALUES (?, ?, ?, ?)",
+                                      (_day(date), self._card_id(card["oracle_id"]), round(card["usd"] * 100),
+                                       round(card["eur"] * 100) if card["eur"] is not None else None))
         return card["name"]
+
+    def set_target(self, name, above=None, below=None):
+        """Price alerts for a watched card (None clears one). Returns False if not watched."""
+        with self.conn:
+            return self.conn.execute("UPDATE watched SET target_above = ?, target_below = ? WHERE name = ?",
+                                     (above, below, name)).rowcount > 0
+
+    def target_hits(self, db):
+        """Watched cards whose price reached a target: ``[{name, usd, target, direction}]``."""
+        hits = []
+        for w in self.conn.execute("SELECT * FROM watched WHERE target_above IS NOT NULL OR target_below IS NOT NULL"):
+            card = db.get(w["name"])
+            if card is None or card["usd"] is None:
+                continue
+            if w["target_above"] is not None and card["usd"] >= w["target_above"]:
+                hits.append({"name": w["name"], "usd": card["usd"], "target": w["target_above"], "direction": "above"})
+            if w["target_below"] is not None and card["usd"] <= w["target_below"]:
+                hits.append({"name": w["name"], "usd": card["usd"], "target": w["target_below"], "direction": "below"})
+        return hits
 
     def remove(self, name):
         with self.conn:
@@ -494,6 +574,7 @@ class WatchList:
             trend = by_name.get(w["name"])
             out.append({
                 "name": w["name"], "note": w["note"], "added_at": w["added_at"], "usd": now,
+                "target_above": w["target_above"], "target_below": w["target_below"],
                 "usd_when_added": w["usd_when_added"],
                 "since_added_pct": round((now - w["usd_when_added"]) / w["usd_when_added"] * 100, 1)
                 if now is not None and w["usd_when_added"] else None,
@@ -546,11 +627,23 @@ def main(argv=None):
     try:
         date, new = wl.snapshot(db)  # every command keeps history going
         if args.command == "snapshot":
+            import alerts
+            import portfolio
+            portfolio.track_owned(db, wl)  # owned cards are snapshotted from now on, however cheap
             print(f"Price snapshot for {date}: {'saved' if new else 'already saved'} "
                   f"({len(wl.dates())} days of history).")
-            saved = wl.snapshot_edhrec(fetch_top("week"))
-            print(f"EDHREC popularity snapshot: {'saved' if saved else 'already saved'} "
-                  f"({len(wl.edhrec_dates())} days of history).")
+            try:
+                saved = wl.snapshot_edhrec(fetch_top("week"))
+                print(f"EDHREC popularity snapshot: {'saved' if saved else 'already saved'} "
+                      f"({len(wl.edhrec_dates())} days of history).")
+            except edhrec_client.EdhrecError as exc:
+                print(f"EDHREC popularity snapshot skipped: {exc}")
+            if wl.get_meta("digest_date") != date:  # one digest per new price date
+                from dotenv import load_dotenv
+                from scan_binder import ENV_PATH
+                load_dotenv(ENV_PATH)
+                path, _ = alerts.daily_digest(db, wl, date, log=print)
+                print(f"Digest written to {path}.")
         elif args.command == "spec":
             for r in spec_signals(db, wl, min_usd=args.min_usd, max_usd=args.max_usd,
                                   out_of_print_only=args.out_of_print)[: args.limit]:

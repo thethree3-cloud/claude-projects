@@ -434,6 +434,34 @@ A **Watch list** page (top menu of the app; also `python watchlist.py`):
   fastest on EDHREC this week (trend score) and, for each, its cheap cards
   with the highest synergy (played far more with that commander than
   elsewhere) plus supply. CLI: `python watchlist.py spec` / `radar`.
+- **More signals (added 2026-11-19, ideas #4-9):**
+  - **Combo spikes** (`combos.combo_spikes`): up to 40 new or upcoming
+    cards a day (upcoming first, then new ones on EDHREC's rising list) are
+    looked up on Commander Spellbook; older cards (first printed over a year
+    ago) that complete a combo with them are listed with price and supply.
+    First run: 27 new cards -> 167 older partners (e.g. Mystic Forge $3.52 +
+    Geist of Saint Thalia: infinite card draw).
+  - **Better prices:** card DB schema 6 adds Cardmarket EUR (cheapest
+    regular) and the priciest regular printing; snapshots save EUR too.
+    Spec signals flag "Cardmarket up first" (EU +10%+, US flat, x1.15) and
+    "US up, EU flat", and list the printing range ("$13.72-$33.06").
+  - **My cards** (`portfolio.py`): binder value today and over time (owned
+    cards are snapshotted however cheap), owned cards up 10%+ in 7 days, and a
+    buy log with profit after 13% selling fees + $1 shipping per sale
+    (market price, not a buylist offer).
+  - **Alerts** (`alerts.py`): a daily digest (targets reached, watched-card
+    moves, top spec signals, biggest jumps, binder) written to
+    `data/digests/` after each new price day; the cron job makes it. Email
+    only if `WATCH_SMTP_HOST/USER/PASSWORD` and `WATCH_EMAIL_TO` are set in
+    `.env` (off today). Watched cards take "at or above / at or below" price
+    targets.
+  - **Backtest** (`backtest.py`): re-scores each EDHREC day and compares the
+    top 20's price change over the next 7 days with all scored cards (mean,
+    median, share up 10%+). First result possible on 2026-11-26.
+  - **Claude explains why** (`explain.py`): one sentence per top spec signal
+    from the code's facts only (trend, supply, price, rising commanders that
+    play it, combos with new cards); names it wasn't given are dropped;
+    cached per day. Opus 5.5, ~$0.02 for 15 cards (first run $0.018).
 - **Moxfield isn't a source:** it blocks outside requests (Cloudflare 403)
   and its API needs approval from Moxfield, so it isn't used.
 
