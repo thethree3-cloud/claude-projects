@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 import streamlit as st
 
+import card_db
 import deck_service
 import edhrec_client
 import watchlist
@@ -27,17 +28,25 @@ def with_db(fn, *args):
         db.close()
 
 
-@st.cache_data(ttl="1h", show_spinner=False)
+@st.cache_data(ttl="1h", show_spinner="Checking for today's prices...")
 def take_snapshot():
-    """Today's price + EDHREC popularity snapshots (once per date; cheap if they exist)."""
-    def take(db, wl):
+    """Today's price + EDHREC popularity snapshots (once per date; cheap if they exist).
+
+    Catch-up for the cron job: cron can't run while the laptop sleeps, so opening
+    this page asks Scryfall for a new daily file on the same 6-hour schedule as
+    the cron job (one small request; the download only when Scryfall has a new one)."""
+    db = card_db.open_db(max_age_hours=watchlist.SCRYFALL_CHECK_HOURS, log=lambda *_: None)
+    wl = watchlist.WatchList()
+    try:
         date, new = wl.snapshot(db)
         try:
             wl.snapshot_edhrec(watchlist.fetch_top("week"))
         except edhrec_client.EdhrecError:
             pass  # prices still work; popularity history just skips a day
         return date, new, len(wl.dates()), len(wl.edhrec_dates())
-    return with_db(take)
+    finally:
+        wl.close()
+        db.close()
 
 
 @st.cache_data(ttl="1h", show_spinner="Scoring cards...")

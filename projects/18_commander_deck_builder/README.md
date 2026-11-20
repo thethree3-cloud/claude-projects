@@ -407,7 +407,9 @@ A **Watch list** page (top menu of the app; also `python watchlist.py`):
   2026-11-18) runs `python watchlist.py snapshot` hourly and when WSL starts;
   it asks Scryfall for a new daily file every 6 hours (one small request; the
   download only happens when there is a new file), saves once per Scryfall
-  date, and the other runs exit fast, so a day is
+  date, and the other runs exit fast. Cron can't run while the laptop
+  sleeps (and doesn't catch up on missed hours), so opening the Watch list
+  page does the same 6-hour check and snapshot as a catch-up. A day is
   only missed if WSL never runs that day. Log: `data/watchlist_cron.log`.
   See the jobs with `crontab -l`; remove them with `crontab -e`.
 - **My watch list:** add cards from the form, the **Watch** star on any card
