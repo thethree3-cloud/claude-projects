@@ -11,6 +11,7 @@ A failed command fails only its own section, never the whole scan.
 
 import json
 
+import lnk
 import runner
 
 
@@ -93,20 +94,32 @@ def collect_run_keys(run=runner.run):
     ])
 
 
-def collect_startup_items(run=runner.run):
+def collect_startup_items(run=runner.run, read_file=lnk.read_windows_file):
+    """Files in the Startup folders. Shortcuts get their target + arguments,
+    because a shortcut is only as safe as what it launches."""
     rows, err = _load(run, "win_startup_folders")
     if err:
         return _section(error=err)
-    return _section([
-        {
+    items = []
+    for r in rows:
+        item = {
             "folder": r.get("Folder"),
             "name": r.get("Name"),
             "path": r.get("FullName"),
             "size": r.get("Length"),
             "modified_utc": r.get("LastWriteUtc"),
+            "target": None,
+            "arguments": None,
         }
-        for r in rows
-    ])
+        if (item["name"] or "").lower().endswith(".lnk"):
+            data = read_file(item["path"])
+            parsed = lnk.parse_lnk(data) if data else None
+            if parsed:
+                item["target"], item["arguments"] = parsed["target"], parsed["arguments"]
+            else:
+                item["shortcut_error"] = "couldn't read shortcut" if data is None else "not a valid shortcut"
+        items.append(item)
+    return _section(items)
 
 
 def collect_scheduled_tasks(run=runner.run):

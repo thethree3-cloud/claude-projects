@@ -1,6 +1,6 @@
 # Project 19 — Security Posture Audit Agent (spec)
 
-**Status:** Slices 1–2 built 2026-11-23. Next: Slice 3 (baseline diff).
+**Status:** Slices 1–3 built 2026-11-23. Next: Slice 4 (LLM explain + validator).
 
 - **Slice 1:** runner, 7 Windows collectors, snapshot, `scan.py`, verified live
   without admin.
@@ -10,10 +10,31 @@
   planted problem found at the expected severity. The clean fixture gives zero
   findings. Live on the dev laptop: 0 high, 0 medium, 6 low, 2 info.
 
+- **Slice 3:** `baseline.py` compares each scan with the one before it (or a chosen
+  `--baseline`). There are 7 change findings: new or changed auto-start entries,
+  new admin, new user, re-enabled account, new listener, and weakened setting.
+  A new item's severity is raised one level above what its command alone would
+  get. `lnk.py` reads Startup shortcut targets and arguments by parsing the .lnk
+  format from WSL (83/92 real Start Menu shortcuts resolve; the other 9 point to
+  built-in Windows shell items, not files). 93 tests. Live: two back-to-back
+  scans show 0 changes. One real change was caught: Windows added two
+  "SoftLanding" COM tasks, rated info.
+
 Decided while building:
 - Windows first; WSL checks later.
 - Signature checks deferred.
-- Startup `.lnk` targets aren't resolved yet (needs a COM call; revisit in Slice 3).
+- **Comparison skips UDP** (measured: all churn between live scans was UDP from
+  browsers and svchost). TCP ports 49152+ are compared by process, not number.
+- **Missing or failed sections are "not compared", never "all new".** This
+  matters for snapshots from an older version.
+- **A changed command with no suspicious traits is low** (Defender's own service
+  path changes with each platform update). New items in Program Files/Windows,
+  or COM-only tasks, are info.
+- **Shortcuts are parsed in Python, not PowerShell.** Reading them through
+  PowerShell's `WScript.Shell` would need a `New-Object` call, which would break
+  the "only `Get-`-style commands" rule.
+- A baseline is only as trustworthy as the machine was when it was taken. The
+  report says so. `--baseline FILE` lets you compare against a known-good scan.
 - **NIST 800-171 IDs only.** CIS Benchmark IDs are left out until they can be
   checked against the real benchmark. Citing control numbers from memory is
   how compliance tools lose trust.

@@ -213,6 +213,59 @@ CATALOG = {
                "Network Level Authentication.",
         "refs": ["NIST 800-171 3.1.12", "NIST 800-171 3.4.2"],
     },
+    # --- Changes since the baseline scan (baseline.py) ---
+    "NEW-PERSISTENCE": {
+        "title": "New since last scan, starts automatically: {subject}",
+        "why": "This auto-start entry wasn't there at the last scan. Software installs add these "
+               "all the time, but so does malware, so new entries are worth checking. Severity "
+               "is raised one level above what its command alone would get.",
+        "fix": "Did you install or update something since the last scan that matches this? If "
+               "yes, nothing to do. If not, disable the entry and scan the program with Defender.",
+        "refs": ["NIST 800-171 3.14.7", "NIST 800-171 3.4.3"],
+    },
+    "CHANGED-PERSISTENCE": {
+        "title": "Changed since last scan: {subject}",
+        "why": "An existing auto-start entry now runs something different. Updates do this, but "
+               "pointing a trusted-looking entry at a new program is also a known hijack trick.",
+        "fix": "Compare 'before' and 'after' in the evidence. A version-number change in the same "
+               "folder is normal; a new folder or program is not.",
+        "refs": ["NIST 800-171 3.14.7", "NIST 800-171 3.4.3"],
+    },
+    "NEW-ADMIN": {
+        "title": "New administrator since last scan: {subject}",
+        "why": "An account gained full control of this computer since the last scan. Attackers "
+               "often add themselves as admin to stay in.",
+        "fix": "If you didn't add it, remove it from the Administrators group right away and "
+               "change your passwords from another device.",
+        "refs": ["NIST 800-171 3.1.5", "NIST 800-171 3.14.7"],
+    },
+    "NEW-USER": {
+        "title": "New local account since last scan: {subject}",
+        "why": "A new account can be a way back in for whoever created it.",
+        "fix": "If you don't know why it exists, disable it: net user \"{subject}\" /active:no",
+        "refs": ["NIST 800-171 3.1.1", "NIST 800-171 3.14.7"],
+    },
+    "ACCOUNT-REENABLED": {
+        "title": "Account was turned back on since last scan: {subject}",
+        "why": "Disabled accounts that come back to life are a classic sign someone wants a "
+               "quiet way in.",
+        "fix": "If you didn't do this, disable it again: net user \"{subject}\" /active:no",
+        "refs": ["NIST 800-171 3.1.1", "NIST 800-171 3.14.7"],
+    },
+    "NEW-LISTENER": {
+        "title": "New program accepting network connections: {subject}",
+        "why": "Something started accepting connections from other computers since the last scan.",
+        "fix": "Check that you recognize the process. If not, end it and find how it starts.",
+        "refs": ["NIST 800-171 3.4.7", "NIST 800-171 3.14.7"],
+    },
+    "SETTING-WEAKENED": {
+        "title": "Security setting weakened since last scan: {subject}",
+        "why": "A protection was switched off or loosened since the last scan. Malware often "
+               "does this first.",
+        "fix": "Turn the setting back on (see the matching finding for steps) and run a full "
+               "Defender scan. If you didn't change it, treat the computer as possibly compromised.",
+        "refs": ["NIST 800-171 3.4.3", "NIST 800-171 3.14.2"],
+    },
     "SCAN-NOT-ADMIN": {
         "title": "Scan ran without admin rights",
         "why": "Some items (Defender exclusions, some tasks and services) are only visible to admins.",
@@ -367,8 +420,10 @@ def check_persistence(snapshot):
     for item in _items(snapshot, "startup_items"):
         if item["name"].lower() == "desktop.ini":
             continue
-        # The Startup folder itself lives under AppData, so judge the file, not the folder.
-        traits = [t for t in command_traits(item["name"]) if t != "user_writable_path"]
+        # The Startup folder itself lives under AppData, so judge the file name and
+        # (for shortcuts) what it launches, never the folder it sits in.
+        launched = " ".join(x for x in (item.get("target"), item.get("arguments")) if x)
+        traits = list(dict.fromkeys(command_traits(f"{item['name']} {launched}")))
         if item["name"].lower().endswith((".bat", ".cmd", ".ps1", ".exe", ".scr")):
             traits.append("script_host")
         age = _days_since(item.get("modified_utc"), collected)
@@ -661,9 +716,12 @@ ALL_CHECKS = [
 ]
 
 
+def sort_findings(findings):
+    return sorted(findings, key=lambda f: (SEVERITY_ORDER[f["severity"]], f["check"], f["subject"]))
+
+
 def run_checks(snapshot):
     findings = []
     for check in ALL_CHECKS:
         findings.extend(check(snapshot))
-    findings.sort(key=lambda f: (SEVERITY_ORDER[f["severity"]], f["check"], f["subject"]))
-    return findings
+    return sort_findings(findings)

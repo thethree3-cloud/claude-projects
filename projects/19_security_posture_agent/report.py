@@ -35,7 +35,50 @@ def _evidence_block(evidence):
     return "```text\n" + "\n".join(lines) + "\n```\n" if lines else ""
 
 
-def render(snapshot, findings):
+def _item_label(section, item):
+    if section == "scheduled_tasks":
+        return item["task"]
+    if section == "run_keys":
+        return f"{item['key']}\\{item['name']}"
+    if section == "listening_ports":
+        return f"tcp/{item['port']} {item.get('process') or '?'}"
+    return item.get("name") or item.get("path") or "?"
+
+
+def _changes_section(changes):
+    out = ["## Changes since last scan", ""]
+    if changes is None:
+        return out + ["Not compared (`--no-baseline`).", ""]
+    if changes.get("diff") is None:
+        return out + ["No earlier scan to compare with yet. The next scan will show what changed.", ""]
+    d = changes["diff"]
+    out += [
+        f"Compared with `{_inline(changes['label'])}`. Anything that was already there at "
+        "that scan isn't marked new, so a baseline is only as trustworthy as the computer "
+        "was then. UDP ports aren't compared (browsers open and close them constantly).",
+        "",
+        "| Area | Added | Removed | Changed |",
+        "|---|---|---|---|",
+    ]
+    for name, sd in d["sections"].items():
+        out.append(f"| {name} | {len(sd['added'])} | {len(sd['removed'])} | {len(sd['changed'])} |")
+    out.append("")
+    removed = [(n, i) for n, sd in d["sections"].items() for i in sd["removed"]]
+    if removed:
+        out += ["Removed since last scan (usually uninstalls or updates):", ""]
+        out += [f"- {n}: `{_inline(_item_label(n, i))}`" for n, i in removed[:30]]
+        if len(removed) > 30:
+            out.append(f"- ...and {len(removed) - 30} more")
+        out.append("")
+    if d["skipped"]:
+        out += [f"Not compared (missing from the older scan, or failed in either): "
+                f"{', '.join(d['skipped'])}", ""]
+    return out
+
+
+def render(snapshot, findings, changes=None):
+    """changes: None = comparison turned off; {'diff': None} = no baseline yet;
+    {'diff': ..., 'label': ...} = compared."""
     host = (snapshot["sections"].get("host") or {}).get("items") or [{}]
     h = host[0]
     out = [
@@ -79,6 +122,8 @@ def render(snapshot, findings):
         if f["refs"]:
             meta += " · " + ", ".join(f["refs"])
         out += [meta, ""]
+
+    out += _changes_section(changes)
 
     failed = {n: s for n, s in snapshot["sections"].items() if not s["ok"]}
     warned = {n: s for n, s in snapshot["sections"].items() if s.get("warning")}
