@@ -19,5 +19,12 @@
   "PathName": "C:\\ProgramData\\rh\\rhsvc.exe",
   "State": "Running",
   "StartName": "LocalSystem"
+ },
+ {
+  "Name": "AcmeBackup",
+  "DisplayName": "Acme Backup Agent",
+  "PathName": "C:\\Program Files\\Acme Backup\\agent.exe -service",
+  "State": "Running",
+  "StartName": "LocalSystem"
  }
 ]

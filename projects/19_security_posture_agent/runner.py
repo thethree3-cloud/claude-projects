@@ -90,6 +90,48 @@ _WINDOWS_SCRIPTS = {
         "CommandLine=$null; ScriptText=$null; Query=$_.Query} }; "
         "ConvertTo-Json -Compress -InputObject @(@($c) + @($f))"
     ),
+    # --- Defenses and accounts (Slice 2) ---
+    # Exclusions read as "N/A: Must be an administrator..." without admin.
+    "win_defender": (
+        "$s = Get-MpComputerStatus; $p = Get-MpPreference; "
+        "ConvertTo-Json -Compress -Depth 3 -InputObject @([pscustomobject]@{"
+        "AMRunningMode=[string]$s.AMRunningMode; AntivirusEnabled=$s.AntivirusEnabled; "
+        "RealTimeProtectionEnabled=$s.RealTimeProtectionEnabled; "
+        "IsTamperProtected=$s.IsTamperProtected; SignatureAgeDays=$s.AntivirusSignatureAge; "
+        "ExclusionPath=@($p.ExclusionPath); ExclusionProcess=@($p.ExclusionProcess); "
+        "ExclusionExtension=@($p.ExclusionExtension)})"
+    ),
+    "win_firewall_profiles": (
+        "$f = Get-NetFirewallProfile | ForEach-Object { "
+        "[pscustomobject]@{Name=$_.Name; Enabled=[string]$_.Enabled} }; "
+        "ConvertTo-Json -Compress -InputObject @($f)"
+    ),
+    "win_hotfixes": (
+        "$h = Get-HotFix | ForEach-Object { [pscustomobject]@{"
+        "HotFixID=$_.HotFixID; Description=$_.Description; "
+        "InstalledOn=$(if ($_.InstalledOn) { $_.InstalledOn.ToString('yyyy-MM-dd') } else { $null })} }; "
+        "ConvertTo-Json -Compress -InputObject @($h)"
+    ),
+    "win_local_admins": (
+        "$m = Get-LocalGroupMember -SID 'S-1-5-32-544' | ForEach-Object { [pscustomobject]@{"
+        "Name=$_.Name; ObjectClass=[string]$_.ObjectClass; "
+        "Source=[string]$_.PrincipalSource; SID=[string]$_.SID} }; "
+        "ConvertTo-Json -Compress -InputObject @($m)"
+    ),
+    "win_local_users": (
+        "$u = Get-LocalUser | ForEach-Object { [pscustomobject]@{"
+        "Name=$_.Name; Enabled=$_.Enabled; PasswordRequired=$_.PasswordRequired; "
+        "Source=[string]$_.PrincipalSource; SID=[string]$_.SID} }; "
+        "ConvertTo-Json -Compress -InputObject @($u)"
+    ),
+    "win_rdp_settings": (
+        "$ts = Get-ItemProperty 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server'; "
+        "$rt = Get-ItemProperty "
+        "'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp'; "
+        "ConvertTo-Json -Compress -InputObject @([pscustomobject]@{"
+        "DenyConnections=$ts.fDenyTSConnections; NlaRequired=$rt.UserAuthentication; "
+        "Port=$rt.PortNumber})"
+    ),
 }
 
 # name -> argv. Built once at import time from fixed strings only.

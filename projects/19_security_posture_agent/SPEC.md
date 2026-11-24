@@ -1,9 +1,30 @@
 # Project 19 — Security Posture Audit Agent (spec)
 
-**Status:** Slice 1 built 2026-11-23 (runner, 7 Windows collectors, snapshot,
-`scan.py`, 28 tests, verified live without admin). Not committed. Next: Slice 2.
-Decided while building: Windows first; signature checks deferred; Startup `.lnk`
-targets not resolved yet (needs a COM call, revisit in Slice 3).
+**Status:** Slices 1–2 built 2026-11-23. Next: Slice 3 (baseline diff).
+
+- **Slice 1:** runner, 7 Windows collectors, snapshot, `scan.py`, verified live
+  without admin.
+- **Slice 2:** 6 more collectors (Defender, firewall, updates, local admins, local
+  users, RDP), 29 rules in `checks.py`, Markdown report (`report.py`),
+  `scan.py --from-snapshot`. 62 tests total. Recall on the planted fixture: every
+  planted problem found at the expected severity. The clean fixture gives zero
+  findings. Live on the dev laptop: 0 high, 0 medium, 6 low, 2 info.
+
+Decided while building:
+- Windows first; WSL checks later.
+- Signature checks deferred.
+- Startup `.lnk` targets aren't resolved yet (needs a COM call; revisit in Slice 3).
+- **NIST 800-171 IDs only.** CIS Benchmark IDs are left out until they can be
+  checked against the real benchmark. Citing control numbers from memory is
+  how compliance tools lose trust.
+- **WMI consumers are judged by what they run, never by their name.** The live
+  scan found 3 legitimate HP dock firmware-updater consumers. A plain program in
+  Program Files/Windows → low "review". Anything else → high.
+- **Low findings get calmer wording** (`PERSIST-REVIEW`, `WMI-CONSUMER-REVIEW`),
+  so a normal AppData app like Notion doesn't read as "suspicious".
+- **"Password not required" is a Windows flag, not proof of a blank password.**
+  The finding is low and says so.
+- BitLocker is skipped: its status needs admin.
 
 ## One line
 

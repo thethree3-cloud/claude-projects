@@ -46,17 +46,28 @@ class RunnerSafetyTests(unittest.TestCase):
             runner.run("Remove-Item C:\\")
 
     def test_every_script_uses_only_read_only_cmdlets(self):
+        # Case-insensitive, like PowerShell: a lowercase remove-item must still fail.
+        # Text inside '...' or "..." is data (paths, date formats); it can't run
+        # without the & call operator, which the next test bans.
+        allowed = {v.lower() for v in self.READ_ONLY_VERBS}
         for name, argv in runner.ALLOWLIST.items():
-            script = argv[-1]
-            verbs = set(re.findall(r"\b([A-Za-z]+)-[A-Z][A-Za-z]+\b", script))
+            code = re.sub(r"'[^']*'|\"[^\"]*\"", "''", argv[-1])
+            verbs = {v.lower() for v in re.findall(r"\b([A-Za-z]+)-[A-Za-z]+\b", code)}
             self.assertTrue(verbs, f"{name}: no cmdlets found, check the regex")
-            self.assertLessEqual(verbs, self.READ_ONLY_VERBS, f"{name} uses {verbs - self.READ_ONLY_VERBS}")
+            self.assertLessEqual(verbs, allowed, f"{name} uses {verbs - allowed}")
+
+    def test_lowercase_write_cmdlet_would_be_caught(self):
+        code = "$x = 'a-b'; remove-item C:\\x"
+        verbs = {v.lower() for v in re.findall(r"\b([A-Za-z]+)-[A-Za-z]+\b",
+                                                re.sub(r"'[^']*'|\"[^\"]*\"", "''", code))}
+        self.assertEqual(verbs, {"remove"})
 
     def test_no_script_invokes_dynamic_code(self):
         for name, argv in runner.ALLOWLIST.items():
             script = argv[-1].lower()
-            for banned in ("invoke-expression", "iex ", "start-process", "downloadstring", "-encodedcommand"):
-                self.assertNotIn(banned, script, f"{name} contains {banned}")
+            for banned in ("invoke-expression", "iex ", "start-process", "downloadstring",
+                           "-encodedcommand", "& ", "&'", "&\""):
+                self.assertNotIn(banned, script, f"{name} contains {banned!r}")
 
     def test_allowlist_has_a_fixture_for_every_command(self):
         for name in runner.ALLOWLIST:

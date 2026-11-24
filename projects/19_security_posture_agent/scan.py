@@ -1,32 +1,48 @@
-"""Take a read-only security snapshot of this Windows machine (run from WSL).
+"""Read-only security scan of this Windows machine (run from WSL).
 
-    python scan.py              # save to data/snapshots/
-    python scan.py --out DIR    # save somewhere else
+    python scan.py                         # scan, save snapshot + report
+    python scan.py --from-snapshot FILE    # re-run checks on a saved snapshot
 
-Slice 1 only collects facts. Findings and the report come in later slices.
+Snapshots and reports go under data/ (gitignored): they hold real machine details.
 """
 
 import argparse
 import sys
+from collections import Counter
 
+import checks
+import report
 import snapshot
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--out", default=snapshot.DEFAULT_DIR, help="folder to save the snapshot in")
+    parser.add_argument("--from-snapshot", metavar="FILE", help="check a saved snapshot instead of scanning")
+    parser.add_argument("--out", default=None, help="folder for the snapshot and report (default: data/)")
     args = parser.parse_args(argv)
 
-    print("Collecting (read-only)...")
-    snap = snapshot.build_snapshot()
-    path = snapshot.save_snapshot(snap, args.out)
+    snap_dir = f"{args.out}/snapshots" if args.out else snapshot.DEFAULT_DIR
+    report_dir = f"{args.out}/reports" if args.out else report.DEFAULT_DIR
 
+    if args.from_snapshot:
+        snap = snapshot.load_snapshot(args.from_snapshot)
+        print(f"Checking saved snapshot {args.from_snapshot}")
+    else:
+        print("Collecting (read-only)...")
+        snap = snapshot.build_snapshot()
+        print(f"Snapshot: {snapshot.save_snapshot(snap, snap_dir)}")
     print(snapshot.summarize(snap))
-    host = snap["sections"]["host"]["items"]
-    if host and not host[0]["is_admin"]:
-        print("\nNote: not running as admin, so some items may be hidden.")
-    print(f"\nSaved: {path}")
-    print("This file has real machine details. It stays local; don't commit or share it.")
+
+    findings = checks.run_checks(snap)
+    path = report.save_report(report.render(snap, findings), snap, report_dir)
+
+    counts = Counter(f["severity"] for f in findings)
+    print("\nFindings: " + ", ".join(f"{counts[s]} {s}" for s in checks.SEVERITY_ORDER))
+    for f in findings:
+        if f["severity"] in ("high", "medium"):
+            print(f"  [{f['severity'].upper()}] {report.clean(f['title'], 100)}")
+    print(f"\nReport: {path}")
+    print("Snapshot and report hold real machine details. They stay local; don't commit or share them.")
 
     failed = [n for n, s in snap["sections"].items() if not s["ok"]]
     return 1 if len(failed) == len(snap["sections"]) else 0

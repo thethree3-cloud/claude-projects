@@ -1,0 +1,17 @@
+[
+ {
+  "HotFixID": "KB5050001",
+  "Description": "Update",
+  "InstalledOn": "2026-05-14"
+ },
+ {
+  "HotFixID": "KB5050002",
+  "Description": "Security Update",
+  "InstalledOn": "2026-08-01"
+ },
+ {
+  "HotFixID": "KB5050003",
+  "Description": "Update",
+  "InstalledOn": null
+ }
+]

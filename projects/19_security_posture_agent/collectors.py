@@ -161,6 +161,97 @@ def collect_wmi_subscriptions(run=runner.run):
     ])
 
 
+def _single(run, name):
+    """For commands that return exactly one settings object."""
+    rows, err = _load(run, name)
+    if err:
+        return None, err
+    if not rows:
+        return None, f"{name} returned nothing"
+    return rows[0], None
+
+
+def collect_defender(run=runner.run):
+    d, err = _single(run, "win_defender")
+    if err:
+        return _section(error=err)
+
+    def exclusions(key):
+        values = [v for v in (d.get(key) or []) if isinstance(v, str)]
+        if any(v.startswith("N/A") for v in values):
+            return None  # not readable without admin; unknown, not "none"
+        return values
+
+    paths, procs, exts = (exclusions(k) for k in ("ExclusionPath", "ExclusionProcess", "ExclusionExtension"))
+    return _section([{
+        "running_mode": d.get("AMRunningMode"),
+        "antivirus_enabled": d.get("AntivirusEnabled"),
+        "realtime_enabled": d.get("RealTimeProtectionEnabled"),
+        "tamper_protected": d.get("IsTamperProtected"),
+        "signature_age_days": d.get("SignatureAgeDays"),
+        "exclusions_readable": None not in (paths, procs, exts),
+        "exclusion_paths": paths or [],
+        "exclusion_processes": procs or [],
+        "exclusion_extensions": exts or [],
+    }])
+
+
+def collect_firewall(run=runner.run):
+    rows, err = _load(run, "win_firewall_profiles")
+    if err:
+        return _section(error=err)
+    return _section([
+        {"profile": r.get("Name"), "enabled": str(r.get("Enabled")).lower() == "true"}
+        for r in rows
+    ])
+
+
+def collect_hotfixes(run=runner.run):
+    rows, err = _load(run, "win_hotfixes")
+    if err:
+        return _section(error=err)
+    return _section([
+        {"id": r.get("HotFixID"), "description": r.get("Description"), "installed_on": r.get("InstalledOn")}
+        for r in rows
+    ])
+
+
+def collect_local_admins(run=runner.run):
+    rows, err = _load(run, "win_local_admins")
+    if err:
+        return _section(error=err)
+    return _section([
+        {"name": r.get("Name"), "type": r.get("ObjectClass"), "source": r.get("Source"), "sid": r.get("SID")}
+        for r in rows
+    ])
+
+
+def collect_local_users(run=runner.run):
+    rows, err = _load(run, "win_local_users")
+    if err:
+        return _section(error=err)
+    return _section([
+        {
+            "name": r.get("Name"),
+            "enabled": bool(r.get("Enabled")),
+            "password_required": bool(r.get("PasswordRequired")),
+            "sid": r.get("SID"),
+        }
+        for r in rows
+    ])
+
+
+def collect_rdp_settings(run=runner.run):
+    d, err = _single(run, "win_rdp_settings")
+    if err:
+        return _section(error=err)
+    return _section([{
+        "enabled": d.get("DenyConnections") == 0,
+        "nla_required": d.get("NlaRequired") == 1,
+        "port": d.get("Port"),
+    }])
+
+
 # Order here is the order sections appear in the snapshot.
 COLLECTORS = {
     "host": collect_host_info,
@@ -170,4 +261,10 @@ COLLECTORS = {
     "scheduled_tasks": collect_scheduled_tasks,
     "auto_services": collect_auto_services,
     "wmi_subscriptions": collect_wmi_subscriptions,
+    "defender": collect_defender,
+    "firewall": collect_firewall,
+    "hotfixes": collect_hotfixes,
+    "local_admins": collect_local_admins,
+    "local_users": collect_local_users,
+    "rdp_settings": collect_rdp_settings,
 }
