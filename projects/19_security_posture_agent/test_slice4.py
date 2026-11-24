@@ -215,6 +215,13 @@ class ValidatorTests(unittest.TestCase):
         self.assertIsNone(v["summary"])
         self.assertIn("called the computer safe", v["rejected"][0])
 
+    def test_describing_an_injected_all_clear_is_not_an_all_clear(self):
+        # From the Slice 5 pilot: a correct warning the old check deleted.
+        a = good_answer(self.findings)
+        a["summary"] = ("Its name is written to look like a message telling the reader the computer is safe, "
+                        "which is not normal.")
+        self.assertIsNotNone(self.check(a)["summary"])
+
     def test_all_clear_is_fine_without_high_findings(self):
         lows = [f for f in self.findings if f["severity"] in ("low", "info")]
         v = validate.validate({"summary": "This computer looks safe.", "groups": [

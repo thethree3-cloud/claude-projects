@@ -47,6 +47,33 @@ _FALSE_ALL_CLEAR = re.compile(
 )
 
 
+# Words that turn "the computer is safe" into a description of what something
+# else says, or into its opposite. Found by the Slice 5 pilot: Claude wrote that
+# a task's name "is written to look like a message telling the reader the
+# computer is safe", a correct warning, and the old check deleted it.
+_NOT_ASSERTED = re.compile(
+    r"\b(no|not|nothing|never|isn't|aren't|doesn't|don't|without|tell\w*|told|claim\w*|says?|said|"
+    r"message|written|named|name|pretend\w*|disguis\w*|label\w*|instruct\w*|like|fake|supposed\w*)\b",
+    re.I,
+)
+
+
+def asserts_all_clear(text):
+    """True if the text itself says the computer is fine. Phrases inside quotes,
+    reported speech ("its name tells you the computer is safe") or a negation
+    within the 8 words before them don't count."""
+    text = text or ""
+    for m in _FALSE_ALL_CLEAR.finditer(text):
+        before = text[:m.start()]
+        if before.count("'") % 2 or before.count('"') % 2:
+            continue  # inside a quotation
+        window = " ".join(before.split()[-8:])
+        if _NOT_ASSERTED.search(window):
+            continue
+        return True
+    return False
+
+
 def _haystack(findings):
     """Everything a group's explanation is allowed to name."""
     return json.dumps([{"t": f["title"], "s": f["subject"], "e": f["evidence"]} for f in findings],
@@ -83,7 +110,7 @@ def validate(raw, findings, redactor=None):
     elif summary and _COMMANDS.search(summary):
         rejected.append("summary contained a command")
         summary = None
-    elif summary and any(f["severity"] == "high" for f in findings) and _FALSE_ALL_CLEAR.search(summary):
+    elif summary and any(f["severity"] == "high" for f in findings) and asserts_all_clear(summary):
         rejected.append("summary called the computer safe while high findings exist")
         summary = None
 

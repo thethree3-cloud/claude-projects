@@ -144,7 +144,13 @@ def make_client():
 
 
 class ExplainError(Exception):
-    pass
+    """kind: 'refusal' | 'truncated' | 'bad_output' (the model answered badly) or
+    'api' (the call itself failed: auth, rate limit, network, server)."""
+
+    def __init__(self, message, kind="api", info=None):
+        super().__init__(message)
+        self.kind = kind
+        self.info = info or {}
 
 
 def _api_error_message(e):
@@ -176,22 +182,27 @@ def explain(payload, client=None):
             raise
         raise ExplainError(message) from e
 
+    iterations = getattr(response.usage, "iterations", None) or []
     info = {
         "model": getattr(response, "model", MODEL),
         "input_tokens": getattr(response.usage, "input_tokens", None),
         "output_tokens": getattr(response.usage, "output_tokens", None),
+        "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", None),
+        "cache_creation_input_tokens": getattr(response.usage, "cache_creation_input_tokens", None),
+        "stop_reason": response.stop_reason,
+        "fallback_used": any(getattr(i, "type", None) == "fallback_message" for i in iterations),
         "request_id": getattr(response, "_request_id", None),
     }
     if response.stop_reason == "refusal":
         details = getattr(response, "stop_details", None)
         raise ExplainError(f"Claude declined to explain these findings "
-                           f"(category: {getattr(details, 'category', None)})")
+                           f"(category: {getattr(details, 'category', None)})", "refusal", info)
     if response.stop_reason == "max_tokens":
-        raise ExplainError("Claude's answer was cut off (max_tokens)")
+        raise ExplainError("Claude's answer was cut off (max_tokens)", "truncated", info)
     text = next((b.text for b in response.content if b.type == "text"), None)
     if not text:
-        raise ExplainError("Claude returned no text")
+        raise ExplainError("Claude returned no text", "bad_output", info)
     try:
         return json.loads(text), info
     except json.JSONDecodeError:
-        raise ExplainError("Claude's answer wasn't valid JSON")
+        raise ExplainError("Claude's answer wasn't valid JSON", "bad_output", info)

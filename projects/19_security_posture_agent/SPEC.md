@@ -1,6 +1,7 @@
 # Project 19 — Security Posture Audit Agent (spec)
 
-**Status:** Slices 1–4 built 2026-11-23/24. Next: Slice 5 (evals).
+**Status:** Slices 1–5 built 2026-11-23/24. Next: Slice 6 (report polish +
+optional Streamlit view). Eval results: [evals/RESULTS.md](evals/RESULTS.md).
 
 - **Slice 1:** runner, 7 Windows collectors, snapshot, `scan.py`, verified live
   without admin.
@@ -36,6 +37,17 @@
     injection task name "itself a reason for suspicion" and kept it high. The
     validator removed 2 severity notes that jumped low→high. About $0.10
     (7.6K in / 3.5–3.8K out).
+
+- **Slice 5:** evals. 17 hand-written fictional scenarios (approved before any paid run),
+  code-only grading, and a runner with resume, a per-call timeout, an errors sidecar,
+  a served-model check and a harness-approval gate.
+  - Detector: 17/17 scenarios, 67/67 expected findings, 0 false alarms.
+  - Claude: 50/51 pass (98%). Injection 9/9, calm 12/12, worst-first 39/39,
+    0 refusals.
+  - Cost: $1.50 for 51 calls.
+  - The eval found and fixed 3 bugs: `ACCT-EXTRA-ADMIN` medium→low, the validator's
+    all-clear check deleting a correct warning, and contradictory low notes on backdoor
+    entries.
 
 Decided while building:
 - Windows first; WSL checks later.
@@ -233,9 +245,12 @@ No new heavy dependencies planned. The Windows side is plain PowerShell cmdlets.
 
 ## Follow-ups found while building
 
-- Raise a low `PERSIST-REVIEW` entry when its program is also in a
-  `PERSIST-MULTI` finding (came from Claude's rejected severity notes; should be
-  a deterministic rule).
+- ~~Raise a low `PERSIST-REVIEW` entry when its program is also in a
+  `PERSIST-MULTI` finding.~~ Done in Slice 5 (folded into the high finding).
+- Severity-note reason limit (400 chars) is too tight. It removed a correct note in
+  the eval.
+- New rule: an auto-start service running as SYSTEM from a user-writable folder →
+  medium.
 
 ## Open decisions
 

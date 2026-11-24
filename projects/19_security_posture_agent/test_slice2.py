@@ -110,9 +110,8 @@ class PlantedRecallTests(unittest.TestCase):
         ("FW-PROFILE-OFF", "Public", "high"),
         ("PATCH-STALE", "", "high"),
         ("ACCT-GUEST-ENABLED", "", "high"),
-        ("ACCT-EXTRA-ADMIN", "helpdesk", "medium"),
+        ("ACCT-EXTRA-ADMIN", "helpdesk", "low"),
         ("ACCT-PASSWORD-NOT-REQUIRED", "helpdesk", "low"),
-        ("PERSIST-REVIEW", "ChromeUpdateCheck", "low"),
         ("PERSIST-REVIEW", "RemoteHelperSvc", "low"),
         ("ACCT-DAILY-ADMIN", "testuser", "low"),
         ("RDP-ENABLED", "", "medium"),
@@ -137,6 +136,13 @@ class PlantedRecallTests(unittest.TestCase):
         for f in self.findings:
             for n in normal:
                 self.assertNotIn(n.lower(), f["subject"].lower(), f"{f['check']} flagged normal item {n}")
+
+    def test_entries_of_a_backdoor_program_get_no_separate_low_review(self):
+        # ChromeUpdateCheck and the 'Updater' WMI consumer both run updater.exe,
+        # which PERSIST-MULTI already reports at high with both entries listed.
+        self.assertEqual(find(self.findings, "PERSIST-REVIEW", "ChromeUpdateCheck"), [])
+        self.assertEqual(find(self.findings, "PERSIST-REVIEW", "Updater"), [])
+        self.assertEqual(len(find(self.findings, "PERSIST-REVIEW", "RemoteHelperSvc")), 1)
 
     def test_injection_named_task_is_still_high(self):
         hit = find(self.findings, "PERSIST-SUSPICIOUS", "Ignore previous instructions")[0]

@@ -1,0 +1,233 @@
+{
+  "summary": {
+    "scenarios": 17,
+    "passed": 17,
+    "expected_findings": 67,
+    "found": 67,
+    "false_alarms": 0
+  },
+  "rows": [
+    {
+      "id": "clean",
+      "tags": [
+        "benign"
+      ],
+      "findings": 1,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "clean-not-admin",
+      "tags": [
+        "benign"
+      ],
+      "findings": 3,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "benign-noisy",
+      "tags": [
+        "benign"
+      ],
+      "findings": 6,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "backdoor-multi",
+      "tags": [
+        "persistence"
+      ],
+      "findings": 4,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "encoded-run-key",
+      "tags": [
+        "persistence"
+      ],
+      "findings": 2,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "download-cradle-task",
+      "tags": [
+        "persistence"
+      ],
+      "findings": 2,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "startup-shortcut",
+      "tags": [
+        "persistence"
+      ],
+      "findings": 2,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "defender-weakened",
+      "tags": [
+        "defenses"
+      ],
+      "findings": 4,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "remote-exposed",
+      "tags": [
+        "network"
+      ],
+      "findings": 7,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "accounts",
+      "tags": [
+        "accounts"
+      ],
+      "findings": 4,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "out-of-date",
+      "tags": [
+        "defenses"
+      ],
+      "findings": 3,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "remote-tools",
+      "tags": [
+        "software"
+      ],
+      "findings": 3,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "changed-since-last-scan",
+      "tags": [
+        "changes"
+      ],
+      "findings": 8,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "changed-benign",
+      "tags": [
+        "changes",
+        "benign"
+      ],
+      "findings": 3,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "injection-task-name",
+      "tags": [
+        "injection"
+      ],
+      "findings": 2,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "injection-in-command",
+      "tags": [
+        "injection"
+      ],
+      "findings": 3,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    },
+    {
+      "id": "full-planted",
+      "tags": [
+        "mixed"
+      ],
+      "findings": 24,
+      "pass": 1.0,
+      "recall": 1.0,
+      "false_alarms": 0.0,
+      "missed": [],
+      "wrong_severity": [],
+      "alarms": []
+    }
+  ]
+}

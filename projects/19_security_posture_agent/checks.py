@@ -184,11 +184,13 @@ CATALOG = {
         "refs": ["NIST 800-171 3.5.2"],
     },
     "ACCT-EXTRA-ADMIN": {
-        "title": "Another account has admin rights: {subject}",
-        "why": "Every admin account can change anything on the computer, including security "
-               "settings. Unknown admin accounts are a common sign of a break-in.",
-        "fix": "If you don't recognize the account, remove it from the Administrators group "
-               "(Computer Management > Local Users and Groups).",
+        "title": "Check you know this admin account: {subject}",
+        "why": "Every admin account can change anything on the computer. A separate admin account "
+               "is good practice (see 'Your everyday account is an administrator'), but an admin "
+               "account you don't recognize is a common sign of a break-in. Admins added since the "
+               "last scan are reported separately, at high.",
+        "fix": "If you know the account, nothing to do. If you don't, remove it from the "
+               "Administrators group (Computer Management > Local Users and Groups).",
         "refs": ["NIST 800-171 3.1.5"],
     },
     "ACCT-DAILY-ADMIN": {
@@ -408,11 +410,17 @@ def _persistence_entries(snapshot):
 
 def check_persistence(snapshot):
     out = []
+    in_backdoor = set(_multi_mechanism_programs(snapshot))
     for section, subject, command, evidence in _persistence_entries(snapshot):
         traits = command_traits(command)
         if section == "scheduled_tasks" and evidence.get("state") == "Disabled":
             continue  # can't run; baseline diff (Slice 3) still sees it
         sev = severity_for(traits)
+        if sev == "low" and executable_of(command) in in_backdoor:
+            # Already listed in a high PERSIST-MULTI finding, whose fix covers every entry.
+            # A separate low "many normal apps do this" note would contradict it.
+            # (Found by Claude's rejected severity notes in Slices 4 and 5.)
+            continue
         if sev:
             out.append(_persist_finding(section, subject, evidence, sev, traits))
 
@@ -443,6 +451,12 @@ def _persist_finding(section, subject, evidence, sev, traits):
 
 def check_multi_mechanism(snapshot):
     """Same user-writable program wired up through 2+ mechanisms (or also listening)."""
+    return [_finding("PERSIST-MULTI", "persistence", exe, {"program": exe, "found_in": uses}, "high")
+            for exe, uses in _multi_mechanism_programs(snapshot).items()]
+
+
+def _multi_mechanism_programs(snapshot):
+    """program -> where it's found, for user-writable programs in 2+ places."""
     seen = {}
     for section, subject, command, _ in _persistence_entries(snapshot):
         exe = executable_of(command)
@@ -454,11 +468,7 @@ def check_multi_mechanism(snapshot):
         if exe in seen:
             seen[exe].append({"section": "listening_ports", "entry": f"{p['proto']}/{p['port']}"})
 
-    out = []
-    for exe, uses in seen.items():
-        if len({u["section"] for u in uses}) >= 2:
-            out.append(_finding("PERSIST-MULTI", "persistence", exe, {"program": exe, "found_in": uses}, "high"))
-    return out
+    return {exe: uses for exe, uses in seen.items() if len({u["section"] for u in uses}) >= 2}
 
 
 _PROTECTED_DIR = re.compile(
@@ -663,7 +673,9 @@ def check_accounts(snapshot):
         elif _rid(a["sid"]) == "500" or a["type"] != "User":
             continue  # built-in admin is covered above; groups need admin-side review
         elif enabled.get(a["sid"], True):
-            out.append(_finding("ACCT-EXTRA-ADMIN", "local_admins", a["name"], a, "medium"))
+            # Low, not medium: a separate admin account is what ACCT-DAILY-ADMIN recommends.
+            # Found by the Slice 5 eval (it fired on every scenario's healthy base machine).
+            out.append(_finding("ACCT-EXTRA-ADMIN", "local_admins", a["name"], a, "low"))
     return out
 
 

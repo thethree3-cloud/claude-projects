@@ -90,17 +90,32 @@ def main(argv=None):
     return 1 if len(failed) == len(snap["sections"]) else 0
 
 
-def run_explain(snap, findings, changes, data_dir, dry_run=False, client=None):
-    """Redact, save the exact payload locally, call Claude, validate.
-    Returns the report's `ai` dict; never raises, so the scan always finishes."""
+def prepare_explain(snap, findings, changes_label=None):
+    """(redactor, payload, request) for the explain step: what scan.py and the eval send."""
     red = redact.Redactor(snap)
-    payload = explain.build_payload(findings, red, (changes or {}).get("label"))
+    payload = explain.build_payload(findings, red, changes_label)
+    return red, payload, explain.build_request(payload)
+
+
+def explain_and_validate(snap, findings, changes_label=None, client=None):
+    """The whole explain step: redact, call Claude, validate. Shared by scan.py
+    and evals/run_eval.py so the eval measures exactly what users run.
+    Returns (request, raw, info, validated); raises explain.ExplainError."""
+    red, payload, request = prepare_explain(snap, findings, changes_label)
+    raw, info = explain.explain(payload, client=client)
+    return request, raw, info, validate.validate(raw, findings, red)
+
+
+def run_explain(snap, findings, changes, data_dir, dry_run=False, client=None):
+    """Save the exact payload locally, call Claude, validate.
+    Returns the report's `ai` dict; never raises, so the scan always finishes."""
+    label = (changes or {}).get("label")
+    _, _, request = prepare_explain(snap, findings, label)
     sent_dir = data_dir / "llm_input"
     sent_dir.mkdir(parents=True, exist_ok=True)
     stamp = snap["collected_at"].replace(":", "").replace("-", "").replace("+0000", "Z")
     sent_path = sent_dir / f"llm_input_{stamp}.json"
-    sent_path.write_text(json.dumps(explain.build_request(payload), indent=2, ensure_ascii=False),
-                         encoding="utf-8")
+    sent_path.write_text(json.dumps(request, indent=2, ensure_ascii=False), encoding="utf-8")
 
     if dry_run:
         print(f"\nDry run: nothing sent. What --explain would send: {sent_path}")
@@ -111,14 +126,13 @@ def run_explain(snap, findings, changes, data_dir, dry_run=False, client=None):
     print(f"\nAsking Claude ({explain.MODEL}) to explain {len(findings)} findings "
           f"(redacted copy of what's sent: {sent_path})...")
     try:
-        raw, info = explain.explain(payload, client=client)
+        _, raw, info, v = explain_and_validate(snap, findings, label, client=client)
     except explain.ExplainError as e:
         print(f"  Explanation skipped: {e}")
         return {"error": str(e)}
     # Keep Claude's raw answer next to what was sent: for re-validating and for evals.
     (sent_dir / f"llm_response_{stamp}.json").write_text(
         json.dumps({"answer": raw, "info": info}, indent=2, ensure_ascii=False), encoding="utf-8")
-    v = validate.validate(raw, findings, red)
     print(f"  Validator: {len(v['groups'])} group(s), {len(v['rejected'])} item(s) removed")
     if not v["accepted"]:
         return {"error": "Claude's answer didn't pass the checks: " + "; ".join(v["rejected"][:3])}
