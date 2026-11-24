@@ -1,7 +1,16 @@
 # Project 19 — Security Posture Audit Agent (spec)
 
-**Status:** Slices 1–5 built 2026-11-23/24. Next: Slice 6 (report polish +
-optional Streamlit view). Eval results: [evals/RESULTS.md](evals/RESULTS.md).
+**Status:** Slices 1–6 built 2026-11-23/24 (Slices 1–5 merged in PR #14). Next:
+Slice 7 (Project 05 tie-in), optional. Eval results: [evals/RESULTS.md](evals/RESULTS.md).
+
+- **Slice 6:** `report_html.py` writes a self-contained HTML report next to the
+  Markdown. It has severity filter buttons, collapsible findings with high/medium
+  open, Claude's groups linking to finding numbers, and print styles. Every value is
+  escaped, and a CSP with a per-report nonce means only the report's own script and
+  style run, with no network loads. Both eval follow-ups are done: the new rule
+  `SVC-SYSTEM-USER-PATH` (medium), and the severity-note limit raised from 400 to
+  800. 159 tests; detector 17/17. The paid eval wasn't re-run. A Streamlit view was
+  considered and left out: the HTML file needs no server or new dependency.
 
 - **Slice 1:** runner, 7 Windows collectors, snapshot, `scan.py`, verified live
   without admin.
@@ -247,10 +256,9 @@ No new heavy dependencies planned. The Windows side is plain PowerShell cmdlets.
 
 - ~~Raise a low `PERSIST-REVIEW` entry when its program is also in a
   `PERSIST-MULTI` finding.~~ Done in Slice 5 (folded into the high finding).
-- Severity-note reason limit (400 chars) is too tight. It removed a correct note in
-  the eval.
-- New rule: an auto-start service running as SYSTEM from a user-writable folder →
-  medium.
+- ~~Severity-note reason limit (400 chars) is too tight.~~ Done in Slice 6 (800).
+- ~~New rule: an auto-start service running as SYSTEM from a user-writable folder →
+  medium.~~ Done in Slice 6 (`SVC-SYSTEM-USER-PATH`).
 
 ## Open decisions
 

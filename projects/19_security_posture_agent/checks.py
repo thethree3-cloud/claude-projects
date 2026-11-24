@@ -70,6 +70,16 @@ CATALOG = {
                "registry value, or update/reinstall the software.",
         "refs": ["NIST 800-171 3.4.2"],
     },
+    "SVC-SYSTEM-USER-PATH": {
+        "title": "Service runs with full system rights from a user folder: {subject}",
+        "why": "This service starts automatically as SYSTEM, the most powerful account on Windows, "
+               "but its program sits in a folder ordinary users and programs can write to. Anyone "
+               "who replaces that file gets full control of the computer at the next restart.",
+        "fix": "If you don't recognize the service, stop and disable it (Services > the service > "
+               "Startup type: Disabled) and scan the program with Defender. If it's software you "
+               "use, reinstall it into Program Files or ask the vendor.",
+        "refs": ["NIST 800-171 3.1.7", "NIST 800-171 3.4.2"],
+    },
     "REMOTE-ACCESS-TOOL": {
         "title": "Remote-access software found: {subject}",
         "why": "These tools let someone control the computer from elsewhere. That's fine if you "
@@ -416,6 +426,9 @@ def check_persistence(snapshot):
         if section == "scheduled_tasks" and evidence.get("state") == "Disabled":
             continue  # can't run; baseline diff (Slice 3) still sees it
         sev = severity_for(traits)
+        if sev == "low" and section == "auto_services" and runs_as_system(evidence) \
+                and "user_writable_path" in traits:
+            continue  # reported at medium by SVC-SYSTEM-USER-PATH instead
         if sev == "low" and executable_of(command) in in_backdoor:
             # Already listed in a high PERSIST-MULTI finding, whose fix covers every entry.
             # A separate low "many normal apps do this" note would contradict it.
@@ -504,6 +517,27 @@ def check_wmi(snapshot):
                 out.append(_finding("WMI-CONSUMER", "wmi_subscriptions", w["name"], w, "high", traits))
             else:
                 out.append(_finding("WMI-CONSUMER-REVIEW", "wmi_subscriptions", w["name"], w, "low"))
+    return out
+
+
+_SYSTEM_ACCOUNTS = {"localsystem", "nt authority\\system", ".\\localsystem"}
+
+
+def runs_as_system(service):
+    return (service.get("run_as") or "").strip().lower() in _SYSTEM_ACCOUNTS
+
+
+def check_system_service_user_path(snapshot):
+    """SYSTEM service whose program is in a user-writable folder (AppData, Temp, Downloads,
+    Users\\Public). Added after the Slice 5 eval, where Claude correctly argued such a
+    service deserved more than a low 'worth a look'. ProgramData is left out: many
+    legitimate services install there, and its folders aren't user-writable by default."""
+    out = []
+    for s in _items(snapshot, "auto_services"):
+        exe = executable_of(s["command"])
+        if runs_as_system(s) and "user_writable_path" in command_traits(exe):
+            out.append(_finding("SVC-SYSTEM-USER-PATH", "auto_services", s["name"], s, "medium",
+                                ["user_writable_path", "runs_as_system"]))
     return out
 
 
@@ -722,7 +756,8 @@ def _days_since(value, now):
 # --- Entry point --------------------------------------------------------------------
 
 ALL_CHECKS = [
-    check_persistence, check_multi_mechanism, check_wmi, check_unquoted_service_paths,
+    check_persistence, check_multi_mechanism, check_wmi, check_system_service_user_path,
+    check_unquoted_service_paths,
     check_remote_access_tools, check_ports, check_defender, check_firewall,
     check_patching, check_accounts, check_rdp, check_scan_context,
 ]

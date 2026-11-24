@@ -48,10 +48,11 @@ collectors.py  13 sections: ports, Run keys, Startup (incl. .lnk targets), sched
    ▼
 snapshot.json  saved under data/ (gitignored: it holds real machine details)
    │
-checks.py      27 deterministic rules → findings with evidence, fixed fix text, NIST 800-171 refs
+checks.py      28 deterministic rules → findings with evidence, fixed fix text, NIST 800-171 refs
 baseline.py    compare with the previous scan → 7 "changed since last scan" findings
    │
-   ├── report.py → Markdown report (no AI involved)
+   ├── report_html.py → one self-contained HTML page: severity filters, linked groups
+   ├── report.py      → the same report as Markdown (no AI involved in either)
    │
    └── --explain (opt-in)
        redact.py    username, computer name, account names, SIDs → placeholders
@@ -75,7 +76,12 @@ baseline.py    compare with the previous scan → 7 "changed since last scan" fi
    IDs, commands, and program names or ports that don't appear in any finding. It
    adds back any finding Claude left out, and allows severity *suggestions* of
    at most one level, shown as notes and never applied.
-5. **Privacy.** `--explain` is the only thing that sends data off the machine.
+5. **A report that can't be hijacked.** The HTML report escapes every value and
+   ships a Content-Security-Policy with a random per-report nonce. Only its own
+   script and styles can run, and nothing loads from the network. A test feeds
+   it a task named `"><script>…<img onerror=…>` and parses the result to prove
+   no tag or event handler gets through.
+6. **Privacy.** `--explain` is the only thing that sends data off the machine.
    It sends findings, never the snapshot, and redacts them first. The exact
    request and Claude's raw answer are saved locally, and `--explain-dry-run`
    shows what would be sent without sending it.
@@ -115,7 +121,7 @@ And on the task named as an instruction to the AI:
 From WSL on the Windows machine you want to check:
 
 ```bash
-python scan.py                      # scan, compare with the last scan, write the report
+python scan.py                      # scan, compare with the last scan, write report .html + .md
 python scan.py --explain            # also ask Claude (needs ANTHROPIC_API_KEY in the repo .env)
 python scan.py --explain-dry-run    # save what --explain would send, send nothing
 python scan.py --baseline FILE      # compare against a scan you trust
@@ -129,7 +135,7 @@ A few areas (such as Defender exclusions) are then reported as "couldn't check".
 ## Tests and evals
 
 ```bash
-python -m unittest discover -p "test_slice*.py"   # 143 tests, no Windows or API key needed
+python -m unittest discover -p "test_slice*.py"   # 159 tests, no Windows or API key needed
 python evals/run_eval.py --detector               # free detector eval
 python evals/run_eval.py --reps 3                 # paid Claude eval (~$1.50), after --approve-harness
 ```

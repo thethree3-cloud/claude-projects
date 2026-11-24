@@ -24,6 +24,7 @@ import checks
 import explain
 import redact
 import report
+import report_html
 import snapshot
 import validate
 
@@ -77,13 +78,15 @@ def main(argv=None):
         ai = run_explain(snap, findings, changes, data_dir, dry_run=args.explain_dry_run)
 
     path = report.save_report(report.render(snap, findings, changes, ai), snap, report_dir)
+    html_path = report_html.save(report_html.render(snap, findings, changes, ai), snap, report_dir)
 
     counts = Counter(f["severity"] for f in findings)
     print("\nFindings: " + ", ".join(f"{counts[s]} {s}" for s in checks.SEVERITY_ORDER))
     for f in findings:
         if f["severity"] in ("high", "medium"):
             print(f"  [{f['severity'].upper()}] {report.clean(f['title'], 100)}")
-    print(f"\nReport: {path}")
+    print(f"\nReport: {html_path}  (open in a browser)")
+    print(f"        {path}")
     print("Snapshot and report hold real machine details. They stay local; don't commit or share them.")
 
     failed = [n for n, s in snap["sections"].items() if not s["ok"]]

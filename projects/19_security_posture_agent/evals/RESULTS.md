@@ -80,11 +80,16 @@ numbers above are after the fixes:
    `PERSIST-MULTI` finding also got "many normal apps do this". Claude kept asking to raise
    them (Slices 4 and 5). They are now folded into the high finding.
 
-Follow-ups suggested by this run (not yet done):
+Follow-ups suggested by this run, **done in Slice 6** (after these numbers were measured):
 
-- Raise the severity-note length limit (400 chars) or count sentences instead.
-- New rule: an auto-start service running as SYSTEM from a user-writable folder should be
-  medium on its own (Claude's rejected note above was right).
+- The severity-note limit was raised from 400 to 800 characters.
+- New rule `SVC-SYSTEM-USER-PATH`: an auto-start service running as SYSTEM from a
+  user-writable folder is now medium (Claude's rejected note above was right). In
+  `injection-in-command`, `HelperSvc` moved from a low `PERSIST-REVIEW` to this rule.
+  The detector still passes 17/17.
+
+The paid Claude numbers above were measured before Slice 6 and haven't been re-run.
+Re-run with `run_eval.py --variant v1 --reps 3` after `--approve-harness` to compare.
 
 ## Limits (read before quoting these numbers)
 

@@ -28,6 +28,7 @@ from checks import SEVERITY_ORDER
 MAX_SUMMARY = 1200
 MAX_EXPLANATION = 1500
 MAX_TITLE = 120
+MAX_NOTE_REASON = 800
 
 _COMMANDS = re.compile(
     # Command-shaped text only: "it runs hidden PowerShell" is a fine description,
@@ -168,7 +169,8 @@ def validate(raw, findings, redactor=None):
         if abs(SEVERITY_ORDER[suggested] - SEVERITY_ORDER[current]) > 1:
             rejected.append(f"severity note for {n['finding_id']} jumped more than one level")
             continue
-        if not reason or _COMMANDS.search(reason) or len(reason) > 400:
+        # 800, not 400: the Slice 5 eval's one failure was a correct ~470-character reason.
+        if not reason or _COMMANDS.search(reason) or len(reason) > MAX_NOTE_REASON:
             rejected.append(f"severity note for {n['finding_id']} had no usable reason")
             continue
         notes.append({"finding": by_id[n["finding_id"]], "suggested": suggested, "reason": reason})
