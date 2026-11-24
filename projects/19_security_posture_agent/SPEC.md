@@ -6,7 +6,7 @@ optional Streamlit view). Eval results: [evals/RESULTS.md](evals/RESULTS.md).
 - **Slice 1:** runner, 7 Windows collectors, snapshot, `scan.py`, verified live
   without admin.
 - **Slice 2:** 6 more collectors (Defender, firewall, updates, local admins, local
-  users, RDP), 29 rules in `checks.py`, Markdown report (`report.py`),
+  users, RDP), 27 rules in `checks.py`, Markdown report (`report.py`),
   `scan.py --from-snapshot`. 62 tests total. Recall on the planted fixture: every
   planted problem found at the expected severity. The clean fixture gives zero
   findings. Live on the dev laptop: 0 high, 0 medium, 6 low, 2 info.

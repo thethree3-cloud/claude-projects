@@ -1,0 +1,4 @@
+# Only needed for `scan.py --explain` and the paid eval. Scanning, checks,
+# the baseline diff, the report and all tests run on the Python standard library.
+anthropic==0.117.1
+python-dotenv==1.2.2

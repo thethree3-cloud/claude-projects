@@ -1,0 +1,36 @@
+name: Project 19 CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "projects/19_security_posture_agent/**"
+      - ".github/workflows/project-19-ci.yml"
+  pull_request:
+    paths:
+      - "projects/19_security_posture_agent/**"
+      - ".github/workflows/project-19-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Tests use recorded fictional command output and a mocked Claude client:
+      # no Windows, no API key, nothing billed. The SDK is installed only so the
+      # API-error test runs instead of being skipped.
+      - name: Install dependencies
+        run: pip install -r projects/19_security_posture_agent/requirements.txt
+
+      - name: Run tests
+        working-directory: projects/19_security_posture_agent
+        run: python -m unittest discover -p "test_slice*.py" -v
+
+      - name: Detector eval (free)
+        working-directory: projects/19_security_posture_agent
+        run: python evals/run_eval.py --detector

@@ -276,8 +276,8 @@ def main(argv=None):
     args = p.parse_args(argv)
 
     if args.detector:
-        run_detector()
-        return 0
+        s = run_detector()
+        return 0 if s["passed"] == s["scenarios"] else 1  # nonzero so CI catches rule regressions
     if args.approve_harness:
         check_harness(approve=True)
         return 0
