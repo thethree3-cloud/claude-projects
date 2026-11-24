@@ -1,0 +1,18 @@
+[
+ {
+  "AMRunningMode": "Normal",
+  "AntivirusEnabled": true,
+  "RealTimeProtectionEnabled": true,
+  "IsTamperProtected": false,
+  "SignatureAgeDays": 12,
+  "ExclusionPath": [
+   "C:\\",
+   "C:\\Users\\testuser\\AppData\\Roaming\\updater",
+   "D:\\Builds"
+  ],
+  "ExclusionProcess": [],
+  "ExclusionExtension": [
+   ".vbs"
+  ]
+ }
+]

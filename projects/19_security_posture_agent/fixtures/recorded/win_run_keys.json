@@ -1,0 +1,17 @@
+[
+ {
+  "Key": "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+  "Name": "SecurityHealth",
+  "Value": "%windir%\\system32\\SecurityHealthSystray.exe"
+ },
+ {
+  "Key": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+  "Name": "OneDrive",
+  "Value": "\"C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe\" /background"
+ },
+ {
+  "Key": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+  "Name": "WinUpdateHelper",
+  "Value": "powershell.exe -w hidden -enc SQBFAFgA"
+ }
+]

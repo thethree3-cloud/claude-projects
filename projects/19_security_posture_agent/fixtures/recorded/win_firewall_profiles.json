@@ -1,0 +1,14 @@
+[
+ {
+  "Name": "Domain",
+  "Enabled": "True"
+ },
+ {
+  "Name": "Private",
+  "Enabled": "True"
+ },
+ {
+  "Name": "Public",
+  "Enabled": "False"
+ }
+]

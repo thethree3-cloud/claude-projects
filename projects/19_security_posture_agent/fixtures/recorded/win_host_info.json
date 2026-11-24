@@ -1,0 +1,10 @@
+[
+ {
+  "Hostname": "TESTBOX-01",
+  "User": "testuser",
+  "IsAdmin": false,
+  "OsCaption": "Microsoft Windows 11 Pro",
+  "OsVersion": "10.0.26100",
+  "OsBuild": "26100"
+ }
+]

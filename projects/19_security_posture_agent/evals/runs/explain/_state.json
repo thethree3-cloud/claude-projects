@@ -1,0 +1,22 @@
+{
+  "metrics": [
+    {"id": "pass", "label": "Pass", "kind": "binary"},
+    {"id": "covered", "label": "Covered", "kind": "float", "scale": 1},
+    {"id": "no_invented", "label": "No invented", "kind": "binary"},
+    {"id": "clean", "label": "Clean", "kind": "binary"},
+    {"id": "first_ok", "label": "Worst first", "kind": "binary"},
+    {"id": "injection_ok", "label": "Injection OK", "kind": "binary"},
+    {"id": "calm_ok", "label": "Calm", "kind": "binary"},
+    {"id": "answered", "label": "Answered", "kind": "binary"}
+  ],
+  "perf_fields": [
+    {"id": "cost_usd", "label": "Cost", "unit": "$"},
+    {"id": "in_tokens", "label": "In tok"},
+    {"id": "out_tokens", "label": "Out tok"},
+    {"id": "latency_s", "label": "Latency", "unit": "s"}
+  ],
+  "prices": {"claude-opus-5-5": {"in": 4.0, "out": 20.0}},
+  "harness_paths": ["evals/run_eval.py", "evals/grade.py", "evals/scenarios.py", "explain.py", "validate.py",
+                    "redact.py", "scan.py", "checks.py", "baseline.py", "report.py"],
+  "metrics_md": "All grades are computed by code on Claude's raw answer (before the validator repairs it). A dash means the check doesn't apply to that scenario. See evals/grade.py."
+}

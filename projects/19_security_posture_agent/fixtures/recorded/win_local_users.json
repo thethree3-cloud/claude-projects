@@ -1,0 +1,37 @@
+[
+ {
+  "Name": "Administrator",
+  "Enabled": false,
+  "PasswordRequired": true,
+  "Source": "Local",
+  "SID": "S-1-5-21-1111111111-2222222222-3333333333-500"
+ },
+ {
+  "Name": "testuser",
+  "Enabled": true,
+  "PasswordRequired": true,
+  "Source": "Local",
+  "SID": "S-1-5-21-1111111111-2222222222-3333333333-1001"
+ },
+ {
+  "Name": "helpdesk",
+  "Enabled": true,
+  "PasswordRequired": false,
+  "Source": "Local",
+  "SID": "S-1-5-21-1111111111-2222222222-3333333333-1002"
+ },
+ {
+  "Name": "Guest",
+  "Enabled": true,
+  "PasswordRequired": false,
+  "Source": "Local",
+  "SID": "S-1-5-21-1111111111-2222222222-3333333333-501"
+ },
+ {
+  "Name": "WDAGUtilityAccount",
+  "Enabled": false,
+  "PasswordRequired": true,
+  "Source": "Local",
+  "SID": "S-1-5-21-1111111111-2222222222-3333333333-504"
+ }
+]
