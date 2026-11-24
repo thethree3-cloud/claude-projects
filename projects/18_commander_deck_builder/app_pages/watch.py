@@ -19,10 +19,11 @@ import deck_service
 import edhrec_client
 import explain
 import portfolio
+import sets as sets_mod
 import watchlist
 
 COLORS = {"W": "White", "U": "Blue", "B": "Black", "R": "Red", "G": "Green"}
-VIEWS = ["Spec signals", "New commanders", "Combo spikes", "Casual meta", "Rising on EDHREC", "Price risers",
+VIEWS = ["Spec signals", "New commanders", "Combo spikes", "Casual meta", "Sets", "Rising on EDHREC", "Price risers",
          "My watch list", "My cards", "Digest"]
 
 
@@ -102,6 +103,24 @@ def load_spikes(max_usd):
     db = deck_service.open_db()
     try:
         return combos.combo_spikes(db, combos.new_cards(db, rising=rising), max_usd=max_usd)
+    finally:
+        db.close()
+
+
+@st.cache_data(ttl="1d", show_spinner="Loading the set list...")
+def load_sets():
+    db = deck_service.open_db()
+    try:
+        return sets_mod.listed_sets(db)
+    finally:
+        db.close()
+
+
+@st.cache_data(ttl="1h", show_spinner="Pricing the set...")
+def load_set_cards(codes):
+    db = deck_service.open_db()
+    try:
+        return sets_mod.set_cards(db, codes)
     finally:
         db.close()
 
@@ -433,6 +452,101 @@ elif view == "Casual meta":
     st.markdown("**Commanders in new decks**")
     st.dataframe([{"Commander": c["commander"], "Last 7 days": c["decks"], "28 days before": c["base_decks"]}
                   for c in t["commanders"][:30]], hide_index=True, key="casual_commanders")
+
+# ---------------------------------------------------------------------------
+# Sets
+# ---------------------------------------------------------------------------
+
+elif view == "Sets":
+    from flip_card import flip_card
+    try:
+        all_sets = load_sets()
+    except sets_mod.SetError as exc:
+        st.error(str(exc), icon=":material/error:")
+        st.stop()
+    by_code = {s["code"]: s for s in all_sets}
+    code = st.selectbox(
+        "Set", list(by_code), key="set_pick", persist_state="session",
+        format_func=lambda c: f"{by_code[c]['name']} ({c.upper()}) - {by_code[c]['released']}",
+        help="Type part of a name, like \"star trek\" or \"spider\". Newest sets first.")
+    members = sets_mod.family(code, all_sets)
+    chosen = [code]
+    if len(members) > 1:
+        chosen = st.pills("Include", [m["code"] for m in members], selection_mode="multi", default=[code],
+                          key=f"set_family-{code}",
+                          format_func=lambda c: f"{by_code[c]['name']} ({by_code[c]['type']})",
+                          help="Related sets from the same release (main set, Commander decks, promos...)") or [code]
+    cards = load_set_cards(tuple(sorted(chosen)))
+    sm = sets_mod.summary(cards)
+    s = by_code[code]
+    with st.container(horizontal=True, vertical_alignment="center"):
+        if s.get("icon"):
+            st.image(s["icon"], width=56, alt=f"{s['name']} set symbol")
+        st.markdown(f"### {s['name']}  \n{code.upper()} · {s['type'] or 'set'} · released {s['released']}"
+                    + (f" · plus {len(chosen) - 1} related set{'s' if len(chosen) > 2 else ''}" if len(chosen) > 1 else ""))
+    with st.container(horizontal=True):
+        st.metric("Printings", f"{sm['printings']:,}", border=True, help=f"{sm['unique_cards']:,} different cards")
+        st.metric("One of each (normal)", f"${sm['total']:,.2f}", border=True,
+                  help="Sum of normal (non-foil) prices, one copy of every printing with a price")
+        st.metric("Median card", f"${sm['median'] or 0:,.2f}", border=True)
+        st.metric("Cards $10+", sm["over_10"], border=True, help=f"{sm['over_1']} are $1 or more")
+    st.caption("Prices per printing from Scryfall's daily file (TCGplayer market; foil where shown). No source has "
+               "sales counts or sealed-product prices, so \"top\" means most valuable, or most played in Commander.")
+    with st.container(horizontal=True, vertical_alignment="bottom"):
+        sort = st.segmented_control("Sort", list(sets_mod.SORTS), default="Most valuable", key="set_sort",
+                                    required=True, persist_state="session")
+        rarities = st.pills("Rarity", ["mythic", "rare", "uncommon", "common", "special", "bonus"],
+                            selection_mode="multi", key="set_rarity", persist_state="session")
+        plain = st.toggle("Hide special versions", key="set_plain", persist_state="session",
+                          help="Only regular printings: no borderless, showcase, extended art or promo versions")
+        min_price = st.number_input("Min price", min_value=0.0, value=None, step=1.0, placeholder="Any",
+                                    key="set_min", persist_state="session")
+    rows = [c for c in cards
+            if (not rarities or c["rarity"] in rarities)
+            and not (plain and (c["treatment"] or c["promo"]))
+            and (min_price is None or (c["top_price"] or 0) >= min_price)]
+    rows.sort(key=sets_mod.SORTS[sort])
+    if not rows:
+        st.info("No cards match these filters.", icon=":material/filter_alt_off:")
+        st.stop()
+
+    def price_line(c):
+        parts = [f"${c['usd']:,.2f}" if c["usd"] is not None else None,
+                 f"foil ${c['usd_foil']:,.2f}" if c["usd_foil"] is not None else None,
+                 f"etched ${c['usd_etched']:,.2f}" if c["usd_etched"] is not None else None]
+        return " · ".join(p for p in parts if p) or "no price"
+
+    st.markdown(f"#### Top {min(12, len(rows))}")
+    for start in range(0, min(12, len(rows)), 6):
+        for col, c in zip(st.columns(6), rows[start:start + 6]):
+            with col, st.container(border=True):
+                if c["image_url"] and c["image_url_back"]:
+                    flip_card(c["name"], c["image_url"], c["image_url_back"],
+                              key=f"set-flip-{c['set_code']}-{c['collector_number']}")
+                elif c["image_url"]:
+                    st.image(c["image_url"], width="stretch", alt=c["name"])
+                st.page_link("app_pages/card.py", label=c["name"], query_params={"name": c["name"]})
+                st.caption(f"#{c['collector_number']} · {c['rarity']}" + (f" · {c['treatment']}" if c["treatment"] else ""))
+                st.markdown(f"**{price_line(c)}**")
+    st.markdown(f"#### All {len(rows):,} printings")
+    table = rows[:1000]
+    event = st.dataframe(
+        [{"Image": c["image_url"], "Card": c["name"], "Set": c["set_code"].upper(), "#": c["collector_number"],
+          "Rarity": c["rarity"], "Look": c["treatment"] or ("promo" if c["promo"] else ""), "Normal": c["usd"],
+          "Foil": c["usd_foil"], "EUR": c["eur"], "EDHREC rank": c["edhrec_rank"], "Page": card_url(c["name"])}
+         for c in table],
+        column_config={"Image": st.column_config.ImageColumn("", width="small"),
+                       "Normal": st.column_config.NumberColumn(format="dollar"),
+                       "Foil": st.column_config.NumberColumn(format="dollar"),
+                       "EUR": st.column_config.NumberColumn(format="euro"),
+                       "EDHREC rank": st.column_config.NumberColumn(help="Overall popularity in Commander (1 = most played)"),
+                       "Page": st.column_config.LinkColumn(display_text="Open")},
+        hide_index=True, on_select="rerun", selection_mode="multi-row", key="set_table", row_height=60,
+    )
+    picked = list(dict.fromkeys(selected_names(event, table)))
+    if st.button(f"Watch {len(picked)} selected" if picked else "Select cards to watch", key="set_add",
+                 icon=":material/star:", disabled=not picked):
+        add_cards(picked)
 
 # ---------------------------------------------------------------------------
 # Rising on EDHREC

@@ -529,6 +529,24 @@ cards rising there (no score weight until it can be backtested). Card pages
 show the **salt score** and the card's jobs. The change column fills in
 once there are decks from before the latest week.
 
+## Sets tab (added 2026-11-23)
+
+Watch list -> **Sets** (`sets.py`): pick any set (type part of the name:
+"star trek", "spider"); Scryfall's set list (cached weekly) gives its symbol,
+release date, type and related sets (main set, Commander decks, promos,
+masterpieces), which can be included together. Shown: printings, the
+normal-price total for one of each, the median card, cards $10+, the **top
+12 as card images**, and every printing in a table (thumbnail, number,
+rarity, look, normal / foil / EUR price, EDHREC rank, card-page link;
+select rows to watch). Sort by most valuable (any finish), normal price,
+foil price, most played in Commander, or set number; filter by rarity,
+minimum price, or **hide special versions** (borderless, showcase,
+promos). Examples: Star Trek's most valuable printing is the $15,000
+serialized foil Captain Kathryn Janeway; its top regular cards are Deep
+Space 9 ($40.43), Jadzia Dax and Borg Cube. No free source has sales counts
+or sealed-product prices, so "top" means value or Commander play.
+CLI: `python sets.py "star trek"` / `python sets.py trk --limit 15`.
+
 ## Update everything: one job for cron and a button (added 2026-11-20)
 
 `updater.py` holds every daily step: card data (Scryfall check every 6 h),

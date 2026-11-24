@@ -24,6 +24,7 @@ eval results; git history has the story.
 | Brackets (`brackets.py`) | Spellbook classification -> official lowest bracket with reasons; target bracket in the builder |
 | Salt (`salt.py`) | EDHREC salt (top 2,000) + Archidekt fallback; deck totals; friendly-table builder option |
 | Updater (`updater.py`) | every daily step in one job: cron + the app's "Update everything now", status per step, lock |
+| Sets (`sets.py`) | Watch list tab: any set's symbol, value summary, top cards as images, every printing |
 | Watch list (`watchlist.py`) | EDHREC rising cards, daily price snapshots -> price risers, your watched cards |
 
 Quick resume:
