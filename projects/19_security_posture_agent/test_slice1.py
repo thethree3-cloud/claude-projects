@@ -136,7 +136,7 @@ class CollectorTests(unittest.TestCase):
         self.assertTrue(sec["ok"])
         self.assertEqual(len(sec["items"]), 5)
         self.assertIsNone(sec["items"][0]["process"])
-        self.assertIn("Access is denied", sec["warning"])
+        self.assertIn("needs admin rights", sec["warning"])  # Windows' "Access is denied", made clear
 
     def test_one_failed_protocol_keeps_the_other(self):
         down = runner.RunResult("win_listen_udp", False, error="boom")

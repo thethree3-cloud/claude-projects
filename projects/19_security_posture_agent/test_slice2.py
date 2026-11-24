@@ -82,6 +82,8 @@ CLEAN = {
         {"Name": "alice", "Enabled": True, "PasswordRequired": True, "SID": "S-1-5-21-1-2-3-1001"},
         {"Name": "admin2", "Enabled": False, "PasswordRequired": True, "SID": "S-1-5-21-1-2-3-1002"}]),
     "win_rdp_settings": ok("win_rdp_settings", [{"DenyConnections": 1, "NlaRequired": 1, "Port": 3389}]),
+    "win_bitlocker": ok("win_bitlocker", [{"MountPoint": "C:", "VolumeType": "OperatingSystem",
+                                           "ProtectionStatus": "On", "EncryptionPercentage": 100}]),
 }
 
 
@@ -117,6 +119,7 @@ class PlantedRecallTests(unittest.TestCase):
         ("RDP-ENABLED", "", "medium"),
         ("RDP-NLA-OFF", "", "high"),
         ("SCAN-NOT-ADMIN", "", "info"),
+        ("BITLOCKER-OFF", "C:", "medium"),
     ]
 
     @classmethod
@@ -317,7 +320,7 @@ class ReportTests(unittest.TestCase):
         snap = planted_snapshot({"win_wmi_subscriptions": down})
         text = report.render(snap, checks.run_checks(snap))
         self.assertIn("## Couldn't fully check", text)
-        self.assertIn("wmi_subscriptions**: Access is denied.", text)
+        self.assertIn("wmi_subscriptions**: needs admin rights", text)
 
     def test_no_findings_message(self):
         snap = planted_snapshot(CLEAN)

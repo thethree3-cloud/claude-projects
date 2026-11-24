@@ -41,14 +41,15 @@ in [RESULTS.md](evals/RESULTS.md).
 ## How it works
 
 ```
-runner.py      15 fixed PowerShell scripts, run by name only (no shell, timeout, 5 MB cap)
+runner.py      16 fixed PowerShell scripts, run by name only (no shell, timeout, 5 MB cap)
    │
-collectors.py  13 sections: ports, Run keys, Startup (incl. .lnk targets), scheduled tasks,
-   │           services, WMI subscriptions, Defender, firewall, updates, admins, users, RDP
+collectors.py  14 sections: ports, Run keys, Startup (incl. .lnk targets), scheduled tasks,
+   │           services, WMI subscriptions, Defender, firewall, updates, admins, users, RDP,
+   │           BitLocker (admin only)
    ▼
 snapshot.json  saved under data/ (gitignored: it holds real machine details)
    │
-checks.py      28 deterministic rules → findings with evidence, fixed fix text, NIST 800-171 refs
+checks.py      29 deterministic rules → findings with evidence, fixed fix text, NIST 800-171 refs
 baseline.py    compare with the previous scan → 7 "changed since last scan" findings
    │
    ├── report_html.py → one self-contained HTML page: severity filters, linked groups
@@ -129,13 +130,37 @@ python scan.py --from-snapshot FILE # re-check a saved snapshot
 ```
 
 Scanning, the rules and the report need only the Python standard library.
-`--explain` needs `pip install -r requirements.txt`. Running without admin works.
-A few areas (such as Defender exclusions) are then reported as "couldn't check".
+`--explain` needs `pip install -r requirements.txt`.
+
+### Admin mode (recommended)
+
+Admin rights pass through WSL, so a full scan is just a normal scan started
+from an **Administrator** PowerShell:
+
+```bash
+wsl                                   # in PowerShell opened with "Run as administrator"
+cd <this folder> && python3 scan.py   # then, inside WSL
+```
+
+Without admin the scan still works, but it's marked **partial** in the
+terminal and in both reports, and it prints the exact command to repeat it as
+admin. `--require-admin` refuses to run a partial scan. Baselines only compare
+scans taken at the same admin level, so a first admin scan doesn't report
+newly visible items as "new".
+
+Measured on the dev laptop, admin mode added:
+
+| | Normal | Admin |
+|---|---|---|
+| Scheduled tasks checked | 203 | 272 |
+| Listening ports whose program could be judged | 10 of 64 | 50 of 64 |
+| Defender exclusions | unreadable | readable |
+| BitLocker | unreadable | checked: found the system drive unencrypted |
 
 ## Tests and evals
 
 ```bash
-python -m unittest discover -p "test_slice*.py"   # 159 tests, no Windows or API key needed
+python -m unittest discover -p "test_slice*.py"   # 169 tests, no Windows or API key needed
 python evals/run_eval.py --detector               # free detector eval
 python evals/run_eval.py --reps 3                 # paid Claude eval (~$1.50), after --approve-harness
 ```

@@ -278,10 +278,20 @@ CATALOG = {
                "Defender scan. If you didn't change it, treat the computer as possibly compromised.",
         "refs": ["NIST 800-171 3.4.3", "NIST 800-171 3.14.2"],
     },
+    "BITLOCKER-OFF": {
+        "title": "The system drive isn't encrypted (BitLocker off): {subject}",
+        "why": "If this computer is lost or stolen, anyone can read the files on it by removing the "
+               "drive or booting another system. Encryption is the main protection for a laptop's data.",
+        "fix": "Settings > Privacy & security > Device encryption (or Control Panel > BitLocker Drive "
+               "Encryption) > turn it on. Save the recovery key somewhere other than this computer.",
+        "refs": ["NIST 800-171 3.13.16", "NIST 800-171 3.8.6"],
+    },
     "SCAN-NOT-ADMIN": {
-        "title": "Scan ran without admin rights",
-        "why": "Some items (Defender exclusions, some tasks and services) are only visible to admins.",
-        "fix": "For a complete scan, run it from an admin terminal.",
+        "title": "Partial scan: ran without admin rights",
+        "why": "Windows only shows some things to administrators: Defender's exclusion list (a common "
+               "hiding place), BitLocker status, and the program behind most listening ports. Those "
+               "checks were skipped or limited, so a clean result here is incomplete.",
+        "fix": "Open PowerShell as Administrator and run the scan from there (see the report's top note).",
         "refs": [],
     },
 }
@@ -724,6 +734,14 @@ def check_rdp(snapshot):
     return out
 
 
+def check_bitlocker(snapshot):
+    return [
+        _finding("BITLOCKER-OFF", "bitlocker", v["drive"] or "system drive", v, "medium")
+        for v in _items(snapshot, "bitlocker")
+        if (v.get("type") or "").lower() == "operatingsystem" and (v.get("protection") or "").lower() == "off"
+    ]
+
+
 def check_scan_context(snapshot):
     host = _items(snapshot, "host")
     if host and not host[0]["is_admin"]:
@@ -759,7 +777,7 @@ ALL_CHECKS = [
     check_persistence, check_multi_mechanism, check_wmi, check_system_service_user_path,
     check_unquoted_service_paths,
     check_remote_access_tools, check_ports, check_defender, check_firewall,
-    check_patching, check_accounts, check_rdp, check_scan_context,
+    check_patching, check_accounts, check_rdp, check_bitlocker, check_scan_context,
 ]
 
 

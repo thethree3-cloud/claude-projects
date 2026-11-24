@@ -27,3 +27,4 @@ Added in Slice 2:
 - Guest account enabled
 - RDP turned on with Network Level Authentication off
 - an auto-start service with an unquoted path containing spaces (`Acme Backup`)
+- BitLocker off on the system drive C: (and on data drive D:, which is not flagged)

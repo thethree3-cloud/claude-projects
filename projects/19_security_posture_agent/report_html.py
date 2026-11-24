@@ -16,7 +16,7 @@ import secrets
 from pathlib import Path
 
 from checks import SEVERITY_ORDER
-from report import _item_label, clean
+from report import PARTIAL_SCAN_NOTE, _item_label, clean, skipped_reason
 
 DEFAULT_DIR = Path(__file__).parent / "data" / "reports"
 
@@ -119,7 +119,7 @@ def _changes(changes):
             out.append(f"<li>…and {len(removed) - 30} more</li>")
         out.append("</ul>")
     if d["skipped"]:
-        out.append(f'<p class="muted">Not compared (missing from the older scan, or failed in either): '
+        out.append(f'<p class="muted">Not compared ({esc(skipped_reason(d))}): '
                    f'{esc(", ".join(d["skipped"]))}</p>')
     return "".join(out) + "</section>"
 
@@ -156,7 +156,8 @@ def render(snapshot, findings, changes=None, ai=None):
 <p class="muted">Scanned <b>{esc(snapshot["collected_at"])}</b> · {esc(host.get("os_caption") or "Windows")}
 build {esc(host.get("os_build") or "?")} · admin: {"yes" if host.get("is_admin") else "no"}</p>
 <p class="note">Read-only scan: nothing on this computer was changed. Findings come from fixed rules, not AI,
-and each one shows the exact evidence it's based on.</p></header>
+and each one shows the exact evidence it's based on.</p>
+{f'<p class="note partial">{esc(PARTIAL_SCAN_NOTE)}</p>' if host.get("is_admin") is False else ""}</header>
 <nav class="filters" aria-label="Filter by severity"><button class="chip all" data-filter="all" aria-pressed="true">all <b>{len(findings)}</b></button>{chips}
 <button class="toggle" data-toggle="open">expand all</button><button class="toggle" data-toggle="close">collapse all</button></nav>
 {_ai(ai, numbers) if ai is not None else ""}
@@ -190,6 +191,7 @@ h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;margin:30px 0 10px;border-bot
 h2 small{font-weight:400;color:var(--muted);font-size:13px}h3{font-size:15px;margin:0 0 4px}
 .muted{color:var(--muted)}.small{font-size:12px}
 .note{background:var(--card);border-left:3px solid var(--line);padding:8px 12px;margin:10px 0}
+.note.partial{border-left-color:var(--medium);font-weight:600}
 .filters{position:sticky;top:0;background:var(--bg);padding:10px 0;display:flex;flex-wrap:wrap;gap:6px;
 border-bottom:1px solid var(--line);z-index:1}
 .chip,.toggle{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--fg);

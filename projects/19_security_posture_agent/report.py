@@ -12,6 +12,9 @@ from pathlib import Path
 from checks import SEVERITY_ORDER
 
 DEFAULT_DIR = Path(__file__).parent / "data" / "reports"
+PARTIAL_SCAN_NOTE = ("Partial scan: this ran without admin rights, so Defender exclusions, BitLocker and "
+                     "the program behind most listening ports weren't checked. For a full scan, open "
+                     "PowerShell as Administrator and run the scan from there (scan.py prints the exact command).")
 _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 
 
@@ -115,9 +118,15 @@ def _changes_section(changes):
             out.append(f"- ...and {len(removed) - 30} more")
         out.append("")
     if d["skipped"]:
-        out += [f"Not compared (missing from the older scan, or failed in either): "
-                f"{', '.join(d['skipped'])}", ""]
+        out += [f"Not compared ({skipped_reason(d)}): {', '.join(d['skipped'])}", ""]
     return out
+
+
+def skipped_reason(d):
+    if d.get("admin_mismatch"):
+        return ("one scan ran as admin and the other didn't, so these would show items that were only "
+                "hidden before as 'new'; or the section was missing or failed")
+    return "missing from the older scan, or failed in either"
 
 
 def render(snapshot, findings, changes=None, ai=None):
@@ -135,6 +144,10 @@ def render(snapshot, findings, changes=None, ai=None):
         "> Read-only scan: nothing on this computer was changed. Findings come from fixed "
         "rules, not AI. Each one shows the exact evidence it's based on.",
         "",
+    ]
+    if h.get("is_admin") is False:
+        out += [f"> **{PARTIAL_SCAN_NOTE}**", ""]
+    out += [
         "## Summary",
         "",
         "| Severity | Count |",

@@ -9,7 +9,17 @@ Slice 7 (Project 05 tie-in), optional. Eval results: [evals/RESULTS.md](evals/RE
   escaped, and a CSP with a per-report nonce means only the report's own script and
   style run, with no network loads. Both eval follow-ups are done: the new rule
   `SVC-SYSTEM-USER-PATH` (medium), and the severity-note limit raised from 400 to
-  800. 159 tests; detector 17/17. The paid eval wasn't re-run. A Streamlit view was
+  800. The paid eval wasn't re-run.
+  - **Admin mode.** Tested: admin rights pass through WSL when it's started from an
+    Administrator PowerShell. Added a BitLocker collector and the `BITLOCKER-OFF` rule
+    (medium, system drive only). Windows "Access denied" errors now read "needs admin
+    rights". Both reports and the terminal show a partial-scan note with the exact
+    command to repeat the scan as admin. `--require-admin` was added. Baselines only
+    compare scans at the same admin level; a forced mixed comparison skips the
+    sections whose visibility depends on admin. On the dev laptop, admin mode raised
+    the scheduled tasks checked from 203 to 272, listening ports judged from 10/64 to
+    50/64, made Defender exclusions readable (none set), and found BitLocker off on C:.
+    169 tests; detector 17/17 (68 expected findings). A Streamlit view was
   considered and left out: the HTML file needs no server or new dependency.
 
 - **Slice 1:** runner, 7 Windows collectors, snapshot, `scan.py`, verified live
@@ -93,7 +103,7 @@ Decided while building:
   so a normal AppData app like Notion doesn't read as "suspicious".
 - **"Password not required" is a Windows flag, not proof of a blank password.**
   The finding is low and says so.
-- BitLocker is skipped: its status needs admin.
+- ~~BitLocker is skipped: its status needs admin.~~ Added with admin mode (Slice 6).
 
 ## One line
 

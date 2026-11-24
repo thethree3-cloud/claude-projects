@@ -91,6 +91,8 @@ BASE = {
         # sam's separate admin account: the setup ACCT-DAILY-ADMIN recommends.
         {"Name": "admin", "Enabled": True, "PasswordRequired": True, "SID": f"{SID}-1002"}],
     "win_rdp_settings": [{"DenyConnections": 1, "NlaRequired": 1, "Port": 3389}],
+    "win_bitlocker": [{"MountPoint": "C:", "VolumeType": "OperatingSystem", "ProtectionStatus": "On",
+                       "EncryptionPercentage": 100}],
 }
 
 

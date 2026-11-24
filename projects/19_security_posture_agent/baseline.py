@@ -33,7 +33,7 @@ _ACCOUNTS = {
 _BUMP = {"low": "medium", "medium": "high", "high": "high"}
 
 
-def _usable(section_name, *snaps):
+def _sections_ok(section_name, *snaps):
     """Both snapshots have this section and it worked in both."""
     for s in snaps:
         sec = s["sections"].get(section_name)
@@ -83,10 +83,24 @@ def _diff_keyed(old, new, change_fields):
     return {"added": added, "removed": removed, "changed": changed}
 
 
+# What an admin scan can see that a normal one can't. Comparing a normal scan
+# with an admin one would report everything newly visible as "new".
+_ADMIN_SENSITIVE = {"run_keys", "startup_items", "auto_services", "wmi_subscriptions",
+                    "scheduled_tasks", "listening_ports", "defender", "bitlocker"}
+
+
 def diff(old, new):
     """Section -> {added, removed, changed}. Sections missing or failed in
-    either snapshot are listed under 'skipped' instead of being guessed at."""
+    either snapshot are listed under 'skipped' instead of being guessed at,
+    as are admin-sensitive sections when one scan ran as admin and the other didn't."""
     result, skipped = {}, []
+    admin_mismatch = snapshot_mod.is_admin(old) != snapshot_mod.is_admin(new)
+
+    def _usable(name, *snaps):
+        if admin_mismatch and name in _ADMIN_SENSITIVE:
+            return False
+        return _sections_ok(name, *snaps)
+
     for name, (key, fields) in {**_PERSISTENCE, **_ACCOUNTS}.items():
         if not _usable(name, old, new):
             skipped.append(name)
@@ -112,7 +126,8 @@ def diff(old, new):
             skipped.append(name)
             continue
         settings[name] = (_items(old, name), _items(new, name))
-    return {"sections": result, "settings": settings, "skipped": sorted(skipped)}
+    return {"sections": result, "settings": settings, "skipped": sorted(skipped),
+            "admin_mismatch": admin_mismatch}
 
 
 # --- Findings from a diff ------------------------------------------------------------
@@ -241,16 +256,26 @@ def _weakened_settings(settings, evidence_base):
 
 # --- Picking a baseline --------------------------------------------------------------
 
-def previous_snapshot_path(directory, current_path):
+def previous_snapshot_path(directory, current_path, admin=None):
     """The newest snapshot taken before `current_path`, or None.
 
     Filenames are UTC timestamps, so name order is time order. Re-checking an
     old snapshot compares it with the one before it, not the newest scan.
+    With `admin` set, only scans taken at the same admin level count, so a
+    first admin scan isn't compared with a normal one.
     """
     current = Path(current_path).name
     older = [p for p in sorted(glob.glob(str(Path(directory) / "snapshot_*.json")))
              if Path(p).name < current]
-    return older[-1] if older else None
+    for p in reversed(older):
+        if admin is None:
+            return p
+        try:
+            if snapshot_mod.is_admin(snapshot_mod.load_snapshot(p)) == admin:
+                return p
+        except (OSError, ValueError, KeyError):
+            continue
+    return None
 
 
 def compare(new_snapshot, baseline_path):

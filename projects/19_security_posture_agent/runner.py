@@ -124,6 +124,14 @@ _WINDOWS_SCRIPTS = {
         "Source=[string]$_.PrincipalSource; SID=[string]$_.SID} }; "
         "ConvertTo-Json -Compress -InputObject @($u)"
     ),
+    # Needs admin: without it Windows answers "Access denied".
+    # On Windows editions without BitLocker the cmdlet doesn't exist.
+    "win_bitlocker": (
+        "$v = Get-BitLockerVolume | ForEach-Object { [pscustomobject]@{"
+        "MountPoint=$_.MountPoint; VolumeType=[string]$_.VolumeType; "
+        "ProtectionStatus=[string]$_.ProtectionStatus; EncryptionPercentage=$_.EncryptionPercentage} }; "
+        "ConvertTo-Json -Compress -InputObject @($v)"
+    ),
     "win_rdp_settings": (
         "$ts = Get-ItemProperty 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server'; "
         "$rt = Get-ItemProperty "
