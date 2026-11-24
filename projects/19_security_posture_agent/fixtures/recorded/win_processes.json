@@ -1,0 +1,27 @@
+[
+ {
+  "Id": 1100,
+  "ProcessName": "svchost",
+  "Path": null
+ },
+ {
+  "Id": 1200,
+  "ProcessName": "svchost",
+  "Path": null
+ },
+ {
+  "Id": 1300,
+  "ProcessName": "svchost",
+  "Path": null
+ },
+ {
+  "Id": 2200,
+  "ProcessName": "postgres",
+  "Path": "C:\\Program Files\\PostgreSQL\\16\\bin\\postgres.exe"
+ },
+ {
+  "Id": 6666,
+  "ProcessName": "updater",
+  "Path": "C:\\Users\\testuser\\AppData\\Roaming\\updater\\updater.exe"
+ }
+]

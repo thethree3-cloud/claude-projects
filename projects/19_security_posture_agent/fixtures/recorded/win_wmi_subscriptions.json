@@ -1,0 +1,26 @@
+[
+ {
+  "Kind": "consumer",
+  "Class": "NTEventLogEventConsumer",
+  "Name": "SCM Event Log Consumer",
+  "CommandLine": null,
+  "ScriptText": null,
+  "Query": null
+ },
+ {
+  "Kind": "filter",
+  "Class": "__EventFilter",
+  "Name": "SCM Event Log Filter",
+  "CommandLine": null,
+  "ScriptText": null,
+  "Query": "select * from MSFT_SCMEventLogEvent"
+ },
+ {
+  "Kind": "consumer",
+  "Class": "CommandLineEventConsumer",
+  "Name": "Updater",
+  "CommandLine": "C:\\Users\\testuser\\AppData\\Roaming\\updater\\updater.exe",
+  "ScriptText": null,
+  "Query": null
+ }
+]

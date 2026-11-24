@@ -1,0 +1,23 @@
+[
+ {
+  "Name": "Dhcp",
+  "DisplayName": "DHCP Client",
+  "PathName": "C:\\WINDOWS\\system32\\svchost.exe -k LocalServiceNetworkRestricted -p",
+  "State": "Running",
+  "StartName": "NT Authority\\LocalService"
+ },
+ {
+  "Name": "TermService",
+  "DisplayName": "Remote Desktop Services",
+  "PathName": "C:\\WINDOWS\\System32\\svchost.exe -k NetworkService",
+  "State": "Running",
+  "StartName": "NT Authority\\NetworkService"
+ },
+ {
+  "Name": "RemoteHelperSvc",
+  "DisplayName": "Remote Helper",
+  "PathName": "C:\\ProgramData\\rh\\rhsvc.exe",
+  "State": "Running",
+  "StartName": "LocalSystem"
+ }
+]
