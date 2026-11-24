@@ -35,6 +35,50 @@ def _evidence_block(evidence):
     return "```text\n" + "\n".join(lines) + "\n```\n" if lines else ""
 
 
+def _prose(text):
+    """Claude's text, made safe to drop into Markdown: no raw HTML, headings or images."""
+    text = _CONTROL.sub(" ", text or "").replace("<", "&lt;").replace("![", "!\\[")
+    lines = [re.sub(r"^\s*#+\s*", "", line) for line in text.splitlines()]
+    return "\n".join(lines).strip()
+
+
+def _ai_section(ai, numbers):
+    out = ["## Plain-English summary (written by Claude, checked by code)", ""]
+    if ai.get("error"):
+        return out + [f"Not available: {_inline(ai['error'])}. The findings below are complete "
+                      "without it.", ""]
+    v = ai["validated"]
+    out += ["> Claude grouped and explained the findings below. It can't add findings or change "
+            "severities, and its text was checked against the real findings before being shown. "
+            "The fixes come from the fixed catalog, not from Claude.", ""]
+    if v["summary"]:
+        out += [_prose(v["summary"]), ""]
+    for n, g in enumerate(v["groups"], 1):
+        refs = ", ".join(f"#{numbers[f['id']]} [{f['severity'].upper()}]" for f in g["findings"])
+        out += [f"**{n}. {_inline(g['title'])}** ({refs})", ""]
+        if g["explanation"]:
+            out += [_prose(g["explanation"]), ""]
+        elif g["title"] != "Other findings":
+            out += ["_Explanation removed by the validator (see below)._", ""]
+    if v["notes"]:
+        out += ["Claude's notes on severity (shown for review; the rule's severity stands):", ""]
+        out += [f"- #{numbers[x['finding']['id']]}: could be **{x['suggested']}**. {_prose(x['reason'])}"
+                for x in v["notes"]]
+        out.append("")
+    checked = f"Checked by validate.py: {len(v['groups'])} group(s)"
+    if v["rejected"]:
+        out += [checked + f", {len(v['rejected'])} item(s) removed:", ""]
+        out += [f"- {_inline(r)}" for r in v["rejected"]]
+    else:
+        out.append(checked + ", nothing removed.")
+    info = ai.get("info") or {}
+    if info:
+        out += ["", f"<sub>Model {_inline(info.get('model'))} · {info.get('input_tokens')} input / "
+                    f"{info.get('output_tokens')} output tokens</sub>"]
+    out.append("")
+    return out
+
+
 def _item_label(section, item):
     if section == "scheduled_tasks":
         return item["task"]
@@ -76,9 +120,10 @@ def _changes_section(changes):
     return out
 
 
-def render(snapshot, findings, changes=None):
+def render(snapshot, findings, changes=None, ai=None):
     """changes: None = comparison turned off; {'diff': None} = no baseline yet;
-    {'diff': ..., 'label': ...} = compared."""
+    {'diff': ..., 'label': ...} = compared.
+    ai: None = not requested; {'error': str} or {'validated': ..., 'info': ...}."""
     host = (snapshot["sections"].get("host") or {}).get("items") or [{}]
     h = host[0]
     out = [
@@ -98,6 +143,9 @@ def render(snapshot, findings, changes=None):
     for sev in SEVERITY_ORDER:
         out.append(f"| {sev} | {sum(1 for f in findings if f['severity'] == sev)} |")
     out.append("")
+
+    if ai is not None:
+        out += _ai_section(ai, {f["id"]: n for n, f in enumerate(findings, 1)})
 
     out.append("## Findings")
     out.append("")

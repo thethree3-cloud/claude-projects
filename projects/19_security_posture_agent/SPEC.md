@@ -1,6 +1,6 @@
 # Project 19 — Security Posture Audit Agent (spec)
 
-**Status:** Slices 1–3 built 2026-11-23. Next: Slice 4 (LLM explain + validator).
+**Status:** Slices 1–4 built 2026-11-23/24. Next: Slice 5 (evals).
 
 - **Slice 1:** runner, 7 Windows collectors, snapshot, `scan.py`, verified live
   without admin.
@@ -20,8 +20,35 @@
   scans show 0 changes. One real change was caught: Windows added two
   "SoftLanding" COM tasks, rated info.
 
+- **Slice 4:** `scan.py --explain` (opt-in; the only step that sends anything off
+  the machine).
+  - `redact.py` replaces the username, computer name, other local account names
+    and SIDs, keeping the RID so Guest stays recognizable.
+  - `explain.py` sends `claude-opus-5-5` at effort medium, with structured JSON
+    output, no tools, and server-side refusal `fallbacks: "default"`.
+  - `validate.py` checks the answer with 8 rules before anything is shown.
+  - The exact request and Claude's raw answer are saved under `data/llm_input/`.
+    `--explain-dry-run` saves the request without sending it.
+  - 126 tests (Claude mocked), plus mutation checks.
+  - Live, dev laptop: 4 groups, nothing removed, about 13 s, about $0.03
+    (3.2K in / 1.1K out tokens).
+  - Live, planted fixture (26 findings): no cyber refusal. Claude called the
+    injection task name "itself a reason for suspicion" and kept it high. The
+    validator removed 2 severity notes that jumped low→high. About $0.10
+    (7.6K in / 3.5–3.8K out).
+
 Decided while building:
 - Windows first; WSL checks later.
+- **Grounding is checked against every finding, not just the group's own.** The
+  strict version removed a correct explanation on the planted fixture, which had
+  cross-referenced port 4444 from another group. Invented names are still removed.
+- **Claude's severity opinions are shown, never applied.** On the planted fixture
+  Claude twice wanted the updater's two low `PERSIST-REVIEW` entries raised to
+  high. That's a fair point, and the fix belongs in the rules (follow-up below),
+  not in the model.
+- **Model:** `claude-opus-5-5` (current default). Switching to `claude-haiku-5-5`
+  is a one-line change in `explain.py` if cost ever matters. Slice 5 can measure
+  whether quality holds.
 - Signature checks deferred.
 - **Comparison skips UDP** (measured: all churn between live scans was UDP from
   browsers and svchost). TCP ports 49152+ are compared by process, not number.
@@ -203,6 +230,12 @@ alone. That gives the eval a baseline and makes the tool free to run.
 Python 3.12, existing venv, `unittest`, Claude (Haiku for explain, same cost
 profile as other projects: ~a few cents per report), optional Streamlit.
 No new heavy dependencies planned. The Windows side is plain PowerShell cmdlets.
+
+## Follow-ups found while building
+
+- Raise a low `PERSIST-REVIEW` entry when its program is also in a
+  `PERSIST-MULTI` finding (came from Claude's rejected severity notes; should be
+  a deterministic rule).
 
 ## Open decisions
 
