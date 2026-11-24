@@ -19,11 +19,24 @@ def _section(items=None, error=None):
     return {"ok": error is None, "error": error, "items": items or []}
 
 
+NEEDS_ADMIN = "needs admin rights (run the scan from an Administrator terminal)"
+_ACCESS_DENIED = ("access denied", "access is denied", "must be an administrator", "requires elevation")
+
+
+def _friendly(error):
+    """Turn Windows' access errors into one clear, consistent message."""
+    if error and any(s in error.lower() for s in _ACCESS_DENIED):
+        return NEEDS_ADMIN
+    if error and "is not recognized" in error.lower():
+        return "not available on this Windows edition"
+    return error
+
+
 def _load(run, name):
     """Run a command and parse its JSON array. Returns (items, error)."""
     result = run(name)
     if not result.ok:
-        return None, result.error
+        return None, _friendly(result.error)
     try:
         data = json.loads(result.stdout) if result.stdout else []
     except json.JSONDecodeError as e:
@@ -79,8 +92,13 @@ def collect_listening_ports(run=runner.run):
     # Partial data is still useful: whatever ports were read are kept.
     # A process-list failure only loses names, so it's a warning, not an error.
     section = _section(items, "; ".join(errors) or None)
+    hidden = sum(1 for i in items if i["process_path"] is None)
     if proc_err:
         section["warning"] = f"process names missing: {proc_err}"
+    elif items and hidden > len(items) // 2:
+        # Without admin, Windows hides the program path of most system processes,
+        # so the rules can't judge where most listeners run from.
+        section["warning"] = f"program path hidden for {hidden} of {len(items)} ports (usually needs admin)"
     return section
 
 
@@ -254,6 +272,21 @@ def collect_local_users(run=runner.run):
     ])
 
 
+def collect_bitlocker(run=runner.run):
+    rows, err = _load(run, "win_bitlocker")
+    if err:
+        return _section(error=err)
+    return _section([
+        {
+            "drive": r.get("MountPoint"),
+            "type": r.get("VolumeType"),
+            "protection": r.get("ProtectionStatus"),
+            "encrypted_percent": r.get("EncryptionPercentage"),
+        }
+        for r in rows
+    ])
+
+
 def collect_rdp_settings(run=runner.run):
     d, err = _single(run, "win_rdp_settings")
     if err:
@@ -280,4 +313,5 @@ COLLECTORS = {
     "local_admins": collect_local_admins,
     "local_users": collect_local_users,
     "rdp_settings": collect_rdp_settings,
+    "bitlocker": collect_bitlocker,
 }

@@ -24,6 +24,7 @@ import checks
 import explain
 import redact
 import report
+import report_html
 import snapshot
 import validate
 
@@ -36,8 +37,11 @@ def main(argv=None):
     parser.add_argument("--explain", action="store_true", help="ask Claude to group and explain the findings")
     parser.add_argument("--explain-dry-run", action="store_true",
                         help="save the redacted data --explain would send, without sending it")
+    parser.add_argument("--require-admin", action="store_true",
+                        help="stop instead of running a partial scan without admin rights")
     parser.add_argument("--out", default=None, help="folder for the snapshot and report (default: data/)")
     args = parser.parse_args(argv)
+    argv_used = list(sys.argv[1:] if argv is None else argv)
     if args.baseline and args.no_baseline:
         parser.error("--baseline and --no-baseline can't be used together")
     if args.explain and args.explain_dry_run:
@@ -53,6 +57,10 @@ def main(argv=None):
         snap_dir = snap_path.parent
         print(f"Checking saved snapshot {snap_path}")
     else:
+        if args.require_admin and not windows_admin():
+            print("Not running as admin, so nothing was scanned (--require-admin).\n"
+                  "Open PowerShell as Administrator and run:\n\n  " + admin_command(argv_used), file=sys.stderr)
+            return 2
         print("Collecting (read-only)...")
         snap = snapshot.build_snapshot()
         snap_path = snapshot.save_snapshot(snap, snap_dir)
@@ -62,7 +70,8 @@ def main(argv=None):
     findings = checks.run_checks(snap)
     changes = None
     if not args.no_baseline:
-        base_path = args.baseline or baseline.previous_snapshot_path(snap_dir, snap_path)
+        base_path = args.baseline or baseline.previous_snapshot_path(
+            snap_dir, snap_path, admin=snapshot.is_admin(snap))
         if base_path:
             d, change_findings, label = baseline.compare(snap, base_path)
             findings = checks.sort_findings(findings + change_findings)
@@ -77,17 +86,48 @@ def main(argv=None):
         ai = run_explain(snap, findings, changes, data_dir, dry_run=args.explain_dry_run)
 
     path = report.save_report(report.render(snap, findings, changes, ai), snap, report_dir)
+    html_path = report_html.save(report_html.render(snap, findings, changes, ai), snap, report_dir)
 
     counts = Counter(f["severity"] for f in findings)
     print("\nFindings: " + ", ".join(f"{counts[s]} {s}" for s in checks.SEVERITY_ORDER))
     for f in findings:
         if f["severity"] in ("high", "medium"):
             print(f"  [{f['severity'].upper()}] {report.clean(f['title'], 100)}")
-    print(f"\nReport: {path}")
+    if snapshot.is_admin(snap) is False:
+        print("\nPartial scan: not running as admin, so Defender exclusions, BitLocker and most\n"
+              "listening programs couldn't be checked. For a full scan, open PowerShell as\n"
+              "Administrator and run:\n\n  " + admin_command(argv_used))
+    print(f"\nReport: {html_path}  (open in a browser)")
+    print(f"        {path}")
     print("Snapshot and report hold real machine details. They stay local; don't commit or share them.")
 
     failed = [n for n, s in snap["sections"].items() if not s["ok"]]
     return 1 if len(failed) == len(snap["sections"]) else 0
+
+
+def windows_admin():
+    """Is the Windows side running elevated? (Admin rights pass through WSL when
+    WSL is started from an Administrator terminal.)"""
+    import collectors
+    host = collectors.collect_host_info()
+    return bool(host["ok"] and host["items"][0]["is_admin"])
+
+
+def admin_command(args):
+    """The exact line to paste into an Administrator PowerShell to repeat this scan with admin rights."""
+    import shlex
+    here = Path(__file__).resolve().parent
+    keep, skip_next = [], False
+    for a in args:  # drop options that point at a saved snapshot or ask for admin again
+        if skip_next:
+            skip_next = False
+            continue
+        if a in ("--from-snapshot",):
+            skip_next = True
+            continue
+        keep.append(a)
+    inner = f"cd {shlex.quote(str(here))} && {shlex.quote(sys.executable)} scan.py {' '.join(map(shlex.quote, keep))}"
+    return f'wsl -e bash -lc "{inner.strip()}"'
 
 
 def prepare_explain(snap, findings, changes_label=None):

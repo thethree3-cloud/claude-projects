@@ -39,6 +39,13 @@ def load_snapshot(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def is_admin(snapshot):
+    """True / False, or None if the host section is missing or failed."""
+    sec = snapshot["sections"].get("host") or {}
+    items = sec.get("items") if sec.get("ok") else None
+    return bool(items[0].get("is_admin")) if items else None
+
+
 def summarize(snapshot):
     """One line per section: name, item count, and status. No item details."""
     lines = []

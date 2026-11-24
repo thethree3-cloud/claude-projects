@@ -2,8 +2,8 @@
   "summary": {
     "scenarios": 17,
     "passed": 17,
-    "expected_findings": 67,
-    "found": 67,
+    "expected_findings": 68,
+    "found": 68,
     "false_alarms": 0
   },
   "rows": [
@@ -221,7 +221,7 @@
       "tags": [
         "mixed"
       ],
-      "findings": 24,
+      "findings": 25,
       "pass": 1.0,
       "recall": 1.0,
       "false_alarms": 0.0,

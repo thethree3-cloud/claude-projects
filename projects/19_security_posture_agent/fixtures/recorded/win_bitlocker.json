@@ -1,0 +1,4 @@
+[
+ {"MountPoint": "C:", "VolumeType": "OperatingSystem", "ProtectionStatus": "Off", "EncryptionPercentage": 0},
+ {"MountPoint": "D:", "VolumeType": "Data", "ProtectionStatus": "Off", "EncryptionPercentage": 0}
+]
