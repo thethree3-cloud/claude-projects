@@ -148,6 +148,20 @@ details.more[open] summary { margin-bottom: 6px; }
 .srow.low .starget { color: var(--warn); font-weight: 600; }
 .srow .hint { padding: 0 0 6px 0; }
 @media (max-width: 480px) { .srow summary { grid-template-columns: 5.5rem minmax(40px, 1fr) 2rem; } .srow .starget { grid-column: 1 / -1; } }
+.filters { display: flex; gap: 8px 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.fsearch { flex: 1 1 200px; }
+.fcolors { display: inline-flex; gap: 4px; }
+.fc { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); font: 700 .72rem/1 var(--body); color: var(--pip-ink); opacity: .45; }
+.fc.W { background: var(--pip-w); } .fc.U { background: var(--pip-u); } .fc.B { background: var(--pip-b); }
+.fc.R { background: var(--pip-r); } .fc.G { background: var(--pip-g); } .fc.C { background: var(--pip-c); }
+.fc[aria-pressed="true"] { opacity: 1; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+.fprice { display: inline-flex; align-items: center; gap: 4px; font-size: .86rem; }
+.fprice input { width: 4.4rem; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.fcount { font-size: .8rem; color: var(--muted); }
+.toast { position: fixed; z-index: 30; left: 50%; transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: calc(100% - 32px); display: flex; gap: 12px; align-items: center;
+  background: var(--ink); color: var(--bg); padding: 10px 12px 10px 16px; border-radius: 10px; box-shadow: 0 10px 30px -12px rgba(0,0,0,.5); font-size: .9rem; }
+.toast .btn { background: var(--bg); color: var(--ink); border-color: transparent; }
 .exportp { margin-top: 10px; display: grid; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; }
 .tradenote { font-size: .84rem; background: var(--ok-bg); color: var(--ok); border-radius: 8px; padding: 8px 12px; margin-top: 10px; }
 .opts { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
@@ -373,8 +387,32 @@ select.btn { max-width: 100%; }
     <label class="checks"><input id="exportPull" type="checkbox"> Only PULL cards</label>
     <p class="hint" id="exportNote">Exports exactly what the pile shows now, so a place, set or trade-binder filter applies.</p>
   </div>
+  <div class="filters" id="filters">
+    <div class="suggest fsearch">
+      <label class="sr" for="pileSearch">Search the pile</label>
+      <input id="pileSearch" type="search" autocomplete="off" placeholder="Search your pile by name or type">
+    </div>
+    <div class="fcolors" role="group" aria-label="Colors">
+      <button type="button" class="fc W" data-color="W" aria-pressed="false" title="White">W</button>
+      <button type="button" class="fc U" data-color="U" aria-pressed="false" title="Blue">U</button>
+      <button type="button" class="fc B" data-color="B" aria-pressed="false" title="Black">B</button>
+      <button type="button" class="fc R" data-color="R" aria-pressed="false" title="Red">R</button>
+      <button type="button" class="fc G" data-color="G" aria-pressed="false" title="Green">G</button>
+      <button type="button" class="fc C" data-color="C" aria-pressed="false" title="Colorless">C</button>
+    </div>
+    <label class="sr" for="typeFilter">Card type</label>
+    <select id="typeFilter" class="btn small">
+      <option value="">Any type</option><option>Creature</option><option>Instant</option><option>Sorcery</option>
+      <option>Artifact</option><option>Enchantment</option><option>Planeswalker</option><option>Land</option><option>Battle</option>
+    </select>
+    <span class="fprice"><label class="sr" for="priceMin">Lowest price</label>$<input id="priceMin" type="number" min="0" step="0.5" inputmode="decimal" placeholder="min">
+      –<label class="sr" for="priceMax">Highest price</label>$<input id="priceMax" type="number" min="0" step="0.5" inputmode="decimal" placeholder="max"></span>
+    <button type="button" class="btn small" id="clearFilters" hidden>Clear filters</button>
+    <span class="fcount" id="filterCount" aria-live="polite"></span>
+  </div>
   <div class="setstrip" id="setStrip" hidden aria-label="Sets in your pile"></div>
   <div class="tradenote" id="tradeNote" hidden></div>
+  <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" class="btn small" id="undoBtn">Undo</button></div>
   <div class="example" id="exampleNote" hidden>
     <span>Example pile. Scan a photo or type a card and these examples go away.</span>
     <button type="button" class="btn small" id="clearExample">Clear examples</button>
@@ -1070,6 +1108,11 @@ ${candidates.join("\n") || "(none)"}`;
     const rows = S.pile.filter((p) => !S.place || (p.locs || []).some((l) => l.b === S.place))
       .filter((p) => !S.trade || (!p.example && !inAnyDeck.has(p.name)))
       .map((p) => ({ p, c: S.byKey.get(norm(p.name)) })).filter((x) => x.c);
+    const before = rows.length;
+    for (let i = rows.length - 1; i >= 0; i--) if (!passFilters(rows[i].p, rows[i].c)) rows.splice(i, 1);
+    const active = filtersActive();
+    $("clearFilters").hidden = !active;
+    $("filterCount").textContent = active ? `Showing ${rows.length} of ${before}` : "";
     renderSetStrip(rows);
     if (S.setFilter) for (let i = rows.length - 1; i >= 0; i--) if (entrySet(rows[i].p, rows[i].c)[0] !== S.setFilter) rows.splice(i, 1);
     for (const x of rows) x.f = fit(x.c);
@@ -1111,6 +1154,8 @@ ${candidates.join("\n") || "(none)"}`;
     renderDeck();
     $("exampleNote").hidden = !S.pile.some((p) => p.example);
     $("empty").hidden = rows.length > 0;
+    $("empty").textContent = filtersActive() || S.place || S.setFilter || S.trade
+      ? "No cards match these filters." : "No cards yet. Take a photo of a card or a binder page.";
     $("pile").replaceChildren(...rows.map(cardRow));
   }
 
@@ -1177,6 +1222,47 @@ ${candidates.join("\n") || "(none)"}`;
       el("span", { class: "tchg " + dir, text: words }),
       t.buy != null ? el("span", { class: "asof", text: `Card Kingdom pays ${money(t.buy / 100)}` }) : null);
   }
+
+  // ---------- undo: one step, for 10 seconds after a removal, clear, add or deck removal ----------
+  const Undo = { snap: null, timer: null };
+  function withUndo(label, fn) {
+    const snap = { pile: JSON.parse(JSON.stringify(S.pile.filter((p) => !p.example))),
+      decks: JSON.parse(JSON.stringify(S.decks)), deckId: S.deckId };
+    fn();
+    Undo.snap = snap;
+    $("toastText").textContent = label;
+    $("toast").hidden = false;
+    clearTimeout(Undo.timer);
+    Undo.timer = setTimeout(() => { $("toast").hidden = true; Undo.snap = null; }, 10000);
+  }
+  function undo() {
+    const s = Undo.snap;
+    if (!s) return;
+    Undo.snap = null; clearTimeout(Undo.timer); $("toast").hidden = true;
+    S.pile = s.pile; S.decks = s.decks; S.deckId = s.deckId;
+    savePile(); saveDecks(); render();
+  }
+
+  // ---------- pile search and filters ----------
+  const F = { q: "", colors: new Set(), type: "", min: null, max: null };
+  function filtersActive() { return !!(F.q || F.colors.size || F.type || F.min != null || F.max != null); }
+  function passFilters(p, c) {
+    if (F.q) {
+      const hay = norm(`${c.name} ${c.type}`);
+      if (!F.q.split(" ").every((w) => hay.includes(w))) return false;
+    }
+    if (F.colors.size) {
+      // Cards whose colors include every chosen color; C = colorless.
+      if (F.colors.has("C")) { if (c.ci) return false; }
+      for (const col of F.colors) if (col !== "C" && !c.ci.includes(col)) return false;
+    }
+    if (F.type && !c.type.includes(F.type)) return false;
+    const u = unitPrice(p, c);
+    if (F.min != null && (u == null || u < F.min)) return false;
+    if (F.max != null && (u == null || u > F.max)) return false;
+    return true;
+  }
+  function readNum(id) { const v = $(id).value.trim(); const n = Number(v); return v !== "" && isFinite(n) && n >= 0 ? n : null; }
 
   // ---------- set symbols (Scryfall icons shipped with the page, drawn as CSS masks) ----------
   const RARITY = { c: "common", u: "uncommon", r: "rare", m: "mythic", s: "special", b: "bonus" };
@@ -1247,7 +1333,9 @@ ${candidates.join("\n") || "(none)"}`;
         aiBox));
 
     const qty = el("span", { class: "qty" },
-      el("button", { type: "button", "aria-label": "One fewer", text: "−", onclick: () => { p.qty -= 1; if (p.qty < 1) S.pile = S.pile.filter((x) => x !== p); savePile(); render(); } }),
+      el("button", { type: "button", "aria-label": "One fewer", text: "−", onclick: () => {
+        if (p.qty > 1) { p.qty -= 1; savePile(); render(); return; }
+        withUndo(`Removed ${p.name}.`, () => { S.pile = S.pile.filter((x) => x !== p); savePile(); render(); }); } }),
       el("span", { text: String(p.qty) }),
       el("button", { type: "button", "aria-label": "One more", text: "+", onclick: () => { p.qty += 1; savePile(); render(); } }));
 
@@ -1397,16 +1485,62 @@ Reply with only JSON: {"layout": "single" | "loose" | "grid", "cards": [{"name":
   }
 
   const MAX_PICK = 30;
-  function enqueue(files) {
+  // Duplicate photos: the same file picked again would count every card twice. Each photo's
+  // SHA-256 is remembered (the last 1,000, on this device); a repeat waits for your OK.
+  const SEEN_KEY = "ccs.seenphotos.v1";
+  const seen = new Map(Object.entries(store.get(SEEN_KEY, {}) || {}));
+  async function photoHash(file) {
+    try {
+      const d = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+      return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    } catch { return null; }   // no hash, no duplicate check for this photo
+  }
+  function rememberPhoto(hash) {
+    if (!hash) return;
+    seen.delete(hash); seen.set(hash, Date.now());
+    while (seen.size > 1000) seen.delete(seen.keys().next().value);
+    store.set(SEEN_KEY, Object.fromEntries(seen));
+  }
+  function queuePhoto(f, hash) {
+    rememberPhoto(hash);
+    S.queue.push({ file: f, loc: takeLocation() });   // place/page fixed when the photo is queued
+  }
+
+  async function enqueue(files) {
     const all = [...(files || [])].filter(Boolean);
     const list = all.slice(0, MAX_PICK);
     if (!list.length) return;
     S.skipped = all.length - list.length;
-    for (const f of list) S.queue.push({ file: f, loc: takeLocation() });   // place/page fixed when the photo is taken
+    const dupes = [], batch = new Set();
+    for (const f of list) {
+      const h = await photoHash(f);
+      if (h && (seen.has(h) || batch.has(h))) { dupes.push({ f, h, when: seen.get(h) }); continue; }
+      if (h) batch.add(h);
+      queuePhoto(f, h);
+    }
+    showDupes(dupes);
+    if (!S.queue.length) return;
     if (!S.scanning) processQueue();
     else setStatus(`${S.queue.length} photo${S.queue.length === 1 ? "" : "s"} waiting…`, "", true);
-    if (S.skipped) $("report").hidden = false, $("report").replaceChildren(el("div", { class: "fix" },
+    if (S.skipped) $("report").hidden = false, $("report").append(el("div", { class: "fix" },
       el("span", { text: `You picked ${all.length} photos; the first ${MAX_PICK} are queued. Pick the other ${S.skipped} once these are done.` })));
+  }
+
+  function showDupes(dupes) {
+    const box = $("report");
+    box.replaceChildren();
+    if (!dupes.length) { box.hidden = true; return; }
+    box.hidden = false;
+    const ago = (t) => { if (!t) return "in this pick"; const m = Math.round((Date.now() - t) / 60000);
+      return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+    const row = el("div", { class: "fix" },
+      el("span", { text: `${dupes.length} photo${dupes.length === 1 ? " was" : "s were"} already scanned (${[...new Set(dupes.map((d) => ago(d.when)))].join(", ")}), so ${dupes.length === 1 ? "it was" : "they were"} skipped to avoid counting cards twice.` }),
+      el("button", { type: "button", class: "btn small", text: dupes.length === 1 ? "Scan it anyway" : "Scan them anyway", onclick: () => {
+        for (const d of dupes) queuePhoto(d.f, d.h);
+        row.remove(); if (!box.children.length) box.hidden = true;
+        if (!S.scanning) processQueue(); else setStatus(`${S.queue.length} photos waiting…`, "", true);
+      } }));
+    box.append(row);
   }
 
   // Keep the screen on while photos are being read (Screen Wake Lock; released when the
@@ -1554,7 +1688,7 @@ Reply with only JSON: {"layout": "single" | "loose" | "grid", "cards": [{"name":
         el("ul", { class: "rlist" }, rows),
         el("div", { class: "rfoot" },
           el("button", { type: "button", class: "btn primary small", text: `Add ${kept.length} card${kept.length === 1 ? "" : "s"}`,
-            disabled: kept.length ? null : true, onclick: () => { commitGroup(g); S.review.splice(gi, 1); renderReview(); setStatus(`Added ${kept.length} card${kept.length === 1 ? "" : "s"}.`, "okay"); } }),
+            disabled: kept.length ? null : true, onclick: () => { withUndo(`Added ${kept.length} card${kept.length === 1 ? "" : "s"}.`, () => commitGroup(g)); S.review.splice(gi, 1); renderReview(); setStatus(`Added ${kept.length} card${kept.length === 1 ? "" : "s"}.`, "okay"); } }),
           el("button", { type: "button", class: "btn small", text: "Only the flagged ones", onclick: () => { for (const it of g.items) it.keep = (itemPrice(it) ?? 0) >= at; renderReview(); } }),
           el("button", { type: "button", class: "btn small", text: "Discard photo", onclick: () => {
             S.review.splice(gi, 1);
@@ -1563,7 +1697,7 @@ Reply with only JSON: {"layout": "single" | "loose" | "grid", "cards": [{"name":
     });
     const all = S.review.length > 1 ? el("div", { class: "row-actions" },
       el("button", { type: "button", class: "btn primary small", text: "Add all checked", onclick: () => {
-        let n = 0; for (const g of S.review) n += commitGroup(g); S.review = []; renderReview(); setStatus(`Added ${n} cards.`, "okay"); } })) : null;
+        let n = 0; withUndo("Added all checked cards.", () => { for (const g of S.review) n += commitGroup(g); }); S.review = []; renderReview(); setStatus(`Added ${n} cards.`, "okay"); } })) : null;
     box.replaceChildren(...groups, ...(all ? [all] : []));
   }
 
@@ -1738,10 +1872,29 @@ Data: ${f.label}. ${f.why} Price $${card.usd ?? "unknown"}.`;
     if (d?.commander && d.commander !== S.commander?.name) setCommander(d.commander); else render();
   });
   $("deckRemoveBtn").addEventListener("click", () => {
-    S.decks = S.decks.filter((d) => d.id !== S.deckId); S.deckId = null; saveDecks(); render();
+    const name = activeDeck()?.name || "deck";
+    withUndo(`Removed ${name}.`, () => { S.decks = S.decks.filter((d) => d.id !== S.deckId); S.deckId = null; saveDecks(); render(); });
   });
   // iPhone/iPad (including iPadOS, which reports itself as a Mac with touch).
   if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) $("iosTip").hidden = false;
+  let searchTimer;
+  $("pileSearch").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { F.q = norm($("pileSearch").value); render(); }, 150); });
+  document.querySelectorAll("[data-color]").forEach((b) => b.addEventListener("click", () => {
+    const col = b.dataset.color;
+    if (F.colors.has(col)) F.colors.delete(col); else F.colors.add(col);
+    if (col === "C" && F.colors.has("C")) for (const x of "WUBRG") F.colors.delete(x);   // colorless excludes colors
+    if (col !== "C") F.colors.delete("C");
+    document.querySelectorAll("[data-color]").forEach((x) => x.setAttribute("aria-pressed", String(F.colors.has(x.dataset.color))));
+    render();
+  }));
+  $("typeFilter").addEventListener("change", () => { F.type = $("typeFilter").value; render(); });
+  for (const id of ["priceMin", "priceMax"]) $(id).addEventListener("input", () => { F.min = readNum("priceMin"); F.max = readNum("priceMax"); render(); });
+  $("clearFilters").addEventListener("click", () => {
+    F.q = ""; F.colors.clear(); F.type = ""; F.min = F.max = null;
+    $("pileSearch").value = ""; $("typeFilter").value = ""; $("priceMin").value = ""; $("priceMax").value = "";
+    document.querySelectorAll("[data-color]").forEach((x) => x.setAttribute("aria-pressed", "false"));
+    render();
+  });
   $("exportBtn").addEventListener("click", () => {
     const open = $("exportPanel").hidden;
     $("exportPanel").hidden = !open; $("exportBtn").setAttribute("aria-expanded", String(open));
@@ -1753,7 +1906,11 @@ Data: ${f.label}. ${f.why} Price $${card.usd ?? "unknown"}.`;
   $("clearExample").addEventListener("click", () => { S.pile = S.pile.filter((p) => !p.example); render(); });
   $("clearBtn").addEventListener("click", () => { $("confirmClear").hidden = false; });
   $("clearNo").addEventListener("click", () => { $("confirmClear").hidden = true; });
-  $("clearYes").addEventListener("click", () => { S.pile = []; savePile(); $("confirmClear").hidden = true; render(); });
+  $("clearYes").addEventListener("click", () => {
+    const n = S.pile.filter((p) => !p.example).length;
+    withUndo(`Cleared ${n} card${n === 1 ? "" : "s"}.`, () => { S.pile = []; savePile(); $("confirmClear").hidden = true; render(); });
+  });
+  $("undoBtn").addEventListener("click", undo);
   $("copyBtn").addEventListener("click", async () => {
     const text = S.pile.filter((p) => !p.example).map((p) => `${p.qty} ${p.name}`).join("\n");
     const b = $("copyBtn");
