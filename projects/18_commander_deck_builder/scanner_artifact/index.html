@@ -219,7 +219,9 @@ body.prices-only .card.leave:hover, body.prices-only .card.leave:focus-within { 
 table.versions { border-collapse: collapse; width: 100%; font-size: .8rem; }
 .versions th, .versions td { padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
 .versions th { font-weight: 600; color: var(--muted); background: var(--sunken); }
-.versions th.p { text-align: right; }
+.versions th { overflow-wrap: normal; white-space: nowrap; }
+.versions th.p { text-align: right; width: 1%; }
+.versions td.p { min-width: 4.6rem; }
 .versions td.p { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; font-size: .9rem; width: 1%; }
 .versions .row-actions { margin-top: 5px; }
 .versions tr.yours td { background: var(--ok-bg); }
