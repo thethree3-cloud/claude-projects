@@ -10,6 +10,7 @@ Steps (each one's result is kept in ``data/update_status.json``):
   7. tournaments    import up to 2 new big EDHTop16 events (once per day)
   8. card tags      Scryfall Tagger jobs (weekly)
   9. digest         the daily digest (once per price date)
+ 10. scanner export files for the Card Scanner artifact (once per price date)
 ``force`` re-runs the once-a-day steps even if they already ran today (sources
 still only change when they publish); card tags stay weekly either way. A step that fails is recorded and the
 others still run.
@@ -39,7 +40,7 @@ STATUS_PATH = DATA / "update_status.json"
 LOCK_PATH = DATA / "update.lock"
 LOG_PATH = DATA / "update_log.txt"
 STEPS = ("card data", "prices", "popularity", "owned cards", "buylist", "casual decks", "tournaments",
-         "card tags", "digest")
+         "card tags", "digest", "scanner export")
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +213,11 @@ def run_update(force=False, log=print, status_path=STATUS_PATH, lock=LOCK_PATH):
                 path, _ = alerts.daily_digest(db, wl, price_date, log=log)
                 return f"{path.name}"
             step("digest", digest, key=price_date)
+
+            def scanner():
+                import export_scanner_data
+                return export_scanner_data.export_all(log=lambda *_: None)
+            step("scanner export", scanner, key=price_date)
         finally:
             wl.close()
             db.close()

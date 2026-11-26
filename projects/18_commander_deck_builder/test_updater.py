@@ -65,6 +65,7 @@ class RunTests(unittest.TestCase):
             mock.patch("tournaments.auto_import", return_value=["Big Open"]),
             mock.patch("scryfall_tags.is_stale", return_value=False),
             mock.patch("alerts.daily_digest", return_value=(self.dir / "2026-11-20.md", "# d")),
+            mock.patch("export_scanner_data.export_all", return_value="1 cards, 0 commanders"),
         ]
         for p in patches:
             p.start()

@@ -1,0 +1,1765 @@
+<title>Commander Card Scanner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one working column. Sticky commander bar on top, scan controls, then the pile
+   as a stack of card "title bars" (name + mana pips + price), the way a card reads. */
+:root {
+  --bg: #f3f4f1;          /* pale slate-sage paper */
+  --surface: #ffffff;
+  --sunken: #e8eae5;
+  --ink: #1c211f;
+  --muted: #5d6762;
+  --line: #d4d8d2;
+  --accent: #2f5d50;      /* deep verdigris, like an aged frame edge */
+  --accent-ink: #ffffff;
+  --good: #22744a; --good-bg: #e2f2e8;
+  --ok: #2b5f9e;   --ok-bg: #e4edf8;
+  --meh: #6b6f6c;  --meh-bg: #ecedea;
+  --bad: #a3352b;  --bad-bg: #f8e5e2;
+  --warn: #8a5a00; --warn-bg: #f9eed6;
+  --pip-w: #f4efd2; --pip-u: #a9cde9; --pip-b: #b9aeaa; --pip-r: #eba58f; --pip-g: #9dcfae; --pip-c: #d5d4cf;
+  --pip-ink: #1c211f;
+  --rar-c: #2a2f2c; --rar-u: #6f8594; --rar-r: #a8862e; --rar-m: #d0592a; --rar-s: #7b5ab0;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121614; --surface: #1b201e; --sunken: #232927; --ink: #e7ebe8; --muted: #9aa49f; --line: #2f3633;
+  --accent: #6fb39f; --accent-ink: #0f1513;
+  --good: #6fcf97; --good-bg: #183424; --ok: #8bb8f0; --ok-bg: #1a2a40; --meh: #a3a8a5; --meh-bg: #262b29;
+  --bad: #f08a7e; --bad-bg: #3b1d19; --warn: #e8b85a; --warn-bg: #3a2c10;
+  --pip-w: #e6dfb8; --pip-u: #7fb0d8; --pip-b: #8d8481; --pip-r: #d98670; --pip-g: #79b48d; --pip-c: #a9a8a3;
+  --rar-c: #dfe3e0; --rar-u: #a9bccb; --rar-r: #e0bf62; --rar-m: #f0844f; --rar-s: #b49ae0;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #121614; --surface: #1b201e; --sunken: #232927; --ink: #e7ebe8; --muted: #9aa49f; --line: #2f3633;
+  --accent: #6fb39f; --accent-ink: #0f1513;
+  --good: #6fcf97; --good-bg: #183424; --ok: #8bb8f0; --ok-bg: #1a2a40; --meh: #a3a8a5; --meh-bg: #262b29;
+  --bad: #f08a7e; --bad-bg: #3b1d19; --warn: #e8b85a; --warn-bg: #3a2c10;
+  --pip-w: #e6dfb8; --pip-u: #7fb0d8; --pip-b: #8d8481; --pip-r: #d98670; --pip-g: #79b48d; --pip-c: #a9a8a3;
+  --rar-c: #dfe3e0; --rar-u: #a9bccb; --rar-r: #e0bf62; --rar-m: #f0844f; --rar-s: #b49ae0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 48px; }
+h1, h2 { font-family: var(--display); font-weight: 700; letter-spacing: .02em; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.45rem; }
+h2 { font-size: 1.05rem; }
+.label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Header */
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-block: 20px 12px; }
+.asof { font-size: .8rem; color: var(--muted); }
+
+/* Sticky commander bar */
+.cmdbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 8px; box-shadow: 0 6px 18px -14px rgba(0,0,0,.35); }
+.cmdrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.cmdname { font-family: var(--display); font-weight: 700; font-size: 1.05rem; min-width: 0; overflow-wrap: anywhere; }
+.cmdnote { font-size: .82rem; color: var(--muted); }
+
+/* Autocomplete */
+.suggest { position: relative; min-width: 0; flex: 1 1 220px; }
+.suggest input { width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.suggest ul { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20; list-style: none; margin: 0; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 24px -12px rgba(0,0,0,.4); max-height: 280px; overflow-y: auto; }
+.suggest li { padding: 7px 9px; border-radius: 6px; display: flex; justify-content: space-between; gap: 8px; cursor: pointer; }
+.suggest li[aria-selected="true"], .suggest li:hover { background: var(--sunken); }
+.suggest li small { color: var(--muted); white-space: nowrap; }
+
+/* Pips */
+.pips { display: inline-flex; gap: 3px; flex: none; }
+.pip { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font: 700 .62rem/1 var(--body); color: var(--pip-ink); border: 1px solid rgba(0,0,0,.18); }
+.pip.W { background: var(--pip-w); } .pip.U { background: var(--pip-u); } .pip.B { background: var(--pip-b); }
+.pip.R { background: var(--pip-r); } .pip.G { background: var(--pip-g); } .pip.C { background: var(--pip-c); }
+
+/* Scan panel */
+.panel { margin-top: 16px; display: grid; gap: 12px; }
+.scanbtns { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 10px 14px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:disabled { opacity: .55; cursor: default; }
+.btn.small { padding: 5px 10px; font-size: .82rem; font-weight: 500; }
+.hint { font-size: .82rem; color: var(--muted); margin: 0; }
+.status { border-radius: 8px; padding: 10px 12px; font-size: .9rem; background: var(--sunken); display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.status.err { background: var(--bad-bg); color: var(--bad); }
+.status.okay { background: var(--good-bg); color: var(--good); }
+.report { display: grid; gap: 6px; font-size: .86rem; }
+.report .fix { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: var(--warn-bg); color: var(--warn); padding: 6px 10px; border-radius: 6px; }
+
+/* Summary */
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; margin-top: 18px; }
+.summary > div { background: var(--surface); padding: 10px 12px; display: grid; gap: 2px; min-width: 0; }
+.summary .num { font-size: 1.15rem; }
+.summary .pulltile { background: var(--good-bg); box-shadow: inset 0 -3px 0 var(--good); }
+.summary .pulltile .num { color: var(--good); font-weight: 600; }
+
+
+.pilehead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 6px 10px; font-size: .82rem; }
+.seg button[aria-pressed="true"] { background: var(--sunken); font-weight: 600; }
+.example { margin-top: 10px; background: var(--warn-bg); color: var(--warn); border-radius: 8px; padding: 8px 12px; font-size: .86rem; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Card rows */
+.pile { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.card.isbad { opacity: .78; }
+.bar { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--sunken); border-bottom: 1px solid var(--line); min-width: 0; }
+.bar .name { font-family: var(--display); font-weight: 700; font-size: .98rem; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.bar .price { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: .95rem; white-space: nowrap; }
+.body { padding: 9px 12px 10px; display: grid; gap: 7px; }
+.meta { display: flex; gap: 6px 12px; flex-wrap: wrap; font-size: .82rem; color: var(--muted); align-items: center; }
+.tag { font-size: .72rem; font-weight: 600; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.fit { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.badge { font-size: .78rem; font-weight: 600; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+.badge.good { background: var(--good-bg); color: var(--good); } .badge.ok { background: var(--ok-bg); color: var(--ok); }
+.badge.meh { background: var(--meh-bg); color: var(--meh); } .badge.bad { background: var(--bad-bg); color: var(--bad); }
+.fitwhy { font-size: .84rem; color: var(--muted); min-width: 0; }
+.incbar { height: 5px; background: var(--sunken); border-radius: 99px; overflow: hidden; width: 100%; max-width: 240px; }
+.incbar i { display: block; height: 100%; background: var(--good); }
+.read { font-size: .8rem; color: var(--warn); }
+.row-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.qty { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.qty button { border: 0; background: var(--surface); width: 30px; height: 28px; }
+.qty span { min-width: 28px; text-align: center; font-family: var(--mono); font-size: .85rem; }
+details.more summary { cursor: pointer; font-size: .82rem; color: var(--accent); font-weight: 600; }
+details.more[open] summary { margin-bottom: 6px; }
+.alsolist { margin: 0; padding-left: 18px; font-size: .84rem; }
+.ai { font-size: .88rem; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; }
+.shape { display: grid; gap: 4px; }
+.srow summary { display: grid; grid-template-columns: 6.5rem minmax(60px, 1fr) 2.2rem auto; gap: 10px; align-items: center; cursor: pointer; font-size: .86rem; padding: 4px 0; list-style: none; }
+.srow summary::-webkit-details-marker { display: none; }
+.srow .sbar { position: relative; height: 8px; background: var(--sunken); border-radius: 99px; }
+.srow .sbar i { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--good); }
+.srow.low .sbar i { background: var(--warn); } .srow.high .sbar i { background: var(--ok); }
+.srow .sbar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: .55; }
+.srow .snum { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.srow .starget { font-size: .78rem; color: var(--muted); white-space: nowrap; }
+.srow.low .starget { color: var(--warn); font-weight: 600; }
+.srow .hint { padding: 0 0 6px 0; }
+@media (max-width: 480px) { .srow summary { grid-template-columns: 5.5rem minmax(40px, 1fr) 2rem; } .srow .starget { grid-column: 1 / -1; } }
+.exportp { margin-top: 10px; display: grid; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; }
+.tradenote { font-size: .84rem; background: var(--ok-bg); color: var(--ok); border-radius: 8px; padding: 8px 12px; margin-top: 10px; }
+.opts { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.opt { display: grid; gap: 4px; min-width: 0; }
+.opt.grow { flex: 1 1 220px; }
+.opt input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); width: 100%; }
+#pageInput { width: 5.5rem; }
+.money-in { display: inline-flex; align-items: center; gap: 4px; }
+#pullInput { width: 5.5rem; }
+.checks { display: flex; gap: 6px 18px; flex-wrap: wrap; font-size: .86rem; }
+.checks label { display: inline-flex; gap: 6px; align-items: center; }
+.review { display: grid; gap: 10px; }
+.rgroup { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); overflow: hidden; }
+.rhead { display: flex; gap: 10px; align-items: center; padding: 8px 10px; background: var(--sunken); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.rhead img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
+.rhead .rtitle { flex: 1 1 160px; min-width: 0; font-size: .86rem; }
+.rlist { list-style: none; margin: 0; padding: 4px 10px; display: grid; }
+.rlist li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .88rem; }
+.rlist li:last-child { border-bottom: 0; }
+.rlist .rname { min-width: 0; overflow-wrap: anywhere; }
+.rlist .rprice { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.rlist .rsub { grid-column: 2 / -1; font-size: .76rem; color: var(--muted); }
+.rlist li.pull .rprice { color: var(--good); font-weight: 600; }
+/* PULL vs LEAVE: pull = green stripe, green wash, bold glowing tag; leave = quiet gray, slightly faded. */
+.pullb, .leaveb { display: inline-block; font-size: .78rem; font-weight: 800; letter-spacing: .08em; border-radius: 6px;
+  padding: 3px 9px; margin-left: 8px; vertical-align: .05em; line-height: 1.2; white-space: nowrap; }
+.pullb { color: var(--accent-ink); background: var(--good); box-shadow: 0 0 0 3px var(--good-bg), 0 0 14px -2px var(--good); }
+.leaveb { color: var(--muted); background: var(--meh-bg); border: 1px solid var(--line); font-weight: 700; font-size: .7rem; padding: 2px 7px; }
+.rlist li.pull { background: var(--good-bg); box-shadow: inset 5px 0 0 var(--good); padding-left: 12px; padding-right: 6px; border-radius: 6px; border-bottom-color: transparent; margin: 2px 0; }
+.rlist li.pull .rprice { font-size: 1.02rem; }
+.rlist li.leave { opacity: .62; }
+.card.pull { border-color: var(--good); box-shadow: inset 6px 0 0 var(--good), 0 6px 18px -14px var(--good); }
+.card.pull .bar { background: var(--good-bg); }
+.card.pull .bar .price { color: var(--good); font-weight: 600; font-size: 1.05rem; }
+body.prices-only .card.leave { opacity: .66; }
+body.prices-only .card.leave:hover, body.prices-only .card.leave:focus-within { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .pullb.fresh { animation: pullPop 900ms ease-out 1; }
+  @keyframes pullPop { 0% { transform: scale(.6); opacity: 0; } 45% { transform: scale(1.18); opacity: 1; } 100% { transform: scale(1); } }
+}
+.rfoot { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--line); flex-wrap: wrap; align-items: center; }
+.place { font-size: .78rem; color: var(--muted); }
+.ss { display: inline-block; width: 1.15em; height: 1.15em; flex: none; vertical-align: -0.18em;
+  background: var(--rar-c); -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat; }
+.ss.none { -webkit-mask: none; mask: none; border-radius: 50%; width: .6em; height: .6em; vertical-align: .1em; }
+.ss.u { background: var(--rar-u); } .ss.r { background: var(--rar-r); } .ss.m { background: var(--rar-m); }
+.ss.s, .ss.b { background: var(--rar-s); }
+.bar .ss { font-size: 1.15rem; }
+.setstrip { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.setchip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 99px;
+  background: var(--surface); font-size: .78rem; }
+.setchip .ss { font-size: 1rem; }
+.setchip b { font-family: var(--mono); font-weight: 500; }
+.setchip[aria-pressed="true"] { border-color: var(--accent); background: var(--sunken); font-weight: 600; }
+.trend { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; font-size: .8rem; }
+.spark { flex: none; }
+.spark polyline { stroke-width: 1.6; stroke: var(--muted); }
+.spark circle { fill: var(--muted); }
+.spark.up polyline { stroke: var(--good); } .spark.up circle { fill: var(--good); }
+.spark.down polyline { stroke: var(--bad); } .spark.down circle { fill: var(--bad); }
+.tchg { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 500; }
+.tchg.up { color: var(--good); } .tchg.down { color: var(--bad); } .tchg.flat { color: var(--muted); }
+.sync { font-size: .78rem; color: var(--muted); }
+.cardgrid { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+.thumb { width: 64px; aspect-ratio: 5 / 7; max-width: 100%; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); background: var(--sunken); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mine { font-size: .78rem; color: var(--accent); font-weight: 600; }
+.vwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+table.versions { border-collapse: collapse; width: 100%; font-size: .8rem; }
+.versions th, .versions td { padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.versions th { font-weight: 600; color: var(--muted); background: var(--sunken); }
+.versions th.p { text-align: right; }
+.versions td.p { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; font-size: .9rem; width: 1%; }
+.versions .row-actions { margin-top: 5px; }
+.versions tr.yours td { background: var(--ok-bg); }
+.versions tr:last-child td { border-bottom: 0; }
+.versions a { color: var(--accent); }
+.links { display: flex; gap: 12px; flex-wrap: wrap; font-size: .82rem; }
+.links a { color: var(--accent); font-weight: 600; }
+.deck { margin-top: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 10px; min-width: 0; }
+.deckhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.deckform { display: grid; gap: 6px; }
+.deckform input, .deckform textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.deckform textarea { font-family: var(--mono); font-size: .82rem; resize: vertical; }
+select.btn { max-width: 100%; }
+.deckstats { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: .86rem; }
+.deckstats b { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.warnbox { background: var(--warn-bg); color: var(--warn); border-radius: 8px; padding: 8px 10px; font-size: .84rem; }
+.golist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.golist li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .88rem; }
+.golist li:last-child { border-bottom: 0; }
+.golist .gname { min-width: 0; overflow-wrap: anywhere; }
+.golist .gp { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.golist .gsub { grid-column: 1 / -1; font-size: .78rem; color: var(--muted); }
+.have { color: var(--good); font-weight: 600; }
+.tag.indeck { color: var(--ok); border-color: var(--ok); }
+.tag.canadd { color: var(--good); border-color: var(--good); }
+.empty { text-align: center; color: var(--muted); padding: 28px 12px; border: 1px dashed var(--line); border-radius: var(--r); margin-top: 10px; }
+.foot { margin-top: 26px; font-size: .78rem; color: var(--muted); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (prefers-reduced-motion: no-preference) { .card { transition: opacity .15s; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Commander Card Scanner</h1>
+    <span class="asof" id="asof">Loading card data…</span>
+  </header>
+
+  <section class="cmdbar" aria-label="Commander">
+    <div class="cmdrow">
+      <span class="label">Commander</span>
+      <span class="cmdname" id="cmdName">—</span>
+      <span class="pips" id="cmdPips"></span>
+      <button type="button" class="btn small" id="noCmdBtn">Prices only</button>
+    </div>
+    <div class="cmdnote" id="cmdNote">Pick the commander you're building for.</div>
+    <div class="suggest" id="cmdSuggest">
+      <label class="sr" for="cmdInput">Change commander</label>
+      <input id="cmdInput" type="search" autocomplete="off" placeholder="Change commander (68 have EDHREC data), or type “no commander”" disabled>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Scan">
+    <div class="scanbtns">
+      <label class="btn primary" id="photoBtn">
+        <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
+        Take a photo
+      </label>
+      <label class="btn" id="uploadBtn">
+        <input id="uploadInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+        Upload photos
+      </label>
+    </div>
+    <p class="hint" id="scanHint">One card, a few loose cards (lay out 4 to 9 face up, titles visible), or a binder page. Take the next photo while one is being read: photos wait in line. Claude reads the title bars, then every name is checked against the card database: exact matches are kept, near misses are corrected and flagged, anything else is shown to you, never guessed.</p>
+    <p class="hint tip" id="iosTip" hidden><b>Fastest on iPhone:</b> take all your photos in the Camera app first (no "Use Photo" step between shots), then tap Upload photos → Select, and pick up to 30 at a time. They're read one after another.</p>
+    <div class="opts">
+      <div class="opt grow">
+        <label class="label" for="placeInput">Where are these cards?</label>
+        <input id="placeInput" type="text" list="placeList" placeholder="e.g. Bulk box A, or Born of the Gods binder" autocomplete="off" maxlength="60">
+        <datalist id="placeList"></datalist>
+      </div>
+      <div class="opt">
+        <label class="label" for="pageInput">Page</label>
+        <input id="pageInput" type="number" min="1" max="999" inputmode="numeric" placeholder="—">
+      </div>
+      <div class="opt">
+        <label class="label" for="pullInput">Flag cards worth</label>
+        <span class="money-in">$<input id="pullInput" type="number" min="0" step="0.25" value="1" inputmode="decimal"></span>
+      </div>
+    </div>
+    <div class="checks">
+      <label><input id="nextPage" type="checkbox" checked> Each photo is the next page</label>
+      <label><input id="reviewOn" type="checkbox" checked> Review before adding</label>
+    </div>
+    <div class="status" id="status" hidden></div>
+    <p class="hint" id="wakeNote" hidden>This view can't keep your screen on by itself. Keep the phone unlocked and this page open until the photos are read; if the phone locks, the queue carries on when you come back, though the photo being read at that moment may fail and need picking again.</p>
+    <div class="review" id="review" hidden></div>
+    <div class="report" id="report" hidden></div>
+    <div class="suggest" id="addSuggest">
+      <label class="sr" for="addInput">Add a card by name</label>
+      <input id="addInput" type="search" autocomplete="off" placeholder="Or type a card name to add it" disabled>
+    </div>
+  </section>
+
+  <section class="deck" aria-label="Deck">
+    <div class="deckhead">
+      <h2>Deck</h2>
+      <div class="row-actions">
+        <label class="sr" for="deckSelect">Saved decks</label>
+        <select id="deckSelect" class="btn small" hidden></select>
+        <button type="button" class="btn small" id="deckLoadBtn">Load a deck</button>
+        <button type="button" class="btn small" id="deckRemoveBtn" hidden>Remove deck</button>
+      </div>
+    </div>
+    <div class="deckform" id="deckForm" hidden>
+      <label class="label" for="deckName">Deck name</label>
+      <input id="deckName" type="text" placeholder="e.g. Atraxa counters" autocomplete="off">
+      <label class="label" for="deckText">Decklist</label>
+      <textarea id="deckText" rows="8" placeholder="Paste a list exported from Moxfield, Archidekt or the deck builder:&#10;1 Atraxa, Praetors' Voice *CMDR*&#10;1 Sol Ring&#10;1 Doubling Season (2XM) 160"></textarea>
+      <p class="hint">One card per line, like "1 Sol Ring". The commander is found from a "Commander" heading, a *CMDR* or [Commander] tag; otherwise the commander picked above is used. Set codes, foil marks and tags are ignored.</p>
+      <div class="row-actions">
+        <button type="button" class="btn primary small" id="deckSaveBtn">Load deck</button>
+        <button type="button" class="btn small" id="deckCancelBtn">Cancel</button>
+      </div>
+    </div>
+    <div id="deckView"><p class="hint">Load a decklist to see its value, any cards outside its colors, the popular cards that go with it but aren't in it, and which cards in your pile it's missing.</p></div>
+  </section>
+
+  <section class="summary" aria-label="Pile summary">
+    <div><span class="label">Cards</span><span class="num" id="sumCards">0</span></div>
+    <div><span class="label">Pile value</span><span class="num" id="sumValue">$0.00</span></div>
+    <div id="tileFit"><span class="label">Playable here</span><span class="num" id="sumFit">0</span></div>
+    <div id="tileFitValue"><span class="label">Playable value</span><span class="num" id="sumFitValue">$0.00</span></div>
+    <div id="tilePull" class="pulltile" hidden><span class="label" id="pullLabel">To pull</span><span class="num" id="sumPull">0</span></div>
+  </section>
+
+  <div class="pilehead">
+    <div><h2>Your pile</h2><span class="sync" id="syncNote" aria-live="polite">Saved in this browser.</span></div>
+    <div class="row-actions">
+      <div class="seg" role="group" aria-label="Sort">
+        <button type="button" data-sort="fit" aria-pressed="true">Best fit</button>
+        <button type="button" data-sort="price" aria-pressed="false">Price</button>
+        <button type="button" data-sort="trend" aria-pressed="false">Movers</button>
+        <button type="button" data-sort="recent" aria-pressed="false">Newest</button>
+      </div>
+      <button type="button" class="btn small" id="tradeBtn" aria-pressed="false">Trade binder</button>
+      <label class="sr" for="placeFilter">Show cards from</label>
+      <select id="placeFilter" class="btn small" hidden></select>
+      <button type="button" class="btn small" id="exportBtn" aria-expanded="false">Export</button>
+      <button type="button" class="btn small" id="copyBtn">Copy list</button>
+      <button type="button" class="btn small" id="clearBtn">Clear</button>
+    </div>
+  </div>
+  <div class="exportp" id="exportPanel" hidden>
+    <div class="row-actions">
+      <button type="button" class="btn small" data-export="tcg">TCGplayer Mass Entry (.txt)</button>
+      <button type="button" class="btn small" data-export="moxfield">Moxfield / Archidekt (.csv)</button>
+      <button type="button" class="btn small" data-export="sell">Sell list with buylist prices (.csv)</button>
+    </div>
+    <label class="checks"><input id="exportPull" type="checkbox"> Only PULL cards</label>
+    <p class="hint" id="exportNote">Exports exactly what the pile shows now, so a place, set or trade-binder filter applies.</p>
+  </div>
+  <div class="setstrip" id="setStrip" hidden aria-label="Sets in your pile"></div>
+  <div class="tradenote" id="tradeNote" hidden></div>
+  <div class="example" id="exampleNote" hidden>
+    <span>Example pile. Scan a photo or type a card and these examples go away.</span>
+    <button type="button" class="btn small" id="clearExample">Clear examples</button>
+  </div>
+  <div class="example" id="confirmClear" hidden>
+    <span>Remove every card from the pile?</span>
+    <span class="row-actions"><button type="button" class="btn small" id="clearYes">Remove all</button><button type="button" class="btn small" id="clearNo">Keep</button></span>
+  </div>
+  <ul class="pile" id="pile"></ul>
+  <div class="empty" id="empty" hidden>No cards yet. Take a photo of a card or a binder page.</div>
+
+  <p class="foot" id="foot">Prices: Scryfall, USD. A card shows its cheapest regular printing until you pick yours under "Versions & prices" (or the photo shows its set code and number). Photos stay on this device and only for this visit. Fit: EDHREC inclusion and synergy where cached, otherwise color identity plus overall EDHREC rank. Trends: cheapest regular TCGplayer printing, weekly, via MTGJSON; buylist offers from Card Kingdom. Your pile and decks sync to your account when you own this page; for anyone else they stay in their browser.</p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const FLAG = { GC: 1, LEGAL: 2, CMD: 4, RES: 8 };
+  const WUBRG = "WUBRG";
+  const EXAMPLE = ["Sol Ring", "Doubling Season", "Deepglow Skate", "Counterspell", "Lightning Bolt", "Evolution Sage"];
+  const DEFAULT_CMDR = "Atraxa, Praetors' Voice";
+  const PILE_KEY = "ccs.pile.v1", CMDR_KEY = "ccs.cmdr.v1", NO_CMDR = "__none__";
+
+  const S = {
+    cards: [], byKey: new Map(), byFirst: new Map(), edh: {}, meta: null,
+    commanders: [], commander: null, pile: [], sort: "fit", playedWith: null, oracle: null,
+    printings: {}, sets: null, photos: new Map(),   // photos: pile entry id -> blob: URL (this visit only)
+    decks: [], deckId: null, queue: [], scanning: false, review: [], place: "", budget: null, trade: false, deckReview: null,
+    icons: null, setNames: null, setFilter: null, allSets: false,
+  };
+  let samplePromise = null;
+  let scanCtl = null;
+
+  // ---------- small helpers ----------
+  const $ = (id) => document.getElementById(id);
+  function el(tag, props, ...kids) {
+    const n = document.createElement(tag);
+    if (props) for (const [k, v] of Object.entries(props)) {
+      if (v == null || v === false) continue;
+      if (k === "class") n.className = v;
+      else if (k === "text") n.textContent = v;
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v === true ? "" : v);
+    }
+    for (const k of kids.flat()) if (k != null && k !== false) n.append(k instanceof Node ? k : String(k));
+    return n;
+  }
+  const money = (v) => v == null ? "—" : "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function norm(s) {
+    return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[‘’ʼ`]/g, "'").replace(/[“”]/g, '"')
+      .toLowerCase().replace(/\s+/g, " ").trim();
+  }
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage blocked: pile lasts this visit */ } },
+  };
+  function pips(ci) {
+    const box = el("span", { class: "pips", "aria-label": ci ? "Colors " + ci : "Colorless" });
+    const letters = ci ? ci.split("") : ["C"];
+    for (const c of letters) box.append(el("span", { class: "pip " + c, text: c }));
+    return box;
+  }
+  const subset = (ci, of) => [...(ci || "")].every((c) => (of || "").includes(c));
+  function unionCI(a, b) { return WUBRG.split("").filter((c) => (a + b).includes(c)).join(""); }
+
+  // ---------- data ----------
+  async function load() {
+    const get = (f) => fetch(f).then((r) => { if (!r.ok) throw new Error(f + " " + r.status); return r.json(); });
+    const [rows, edh, meta] = await Promise.all([get("cards.json"), get("commanders.json"), get("meta.json")]);
+    S.meta = meta; S.edh = edh;
+    for (const r of rows) {
+      const c = { name: r[0], ci: r[1], type: r[2], mv: r[3], usd: r[4], usdMax: r[5], rank: r[6], flags: r[7], roles: r[8] || "", set: r[9] || null, rar: r[10] || null };
+      S.cards.push(c);
+      const k = norm(c.name);
+      S.byKey.set(k, c);
+      const front = norm(c.name.split(" // ")[0]);
+      if (!S.byKey.has(front)) S.byKey.set(front, c);
+      const f = front[0] || "";
+      if (!S.byFirst.has(f)) S.byFirst.set(f, []);
+      S.byFirst.get(f).push(c);
+    }
+    // Commanders: every card that can lead a deck, plus cached EDHREC pair pages.
+    const seen = new Set();
+    for (const c of S.cards) if (c.flags & FLAG.CMD) { S.commanders.push({ name: c.name, ci: c.ci, rank: c.rank }); seen.add(c.name); }
+    for (const name of Object.keys(edh)) {
+      if (seen.has(name)) continue;
+      const parts = name.split(" // ").map((p) => S.byKey.get(norm(p)));
+      if (parts.every(Boolean)) S.commanders.push({ name, ci: parts.reduce((a, p) => unionCI(a, p.ci), ""), rank: null, pair: true });
+    }
+    S.commanders.sort((a, b) => (S.edh[b.name] ? 1 : 0) - (S.edh[a.name] ? 1 : 0) || (a.rank ?? 1e9) - (b.rank ?? 1e9));
+  }
+
+  function commanderByName(name) { return S.commanders.find((c) => c.name === name) || null; }
+
+  // ---------- name matching (exact -> corrected -> unknown) ----------
+  function lev(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i]; let best = i;
+      for (let j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (cur[j] < best) best = cur[j];
+      }
+      if (best > max) return max + 1;
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+  function match(raw) {
+    const k = norm(raw);
+    if (!k) return { card: null };
+    const exact = S.byKey.get(k) || S.byKey.get(norm(k.split(" // ")[0]));
+    if (exact) return { card: exact, how: "exact" };
+    const max = Math.max(2, Math.floor(k.length * 0.2));
+    let best = null, bestD = max + 1;
+    const pools = [S.byFirst.get(k[0]) || []];
+    for (const pool of pools) for (const c of pool) {
+      const front = norm(c.name.split(" // ")[0]);
+      const d = Math.min(lev(k, front, Math.min(max, bestD)), lev(k, norm(c.name), Math.min(max, bestD)));
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    if (best && bestD <= max) return { card: best, how: "corrected" };
+    // First letter misread: one wider, slower pass over everything.
+    for (const c of S.cards) {
+      const d = lev(k, norm(c.name.split(" // ")[0]), Math.min(2, bestD));
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    return best && bestD <= 2 ? { card: best, how: "corrected" } : { card: null };
+  }
+
+  // ---------- fit ----------
+  function playedWithIndex() {
+    if (S.playedWith) return S.playedWith;
+    const idx = new Map();
+    for (const [cmdr, d] of Object.entries(S.edh)) for (const [card, [inc]] of Object.entries(d.cards)) {
+      if (!idx.has(card)) idx.set(card, []);
+      idx.get(card).push([cmdr, inc]);
+    }
+    for (const list of idx.values()) list.sort((a, b) => b[1] - a[1]);
+    return (S.playedWith = idx);
+  }
+  function fit(card) {
+    const cm = S.commander;
+    if (!cm) return { cls: "meh", label: "", why: "", score: 0, none: true };
+    if (!(card.flags & FLAG.LEGAL)) return { cls: "bad", label: "Banned in Commander", why: "Not legal in the format.", score: -2 };
+    if (!subset(card.ci, cm.ci)) {
+      const off = [...card.ci].filter((c) => !cm.ci.includes(c)).join("");
+      return { cls: "bad", label: "Outside colors", why: `Needs ${off}, which ${cm.short} can't use.`, score: -1 };
+    }
+    const data = S.edh[cm.name];
+    if (data) {
+      const e = data.cards[card.name] || data.cards[card.name.split(" // ")[0]];
+      if (!e) return { cls: "meh", label: "Fits colors, rarely played", why: `Not among the cards EDHREC lists for ${cm.short}.`, score: 1 };
+      const [inc, syn] = e;
+      const decks = data.decks ? ` of ${data.decks.toLocaleString()} decks` : " of decks";
+      const synTxt = syn >= 20 ? ` · high synergy +${syn}%` : syn > 0 ? ` · synergy +${syn}%` : syn < 0 ? ` · synergy ${syn}% (a general staple)` : "";
+      const why = `In ${inc}%${decks}${synTxt}.`;
+      if (inc >= 40) return { cls: "good", label: "Staple here", why, inc, score: 5 + inc / 100 };
+      if (inc >= 15) return { cls: "good", label: "Played often", why, inc, score: 4 + inc / 100 };
+      if (inc >= 5 || syn >= 20) return { cls: "ok", label: "Sometimes played", why, inc, score: 3 + inc / 100 };
+      return { cls: "meh", label: "Rarely played", why, inc, score: 2 + inc / 100 };
+    }
+    const r = card.rank;
+    const why = r ? `No EDHREC data for this commander; card is #${r.toLocaleString()} on EDHREC overall.` : "No EDHREC data for this commander or card.";
+    if (r && r <= 500) return { cls: "good", label: "Fits colors · popular staple", why, score: 4 };
+    if (r && r <= 3000) return { cls: "ok", label: "Fits colors · common pick", why, score: 3 };
+    return { cls: "meh", label: "Fits colors", why, score: 2 };
+  }
+
+  // ---------- printings (loaded per first letter, on demand) ----------
+  // A printing: [set, number, released, rarity, treatment, finishes, promo, usd, usd_foil, usd_etched]
+  function bucketOf(name) { const ch = name.normalize("NFKD").charAt(0).toLowerCase(); return ch >= "a" && ch <= "z" ? ch : "_"; }
+  async function printingsOf(name) {
+    const b = bucketOf(name);
+    if (!S.printings[b]) S.printings[b] = fetch(`printings/${b}.json`).then((r) => r.ok ? r.json() : {}).catch(() => ({}));
+    if (!S.sets) S.sets = fetch("sets.json").then((r) => r.ok ? r.json() : {}).catch(() => ({}));
+    const [all] = await Promise.all([S.printings[b], S.sets]);
+    return all[name] || [];
+  }
+  const scryfallPrint = (v) => `https://scryfall.com/card/${encodeURIComponent(v[0])}/${encodeURIComponent(v[1])}`;
+  const scryfallCard = (name) => `https://scryfall.com/search?q=${encodeURIComponent(`!"${name}"`)}`;
+  function priceOf(v, foil) { return foil ? (v[8] ?? v[9] ?? v[7]) : (v[7] ?? v[8] ?? v[9]); }
+  function findPrint(list, set, number) {
+    const s = norm(set), n = String(number || "").replace(/^0+/, "").toLowerCase();
+    return list.find((v) => v[0] === s && String(v[1]).replace(/^0+/, "").toLowerCase() === n) || null;
+  }
+  // Remember the chosen printing and its price on the pile entry, so totals stay synchronous.
+  async function setPrinting(p, set, number, foil) {
+    const list = await printingsOf(p.name);
+    const v = findPrint(list, set, number);
+    if (!v) return false;
+    p.print = { set: v[0], number: v[1], foil: !!foil, price: priceOf(v, foil) ?? null, rar: v[3] };
+    savePile(); render();
+    return true;
+  }
+
+  // ---------- sync to your account (owner only; everyone else keeps it in this browser) ----------
+  // Collections at the root, readable and writable by the artifact's owner alone:
+  //   pile/<entry id>  {name, qty, at, read?, print?}
+  //   decks/<deck id>  {name, commander, cards: [{n, q}], unknown, corrected, cmdrFound}
+  //   settings/main    {commander, deckId}
+  const Sync = { on: false, pile: null, decks: null, settings: null, pileSeen: new Map(), deckSeen: new Map(),
+    chains: new Map(), running: 0, waiting: [], failed: false };
+  function stable(v) {
+    if (Array.isArray(v)) return "[" + v.map(stable).join(",") + "]";
+    if (v && typeof v === "object") return "{" + Object.keys(v).sort().filter((k) => v[k] !== undefined).map((k) => JSON.stringify(k) + ":" + stable(v[k])).join(",") + "}";
+    return JSON.stringify(v);
+  }
+  // At most 4 store calls at once; calls to the same document run one after another.
+  function slot() { return Sync.running < 4 ? (Sync.running++, Promise.resolve()) : new Promise((r) => Sync.waiting.push(r)); }
+  function release() { const next = Sync.waiting.shift(); if (next) next(); else Sync.running--; }
+  function queueWrite(key, fn) {
+    const prev = Sync.chains.get(key) || Promise.resolve();
+    const next = prev.then(async () => { await slot(); try { await fn(); } finally { release(); } }).catch(writeFailed);
+    Sync.chains.set(key, next);
+    return next;
+  }
+  function writeFailed(e) {
+    if (Sync.failed) return;
+    Sync.failed = true;
+    setSyncNote(e?.code === "quota_exceeded" ? "Your account's storage for this page is full. New cards are kept in this browser only."
+      : "Couldn't save to your account just now. Changes are kept in this browser; reload to retry.");
+  }
+  function setSyncNote(text) { $("syncNote").textContent = text; }
+  const entryBody = (p) => ({ name: p.name, qty: p.qty, at: p.at, read: p.read, print: p.print, locs: p.locs });
+  const deckBody = (d) => ({ name: d.name, commander: d.commander, cards: d.cards.map(([n, q]) => ({ n, q })),
+    unknown: d.unknown || [], corrected: (d.corrected || []).map(([a, b]) => ({ a, b })), cmdrFound: !!d.cmdrFound });
+  function syncCollection(col, items, seen, toBody) {
+    const ids = new Set();
+    for (const it of items) {
+      ids.add(it.id);
+      const body = toBody(it), j = stable(body);
+      if (seen.get(it.id) === j) continue;
+      seen.set(it.id, j);
+      queueWrite(col.path + "/" + it.id, () => col.doc(it.id).set(JSON.parse(JSON.stringify(body))));
+    }
+    for (const id of [...seen.keys()]) if (!ids.has(id)) {
+      seen.delete(id);
+      queueWrite(col.path + "/" + id, () => col.doc(id).delete());
+    }
+  }
+  function saveSettings() {
+    if (!Sync.on) return;
+    const body = { commander: S.commander?.name || NO_CMDR, deckId: S.deckId || null };
+    queueWrite("settings/main", () => Sync.settings.set(body));
+  }
+  function entryFrom(id, d) {
+    if (!d || typeof d.name !== "string" || !S.byKey.has(norm(d.name))) return null;
+    const p = { id, name: d.name, qty: Math.max(1, Math.min(999, Number(d.qty) || 1)), at: Number(d.at) || 0 };
+    if (typeof d.read === "string") p.read = d.read.slice(0, 120);
+    if (d.print && typeof d.print.set === "string") p.print = { set: d.print.set, number: String(d.print.number), foil: !!d.print.foil,
+      price: typeof d.print.price === "number" ? d.print.price : null, auto: !!d.print.auto,
+      rar: typeof d.print.rar === "string" ? d.print.rar.slice(0, 1) : undefined };
+    if (Array.isArray(d.locs)) p.locs = d.locs.filter((l) => l && (l.b || l.pg)).slice(-30).map((l) => ({
+      b: typeof l.b === "string" ? l.b.slice(0, 60) : null, pg: Number(l.pg) || null, s: Number(l.s) || null }));
+    return p;
+  }
+  function deckFrom(id, d) {
+    if (!d || typeof d.name !== "string" || !Array.isArray(d.cards)) return null;
+    return { id, name: d.name.slice(0, 60), commander: typeof d.commander === "string" ? d.commander : null,
+      cards: d.cards.filter((x) => x && typeof x.n === "string").map((x) => [x.n, Math.max(1, Number(x.q) || 1)]),
+      unknown: Array.isArray(d.unknown) ? d.unknown.map(String) : [],
+      corrected: Array.isArray(d.corrected) ? d.corrected.filter((x) => x && x.a).map((x) => [String(x.a), String(x.b)]) : [],
+      cmdrFound: !!d.cmdrFound };
+  }
+
+  async function initSync() {
+    if (!window.claude?.use) return setSyncNote("Saved in this browser only.");
+    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]).catch(() => [null, null]);
+    const owner = user ? await Promise.resolve(user.isOwner()).catch(() => false) : false;
+    if (!db || !owner) return setSyncNote("Saved in this browser only.");
+    Sync.pile = db.collection("pile"); Sync.decks = db.collection("decks"); Sync.settings = db.doc("settings/main");
+    setSyncNote("Connecting to your account…");
+    let first;
+    try { first = await Promise.all([Sync.pile.get(), Sync.decks.get(), Sync.settings.get()]); }
+    catch { return setSyncNote("Couldn't reach your account. Saved in this browser only for now."); }
+    const [pileSnap, deckSnap, setSnap] = first;
+    Sync.on = true;
+    if (!setSnap.exists) {
+      // First time on this account: merge anything already stored (never delete it), then
+      // upload what this browser has, then remember that the upload happened.
+      for (const x of pileSnap.docs) {
+        const p = entryFrom(x.id, x.data());
+        if (!p) continue;
+        Sync.pileSeen.set(p.id, stable(entryBody(p)));
+        if (!S.pile.some((q) => q.id === p.id)) S.pile.push(p);
+      }
+      for (const x of deckSnap.docs) {
+        const d = deckFrom(x.id, x.data());
+        if (!d) continue;
+        Sync.deckSeen.set(d.id, stable(deckBody(d)));
+        if (!S.decks.some((q) => q.id === d.id)) S.decks.push(d);
+      }
+      if (S.pile.some((p) => !p.example)) S.pile = S.pile.filter((p) => !p.example);
+      savePile(); saveDecks(); saveSettings();
+    } else {
+      const st = setSnap.data() || {};
+      S.deckId = typeof st.deckId === "string" ? st.deckId : null;
+      if (st.commander === NO_CMDR || (typeof st.commander === "string" && commanderByName(st.commander))) setCommander(st.commander, true);
+    }
+    let loaded = false;
+    const timer = setTimeout(() => { if (!loaded) setSyncNote("Your saved cards can't be reached yet; showing this browser's copy."); }, 10000);
+    Sync.pile.onSnapshot((snap) => {
+      const docs = snap.docs.map((x) => entryFrom(x.id, x.data())).filter(Boolean);
+      Sync.pileSeen = new Map(docs.map((p) => [p.id, stable(entryBody(p))]));
+      S.pile = docs.length ? docs : S.pile.filter((p) => p.example);
+      store.set(PILE_KEY, docs);
+      if (!snap.metadata.fromCache) { loaded = true; clearTimeout(timer); if (!Sync.failed) setSyncNote("Synced to your account: open this page on any device to see the same pile and decks."); }
+      render();
+    }, () => setSyncNote("Lost the connection to your account. Reload to reconnect; this browser keeps a copy."));
+    Sync.decks.onSnapshot((snap) => {
+      S.decks = snap.docs.map((x) => deckFrom(x.id, x.data())).filter(Boolean);
+      Sync.deckSeen = new Map(S.decks.map((d) => [d.id, stable(deckBody(d))]));
+      if (S.deckId && !S.decks.some((d) => d.id === S.deckId)) S.deckId = null;
+      store.set(DECK_KEY, { decks: S.decks, active: S.deckId });
+      render();
+    }, () => {});
+  }
+
+  // ---------- pile ----------
+  function savePile() {
+    const real = S.pile.filter((p) => !p.example);
+    store.set(PILE_KEY, real);
+    if (Sync.on) syncCollection(Sync.pile, real, Sync.pileSeen, entryBody);
+  }
+  function addToPile(card, extra = {}) {
+    const { loc, ...rest } = extra;
+    if (!rest.example && S.pile.some((p) => p.example)) S.pile = S.pile.filter((p) => !p.example);
+    const have = S.pile.find((p) => p.name === card.name && !p.example);
+    let entry = have;
+    if (have && !rest.example) { have.qty += 1; have.at = Date.now(); if (rest.read) have.read = rest.read; }
+    else { entry = { id: Math.random().toString(36).slice(2), name: card.name, qty: 1, at: Date.now() + S.pile.length, ...rest }; S.pile.push(entry); }
+    // Where each copy lives (binder or box, page, slot). Kept short: the latest 30 places.
+    if (loc && (loc.b || loc.pg)) entry.locs = [...(entry.locs || []), { b: loc.b || null, pg: loc.pg || null, s: loc.s || null }].slice(-30);
+    savePile();
+    return entry;
+  }
+  function placeText(l) { return [l.b, l.pg ? `p.${l.pg}` : null, l.s && l.pg ? `#${l.s}` : null].filter(Boolean).join(" "); }
+  const unitPrice = (p, c) => p.print?.price ?? c.usd;
+
+  // ---------- decks (pasted text; kept in this browser) ----------
+  const DECK_KEY = "ccs.decks.v1";
+  const SECTION = /^(commanders?|companions?|deck|main ?deck|main ?board|side ?board|maybe ?board|maybe|considering|creatures?|lands?|instants?|sorcery|sorceries|artifacts?|enchantments?|planeswalkers?|battles?|tokens?|ramp|draw|removal|other)\s*(\(\d+\))?\s*:?$/i;
+  const SKIP_SECTION = /^(side ?board|maybe ?board|maybe|considering|tokens?)/i;
+
+  function parseDeck(text) {
+    const out = { cards: new Map(), commanders: [], unknown: [], corrected: [] };
+    let section = "";
+    for (let line of String(text).split(/\r?\n/).slice(0, 400)) {
+      line = line.trim();
+      if (!line || line.startsWith("//") || line.startsWith("#")) continue;
+      if (SECTION.test(line)) { section = line.toLowerCase(); continue; }
+      if (SKIP_SECTION.test(section)) continue;
+      let qty = 1, rest = line;
+      const m = line.match(/^(\d+)\s*x?\s+(.+)$/i);
+      if (m) { qty = Math.max(1, Math.min(99, Number(m[1]))); rest = m[2]; }
+      const isCmdr = /\*cmdr\*|\[[^\]]*commander[^\]]*\]|\{commander\}/i.test(rest) || section.startsWith("commander");
+      rest = rest.replace(/\s+\*[a-z]+\*/gi, "").replace(/\s*\[[^\]]*\]/g, "").replace(/\s*\^[^^]*\^/g, "")
+        .replace(/\s+\([a-z0-9]{2,6}\)(\s+[\w★-]+)?\s*$/i, "").replace(/\s+#\S+$/, "").trim();
+      if (!rest) continue;
+      const r = match(rest);
+      if (!r.card) { out.unknown.push(rest.slice(0, 80)); continue; }
+      if (r.how === "corrected") out.corrected.push([rest.slice(0, 80), r.card.name]);
+      if (isCmdr && !out.commanders.includes(r.card.name)) out.commanders.push(r.card.name);
+      out.cards.set(r.card.name, (out.cards.get(r.card.name) || 0) + qty);
+    }
+    return out;
+  }
+
+  function deckCommander(names) {
+    if (names.length >= 2) {
+      for (const n of [`${names[0]} // ${names[1]}`, `${names[1]} // ${names[0]}`]) if (commanderByName(n)) return n;
+    }
+    return names.find((n) => commanderByName(n)) || null;
+  }
+
+  const activeDeck = () => S.decks.find((d) => d.id === S.deckId) || null;
+  function saveDecks() {
+    store.set(DECK_KEY, { decks: S.decks, active: S.deckId });
+    if (Sync.on) { syncCollection(Sync.decks, S.decks, Sync.deckSeen, deckBody); saveSettings(); }
+  }
+
+  function loadDeckFromForm() {
+    const text = $("deckText").value;
+    const parsed = parseDeck(text);
+    if (!parsed.cards.size) { $("deckView").replaceChildren(el("div", { class: "warnbox", text: "No cards found in that list. Paste one card per line, like \"1 Sol Ring\"." })); return; }
+    const commander = deckCommander(parsed.commanders) || S.commander?.name || null;
+    const deck = {
+      id: Math.random().toString(36).slice(2),
+      name: $("deckName").value.trim().slice(0, 60) || (commander ? commander.split(",")[0] + " deck" : "My deck"),
+      commander, cards: [...parsed.cards], unknown: parsed.unknown.slice(0, 30), corrected: parsed.corrected.slice(0, 30),
+      cmdrFound: parsed.commanders.length > 0,
+    };
+    S.decks.push(deck); S.deckId = deck.id; saveDecks();
+    $("deckForm").hidden = true; $("deckText").value = ""; $("deckName").value = "";
+    if (commander && commander !== S.commander?.name) setCommander(commander); else render();
+  }
+
+  const budgetOk = (c) => S.budget == null || (c.usd != null && c.usd <= S.budget);
+  function popularMissing(d, data, ci, inDeck) {
+    const cmdrParts = d.commander.split(" // ");
+    return Object.entries(data.cards)
+      .filter(([n]) => !inDeck.has(n) && !cmdrParts.includes(n))
+      .map(([n, [inc, syn]]) => ({ c: S.byKey.get(norm(n)), inc, syn }))
+      .filter((x) => x.c && (x.c.flags & FLAG.LEGAL) && subset(x.c.ci, ci) && !/basic land/i.test(x.c.type) && budgetOk(x.c))
+      .sort((a, b) => b.inc - a.inc).slice(0, 20);
+  }
+
+  // Deck shape from Scryfall Tagger roles. Targets are common Commander rules of thumb.
+  const SHAPE = [
+    { key: "lands", label: "Lands", lo: 35, hi: 38 },
+    { key: "ramp", label: "Ramp", lo: 10 },
+    { key: "draw", label: "Card draw", lo: 10 },
+    { key: "removal", label: "Removal", lo: 8 },
+    { key: "wipe", label: "Board wipes", lo: 2 },
+  ];
+  const ROLE = { r: "ramp", d: "draw", x: "removal", w: "wipe" };
+  function deckShape(d) {
+    const out = { lands: 0, ramp: 0, draw: 0, removal: 0, wipe: 0, cards: {} };
+    const cmdrParts = (d.commander || "").split(" // ");
+    for (const k of Object.keys(out)) if (k !== "cards") out.cards[k] = [];
+    for (const [n, q] of d.cards) {
+      const c = S.byKey.get(norm(n));
+      if (!c || cmdrParts.includes(c.name)) continue;
+      if (/\bLand\b/.test(c.type)) { out.lands += q; out.cards.lands.push(c.name); continue; }
+      for (const ch of new Set(c.roles || "")) if (ROLE[ch]) { out[ROLE[ch]] += q; out.cards[ROLE[ch]].push(c.name); }
+    }
+    return out;
+  }
+
+  // Official brackets (WotC 1-5) from what the page can see: Game Changers, mass land
+  // denial, extra turns. Two-card combos need Commander Spellbook, so they're not checked.
+  const BRACKET_NAMES = { 1: "Exhibition", 2: "Core", 3: "Upgraded", 4: "Optimized" };
+  function bracketCheck(d) {
+    const gc = [], mld = [], et = [];
+    let tutors = 0;
+    for (const [n] of d.cards) {
+      const c = S.byKey.get(norm(n)); if (!c) continue;
+      if (c.flags & FLAG.GC) gc.push(c.name);
+      if ((c.roles || "").includes("m")) mld.push(c.name);
+      if ((c.roles || "").includes("e")) et.push(c.name);
+      if ((c.roles || "").includes("t")) tutors++;
+    }
+    let b; const why = [];
+    if (mld.length) { b = 4; why.push(`Mass land denial (only bracket 4): ${mld.join(", ")}.`); }
+    if (gc.length > 3) { b = 4; why.push(`${gc.length} Game Changers; bracket 3 allows up to 3: ${gc.join(", ")}.`); }
+    else if (gc.length) { b = b || 3; why.push(`${gc.length} Game Changer${gc.length === 1 ? "" : "s"} (brackets 1-2 allow none): ${gc.join(", ")}.`); }
+    if (!b) { b = 2; why.push("No Game Changers and no mass land denial. Brackets 1 and 2 differ by intent, so 2 is shown."); }
+    if (et.length) why.push(`Extra-turn cards: ${et.join(", ")}. Chaining extra turns makes a deck bracket 4.`);
+    return { b, why, gc, mld, et, tutors };
+  }
+
+  function deckText(d, swaps) {
+    const cmdrParts = (d.commander || "").split(" // ");
+    const cards = new Map(d.cards);
+    for (const { w, r } of swaps || []) if (r) { cards.delete(w.c.name); cards.set(r.c.name, 1); }
+    const lines = [];
+    if (d.commander) lines.push("Commander", ...cmdrParts.map((n) => `1 ${n}`), "", "Deck");
+    for (const [n, q] of cards) if (!cmdrParts.includes(n)) lines.push(`${q} ${n}`);
+    return lines.join("\n");
+  }
+  async function copyText(text, btn, label) {
+    try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; }
+    catch { btn.textContent = "Copy failed"; }
+    setTimeout(() => { btn.textContent = label; }, 1500);
+  }
+
+  function swapIdeas(d, edhData, ci, inDeck, pileNames) {
+    const cmdrParts = d.commander.split(" // ");
+    const weak = d.cards.map(([n]) => ({ c: S.byKey.get(norm(n)), e: edhData.cards[n] }))
+      .filter((x) => x.c && !cmdrParts.includes(x.c.name) && !/\bLand\b/.test(x.c.type))
+      .map((x) => ({ c: x.c, inc: x.e ? x.e[0] : 0, syn: x.e ? x.e[1] : null }))
+      .sort((a, b) => a.inc - b.inc || (a.syn ?? -99) - (b.syn ?? -99)).slice(0, 10);
+    const pileAdds = S.pile.filter((p) => !p.example && !inDeck.has(p.name)).map((p) => S.byKey.get(norm(p.name)))
+      .filter((c) => c && (c.flags & FLAG.LEGAL) && subset(c.ci, ci) && edhData.cards[c.name] && !/\bLand\b/.test(c.type))
+      .map((c) => ({ c, inc: edhData.cards[c.name][0], mine: true })).sort((a, b) => b.inc - a.inc);
+    const pool = [...pileAdds, ...popularMissing(d, edhData, ci, inDeck).filter((x) => !pileAdds.some((y) => y.c.name === x.c.name))
+      .filter((x) => !/\bLand\b/.test(x.c.type)).map((x) => ({ c: x.c, inc: x.inc, mine: pileNames.has(x.c.name) }))];
+    const used = new Set();
+    return weak.map((w) => {
+      const r = pool.find((x) => !used.has(x.c.name) && x.inc >= w.inc + 10);
+      if (r) used.add(r.c.name);
+      return { w, r };
+    });
+  }
+
+  function renderDeck() {
+    const sel = $("deckSelect"), view = $("deckView"), d = activeDeck();
+    sel.hidden = S.decks.length === 0;
+    sel.replaceChildren(el("option", { value: "", text: "No deck" }), ...S.decks.map((x) => el("option", { value: x.id, text: x.name })));
+    sel.value = d ? d.id : "";
+    $("deckRemoveBtn").hidden = !d;
+    if (!d) {
+      view.replaceChildren(el("p", { class: "hint", text: "Load a decklist to see its value, its shape (lands, ramp, draw, removal), its bracket, the popular cards that go with it but aren't in it, and which cards in your pile it's missing." }));
+      return;
+    }
+    const cmdr = d.commander ? commanderByName(d.commander) : null;
+    const ci = cmdr ? cmdr.ci : "";
+    const inDeck = new Map(d.cards);
+    let count = 0, value = 0;
+    const off = [], banned = [];
+    for (const [name, qty] of d.cards) {
+      const c = S.byKey.get(norm(name)); if (!c) continue;
+      count += qty; value += (c.usd ?? 0) * qty;
+      if (!(c.flags & FLAG.LEGAL)) banned.push(name);
+      else if (cmdr && !subset(c.ci, ci) && !d.commander.split(" // ").includes(name)) off.push(name);
+    }
+    const pileNames = new Set(S.pile.filter((p) => !p.example).map((p) => p.name));
+    const owned = d.cards.filter(([n]) => pileNames.has(n)).length;
+    const edhData = d.commander ? S.edh[d.commander] : null;
+    const swaps = edhData ? swapIdeas(d, edhData, ci, inDeck, pileNames) : [];
+
+    const copyBtn = el("button", { type: "button", class: "btn small", text: "Copy deck list" });
+    copyBtn.addEventListener("click", () => copyText(deckText(d), copyBtn, "Copy deck list"));
+    const swapBtn = swaps.some((x) => x.r) ? el("button", { type: "button", class: "btn small", text: "Copy with swaps applied" }) : null;
+    swapBtn?.addEventListener("click", () => copyText(deckText(d, swaps), swapBtn, "Copy with swaps applied"));
+    const budgetSel = el("select", { class: "btn small", id: "budgetSel", "aria-label": "Budget for suggestions" },
+      [["", "Any price"], ["1", "Under $1"], ["2", "Under $2"], ["5", "Under $5"], ["10", "Under $10"]].map(([v, t]) => el("option", { value: v, text: t })));
+    budgetSel.value = S.budget == null ? "" : String(S.budget);
+    budgetSel.addEventListener("change", () => { S.budget = budgetSel.value ? Number(budgetSel.value) : null; store.set("ccs.budget.v1", S.budget); renderDeck(); });
+
+    const kids = [
+      el("div", { class: "cmdrow" }, el("span", { class: "cmdname", text: d.name }), cmdr ? pips(ci) : null),
+      el("div", { class: "deckstats" },
+        el("span", null, "Commander: ", el("b", { text: d.commander || "not found" })),
+        el("span", null, el("b", { text: String(count) }), " cards", count !== 100 ? ` (Commander decks have 100)` : ""),
+        el("span", null, "Value ", el("b", { text: money(value) }), " at cheapest printings"),
+        el("span", null, el("b", { text: String(owned) }), " of its cards are in your pile")),
+      el("div", { class: "row-actions" }, copyBtn, swapBtn, el("span", { class: "label", text: "Suggestions:" }), budgetSel),
+    ];
+    if (!d.cmdrFound && d.commander) kids.push(el("div", { class: "hint", text: `No commander was marked in the list, so ${d.commander} (picked above) is used.` }));
+    const warns = [];
+    if (off.length) warns.push(`Outside ${d.commander}'s colors: ${off.join(", ")}.`);
+    if (banned.length) warns.push(`Banned in Commander: ${banned.join(", ")}.`);
+    if (d.unknown.length) warns.push(`Not matched to a card: ${d.unknown.slice(0, 8).join(", ")}${d.unknown.length > 8 ? "…" : ""}.`);
+    if (d.corrected.length) warns.push(`Corrected spelling: ${d.corrected.slice(0, 5).map(([a, b]) => `“${a}” → ${b}`).join(", ")}.`);
+    for (const w of warns) kids.push(el("div", { class: "warnbox", text: w }));
+
+    // Shape
+    const shape = deckShape(d);
+    kids.push(el("h2", { text: "Deck shape" }));
+    kids.push(el("div", { class: "shape" }, SHAPE.map((t) => {
+      const n = shape[t.key];
+      const st = n < t.lo ? "low" : t.hi && n > t.hi ? "high" : "ok";
+      const target = t.hi ? `${t.lo}–${t.hi}` : `${t.lo}+`;
+      const max = Math.max(t.hi || t.lo * 1.5, n, 1);
+      return el("details", { class: "srow " + st },
+        el("summary", null,
+          el("span", { class: "slabel", text: t.label }),
+          el("span", { class: "sbar", "aria-hidden": "true" }, el("i", { style: `width:${Math.min(100, (n / max) * 100)}%` }),
+            el("b", { style: `left:${Math.min(100, (t.lo / max) * 100)}%` })),
+          el("span", { class: "snum", text: String(n) }),
+          el("span", { class: "starget", text: st === "ok" ? `aim ${target} ✓` : st === "low" ? `aim ${target}: ${t.lo - n} short` : `aim ${target}: ${n - t.hi} over` })),
+        el("div", { class: "hint", text: shape.cards[t.key].length ? shape.cards[t.key].join(", ") : "None found." }));
+    })));
+    kids.push(el("p", { class: "hint", text: "Roles come from Scryfall Tagger, so a card can count twice (Wrath of God is removal and a wipe), and some cards aren't tagged yet. Tap a row to see its cards." }));
+
+    // Bracket
+    const br = bracketCheck(d);
+    kids.push(el("h2", { text: "Bracket" }));
+    kids.push(el("div", { class: "deckstats" }, el("span", null, "Fits bracket ", el("b", { text: `${br.b} (${BRACKET_NAMES[br.b]})` }), " or higher"),
+      el("span", null, el("b", { text: String(br.gc.length) }), " Game Changers"), el("span", null, el("b", { text: String(br.tutors) }), " tutors")));
+    kids.push(el("ul", { class: "alsolist" }, br.why.map((w) => el("li", { text: w }))));
+    kids.push(el("p", { class: "hint", text: "Two-card combos aren't checked here (that needs Commander Spellbook). The bracket check in the Project 18 deck builder covers them." }));
+
+    // Swap ideas
+    if (edhData) {
+      kids.push(el("h2", { text: "Swap ideas" }));
+      kids.push(el("p", { class: "hint", text: `The ${swaps.length} least-played nonland cards in this list for ${d.commander}, each with a more-played replacement${S.budget != null ? ` under ${money(S.budget)}` : ""}. Cards from your pile come first. A low number can still be a deliberate pet card.` }));
+      kids.push(el("ul", { class: "golist" }, swaps.map(({ w, r }) => el("li", null,
+        el("span", { class: "gname" }, "Cut ", el("a", { href: scryfallCard(w.c.name), target: "_blank", rel: "noopener", text: w.c.name }),
+          r ? [" → add ", el("a", { href: scryfallCard(r.c.name), target: "_blank", rel: "noopener", text: r.c.name }), r.mine ? el("span", { class: "have", text: " · in your pile" }) : null] : null),
+        el("span", { class: "gp", text: r ? money(r.c.usd) : "" }),
+        el("span", { class: "gsub", text: (w.inc ? `${w.c.name.split(",")[0]}: in ${w.inc}% of decks` : `${w.c.name.split(",")[0]}: not on EDHREC's list for this commander`) +
+          (r ? ` · ${r.c.name.split(",")[0]}: in ${r.inc}%` : " · no clearly better replacement found") })))));
+    }
+
+    // From your pile: cards that fit and aren't in the deck yet.
+    if (cmdr) {
+      const adds = S.pile.filter((p) => !p.example && !inDeck.has(p.name)).map((p) => ({ p, c: S.byKey.get(norm(p.name)) }))
+        .filter((x) => x.c).map((x) => ({ ...x, f: fit(x.c) })).filter((x) => x.f.score > 0).sort((a, b) => b.f.score - a.f.score);
+      kids.push(el("h2", { text: "From your pile, could add" }));
+      kids.push(adds.length ? el("ul", { class: "golist" }, adds.slice(0, 15).map(({ c, f }) => el("li", null,
+        el("span", { class: "gname" }, el("a", { href: scryfallCard(c.name), target: "_blank", rel: "noopener", text: c.name })),
+        el("span", { class: "gp", text: money(c.usd) }),
+        el("span", { class: "gsub", text: `${f.label}. ${f.why}` }))))
+        : el("p", { class: "hint", text: "Nothing in your pile fits this deck yet, or it's all already in it." }));
+    }
+
+    // Popular with this commander on EDHREC, missing from the deck.
+    kids.push(el("h2", { text: "Goes with this deck" }));
+    if (edhData) {
+      const missing = popularMissing(d, edhData, ci, inDeck);
+      kids.push(el("p", { class: "hint", text: `The most-played cards in ${edhData.decks.toLocaleString()} ${d.commander} decks on EDHREC that this list doesn't have${S.budget != null ? `, under ${money(S.budget)}` : ""}.` }));
+      kids.push(missing.length ? el("ul", { class: "golist" }, missing.map(({ c, inc, syn }) => el("li", null,
+        el("span", { class: "gname" }, el("a", { href: scryfallCard(c.name), target: "_blank", rel: "noopener", text: c.name }),
+          pileNames.has(c.name) ? el("span", { class: "have", text: " · in your pile" }) : null),
+        el("span", { class: "gp", text: money(c.usd) }),
+        el("span", { class: "gsub", text: `In ${inc}% of decks${syn ? ` · synergy ${syn > 0 ? "+" : ""}${syn}%` : ""} · ${c.type}` }))))
+        : el("p", { class: "hint", text: "Nothing at this price. Raise the budget." }));
+    } else {
+      kids.push(el("p", { class: "hint", text: d.commander
+        ? `There's no cached EDHREC data for ${d.commander}, so there are no suggestions. Add it with the Project 18 deck builder, then re-export.`
+        : "Pick a commander to see suggestions." }));
+    }
+
+    // Ask Claude for a whole-deck review
+    const aiBox = el("div", { class: "ai", hidden: true });
+    const aiBtn = el("button", { type: "button", class: "btn small", text: "Ask Claude to review this deck" });
+    aiBtn.addEventListener("click", () => reviewDeck(d, { shape, br, swaps, edhData, inDeck, pileNames, ci }, aiBox, aiBtn));
+    kids.push(el("h2", { text: "Claude's review" }));
+    kids.push(el("p", { class: "hint", text: "One call on your Claude account. Claude sees the list, the numbers above, and the candidate cards; it suggests swaps only from those." }));
+    kids.push(el("div", { class: "row-actions" }, aiBtn), aiBox);
+    if (S.deckReview?.id === d.id) { aiBox.hidden = false; aiBox.textContent = S.deckReview.text; }
+    view.replaceChildren(...kids);
+  }
+
+  async function reviewDeck(d, ctx, box, btn) {
+    const sample = await getSample();
+    box.hidden = false;
+    if (!sample) { box.textContent = "Claude isn't available in this view."; return; }
+    btn.disabled = true; box.textContent = "Loading rules text…";
+    try {
+      if (!S.oracle) S.oracle = await fetch("oracle.json").then((r) => r.json());
+      const cmdrParts = (d.commander || "").split(" // ");
+      const cmdrText = cmdrParts.map((n) => `${n}\n${S.oracle[n] || ""}`).join("\n\n");
+      const lines = d.cards.filter(([n]) => !cmdrParts.includes(n)).map(([n, q]) => {
+        const c = S.byKey.get(norm(n)); const e = ctx.edhData?.cards[n];
+        const roles = [...new Set(c?.roles || "")].map((ch) => ({ r: "ramp", d: "draw", x: "removal", w: "wipe", t: "tutor", m: "MLD", e: "extra turn" })[ch]).filter(Boolean);
+        return `${q} ${n} | ${c?.type || "?"} | ${roles.join("/") || "-"}${e ? ` | ${e[0]}% of decks` : ""}`;
+      });
+      const candidates = [
+        ...S.pile.filter((p) => !p.example && !ctx.inDeck.has(p.name)).map((p) => S.byKey.get(norm(p.name)))
+          .filter((c) => c && (c.flags & FLAG.LEGAL) && subset(c.ci, ctx.ci)).slice(0, 30)
+          .map((c) => `${c.name} [owned] ${ctx.edhData?.cards[c.name] ? `${ctx.edhData.cards[c.name][0]}% of decks` : ""} $${c.usd ?? "?"}`),
+        ...(ctx.edhData ? popularMissing(d, ctx.edhData, ctx.ci, ctx.inDeck).filter((x) => !ctx.pileNames.has(x.c.name)).slice(0, 15)
+          .map((x) => `${x.c.name} ${x.inc}% of decks $${x.c.usd ?? "?"}`) : []),
+      ];
+      const shapeTxt = SHAPE.map((t) => `${t.label} ${ctx.shape[t.key]} (aim ${t.hi ? `${t.lo}-${t.hi}` : `${t.lo}+`})`).join("; ");
+      const prompt = `You are reviewing a Magic: The Gathering Commander deck. Be specific and brief.
+
+Write plain text with exactly these three short sections:
+Plan: 1-2 sentences on what the deck is trying to do with this commander.
+Weak spots: up to 3 lines, each naming a concrete gap (use the shape numbers and EDHREC percentages given).
+Swaps: up to 5 lines like "Cut X -> Add Y: reason". Cut only cards from DECK. Add only cards from CANDIDATES, preferring [owned] ones. Don't suggest cuts of lands unless the land count is over its target.
+Use only the card text and numbers given; don't invent card text or prices.
+
+COMMANDER (color identity ${ctx.ci || "colorless"}):
+${cmdrText}
+
+NUMBERS: ${shapeTxt}. Bracket estimate ${ctx.br.b} (${ctx.br.gc.length} Game Changers; combos not checked).
+
+DECK (count name | type | roles | share of EDHREC decks for this commander):
+${lines.join("\n")}
+
+CANDIDATES (not in the deck):
+${candidates.join("\n") || "(none)"}`;
+      box.textContent = "Thinking… (this can take up to a minute)";
+      const { text } = await sample(prompt.slice(0, 60000), { onText: ({ text }) => { box.textContent = text; } });
+      S.deckReview = { id: d.id, text };
+    } catch (e) {
+      box.textContent = e?.text || errText(e);
+    } finally { btn.disabled = false; }
+  }
+
+  function render() {
+    const cm = S.commander;
+    $("cmdName").textContent = cm ? cm.name : "Prices only";
+    $("cmdPips").replaceChildren(...(cm ? [pips(cm.ci)] : []));
+    $("noCmdBtn").hidden = !cm;
+    for (const id of ["tileFit", "tileFitValue"]) $(id).hidden = !cm;
+    $("tilePull").hidden = false;
+    document.body.classList.toggle("prices-only", !cm);
+    if (!cm) $("cmdNote").textContent = "No commander: every card is priced, nothing is judged for fit. Pick a commander to see fit again.";
+    if (cm) {
+      const d = S.edh[cm.name];
+      $("cmdNote").textContent = d
+        ? `EDHREC data: ${d.decks.toLocaleString()} decks, ${Object.keys(d.cards).length} cards rated.`
+        : "No cached EDHREC data: fit uses color identity and overall popularity.";
+    }
+
+    const places = [...new Set(S.pile.flatMap((p) => (p.locs || []).map((l) => l.b)).filter(Boolean))].sort();
+    const pf = $("placeFilter");
+    pf.hidden = !places.length;
+    if (S.place && !places.includes(S.place)) S.place = "";
+    pf.replaceChildren(el("option", { value: "", text: "Everywhere" }), ...places.map((b) => el("option", { value: b, text: b })));
+    pf.value = S.place;
+    $("placeList").replaceChildren(...places.map((b) => el("option", { value: b })));
+    // Trade binder: cards that aren't in any saved deck.
+    const inAnyDeck = new Set(S.decks.flatMap((d) => d.cards.map(([n]) => n).concat((d.commander || "").split(" // "))));
+    const rows = S.pile.filter((p) => !S.place || (p.locs || []).some((l) => l.b === S.place))
+      .filter((p) => !S.trade || (!p.example && !inAnyDeck.has(p.name)))
+      .map((p) => ({ p, c: S.byKey.get(norm(p.name)) })).filter((x) => x.c);
+    renderSetStrip(rows);
+    if (S.setFilter) for (let i = rows.length - 1; i >= 0; i--) if (entrySet(rows[i].p, rows[i].c)[0] !== S.setFilter) rows.splice(i, 1);
+    for (const x of rows) x.f = fit(x.c);
+    const sorters = {
+      fit: (a, b) => b.f.score - a.f.score || (b.c.usd ?? 0) - (a.c.usd ?? 0),
+      price: (a, b) => (unitPrice(b.p, b.c) ?? -1) - (unitPrice(a.p, a.c) ?? -1),
+      recent: (a, b) => b.p.at - a.p.at,
+      trend: (a, b) => Math.abs(trendOf(b.c.name)?.change ?? 0) - Math.abs(trendOf(a.c.name)?.change ?? 0),
+    };
+    rows.sort(S.trade ? sorters.price : sorters[S.sort]);
+    S.shown = rows;
+    $("tradeBtn").setAttribute("aria-pressed", String(S.trade));
+    $("tradeNote").hidden = !S.trade;
+    if (S.trade) {
+      let tv = 0, buy = 0, nb = 0, n = 0;
+      for (const { p, c } of rows) {
+        n += p.qty; tv += (unitPrice(p, c) ?? 0) * p.qty;
+        const t = trendOf(c.name); if (t?.buy != null) { buy += (t.buy / 100) * p.qty; nb += p.qty; }
+      }
+      $("tradeNote").textContent = S.decks.length
+        ? `Trade binder: ${n} card${n === 1 ? "" : "s"} not in any of your ${S.decks.length} saved deck${S.decks.length === 1 ? "" : "s"}, worth ${money(tv)}` +
+          (nb ? `. Card Kingdom would pay about ${money(buy)} for the ${nb} it buys.` : ".") + " Most valuable first."
+        : "Trade binder: load your decks above first, so the cards they use are kept out of this list. Showing the whole pile for now.";
+    }
+
+    let n = 0, val = 0, nf = 0, vf = 0, np = 0, vp = 0;
+    const at = pullAt();
+    for (const { p, c, f } of rows) {
+      const u = unitPrice(p, c) ?? 0;
+      n += p.qty; val += u * p.qty;
+      if (f.score > 0) { nf += p.qty; vf += u * p.qty; }
+      if (!p.example && u >= at) { np += p.qty; vp += u * p.qty; }
+    }
+    $("pullLabel").textContent = `To pull (${money(at)}+)`;
+    $("sumPull").textContent = `${np} · ${money(vp)}`;
+    $("sumCards").textContent = n; $("sumValue").textContent = money(val);
+    $("sumFit").textContent = nf; $("sumFitValue").textContent = money(vf);
+
+    renderDeck();
+    $("exampleNote").hidden = !S.pile.some((p) => p.example);
+    $("empty").hidden = rows.length > 0;
+    $("pile").replaceChildren(...rows.map(cardRow));
+  }
+
+  function versionsTable(p, c, list) {
+    if (!list.length) return el("span", { class: "hint", text: "No printings listed for this card." });
+    const cheapest = Math.min(...list.map((v) => v[7] ?? Infinity));
+    const rows = list.map((v) => {
+      const yours = p.print && p.print.set === v[0] && p.print.number === v[1];
+      const finishes = v[5].split(",").filter(Boolean);
+      const label = [S.sets_resolved?.[v[0]] || v[0].toUpperCase(), v[4], v[6] ? "promo" : ""].filter(Boolean).join(" · ");
+      const pick = (foil) => el("button", { type: "button", class: "btn small", text: foil ? "Mine (foil)" : "Mine",
+        onclick: () => setPrinting(p, v[0], v[1], foil) });
+      return el("tr", { class: yours ? "yours" : null },
+        el("td", null, setSymbol(v[0], v[3]), " ", el("a", { href: scryfallPrint(v), target: "_blank", rel: "noopener", text: label }),
+          el("div", { class: "asof", text: `${v[0].toUpperCase()} #${v[1]} · ${(v[2] || "").slice(0, 4)}${v[7] != null && v[7] === cheapest ? " · cheapest" : ""}` }),
+          yours ? el("div", { class: "mine", text: p.print.foil ? "Yours (foil)" : "Yours" })
+            : el("div", { class: "row-actions" }, finishes.includes("nonfoil") || !finishes.length ? pick(false) : null,
+              finishes.includes("foil") || finishes.includes("etched") ? pick(true) : null)),
+        el("td", { class: "p", text: v[7] != null ? money(v[7]) : "—" }),
+        el("td", { class: "p", text: v[8] != null ? money(v[8]) : v[9] != null ? money(v[9]) + " E" : "—" }));
+    });
+    return el("div", { class: "vwrap" }, el("table", { class: "versions" },
+      el("thead", null, el("tr", null, el("th", { text: "Printing" }), el("th", { class: "p", text: "Nonfoil" }), el("th", { class: "p", text: "Foil" }))),
+      el("tbody", null, rows)));
+  }
+
+  // ---------- price trends (weekly TCGplayer points, ~90 days) ----------
+  function trendOf(name) {
+    const t = S.trends?.cards?.[name];
+    if (!t) return null;
+    const pts = t[0];
+    const last = pts.length - 1;
+    const now = pts[last];
+    const back = pts[Math.max(0, last - 4)] ?? pts.find((v) => v != null);   // ~4 weeks earlier
+    const change = now != null && back ? Math.round(((now - back) / back) * 100) : null;
+    return { pts, now, change, buy: t[1] };
+  }
+  function sparkline(pts, dir) {
+    const vals = pts.map((v, i) => [i, v]).filter(([, v]) => v != null);
+    const w = 96, h = 26, pad = 2;
+    const lo = Math.min(...vals.map((x) => x[1])), hi = Math.max(...vals.map((x) => x[1]));
+    const xs = (i) => pad + (i / (pts.length - 1)) * (w - pad * 2);
+    const ys = (v) => hi === lo ? h / 2 : pad + (1 - (v - lo) / (hi - lo)) * (h - pad * 2);
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", `0 0 ${w} ${h}`); svg.setAttribute("width", w); svg.setAttribute("height", h);
+    svg.setAttribute("class", "spark " + dir); svg.setAttribute("aria-hidden", "true");
+    const line = document.createElementNS(ns, "polyline");
+    line.setAttribute("points", vals.map(([i, v]) => `${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join(" "));
+    line.setAttribute("fill", "none");
+    const dot = document.createElementNS(ns, "circle");
+    const [li, lv] = vals[vals.length - 1];
+    dot.setAttribute("cx", xs(li).toFixed(1)); dot.setAttribute("cy", ys(lv).toFixed(1)); dot.setAttribute("r", "2.2");
+    svg.append(line, dot);
+    return svg;
+  }
+  function trendLine(c) {
+    const t = trendOf(c.name);
+    if (!t) return null;
+    const dir = t.change == null ? "flat" : t.change >= 5 ? "up" : t.change <= -5 ? "down" : "flat";
+    const words = t.change == null ? "" : t.change === 0 ? "flat over 30 days" : `${t.change > 0 ? "+" : ""}${t.change}% in 30 days`;
+    return el("div", { class: "trend", title: "Cheapest regular printing on TCGplayer, one point a week (MTGJSON)" },
+      sparkline(t.pts, dir),
+      el("span", { class: "tchg " + dir, text: words }),
+      t.buy != null ? el("span", { class: "asof", text: `Card Kingdom pays ${money(t.buy / 100)}` }) : null);
+  }
+
+  // ---------- set symbols (Scryfall icons shipped with the page, drawn as CSS masks) ----------
+  const RARITY = { c: "common", u: "uncommon", r: "rare", m: "mythic", s: "special", b: "bonus" };
+  const SAFE_URI = /^data:image\/svg\+xml;base64,[A-Za-z0-9+/=]+$/;
+  function setSymbol(code, rar) {
+    const key = code && S.icons?.sets?.[code];
+    const uri = key && S.icons.icons[key];
+    const name = (S.setNames?.[code] || (code || "").toUpperCase()) + (rar && RARITY[rar] ? ` · ${RARITY[rar]}` : "");
+    const span = el("span", { class: "ss " + (RARITY[rar] ? rar : "c") + (uri && SAFE_URI.test(uri) ? "" : " none"), title: name, role: "img", "aria-label": name });
+    if (uri && SAFE_URI.test(uri)) span.style.setProperty("--icon", `url("${uri}")`);
+    return span;
+  }
+  const entrySet = (p, c) => p.print ? [p.print.set, p.print.rar] : [c.set, c.rar];
+
+  function renderSetStrip(rowsAll) {
+    const box = $("setStrip");
+    const counts = new Map();
+    for (const { p, c } of rowsAll) {
+      if (p.example) continue;
+      const [code, rar] = entrySet(p, c);
+      if (!code) continue;
+      const e = counts.get(code) || { code, rar, n: 0, value: 0 };
+      e.n += p.qty; e.value += (unitPrice(p, c) ?? 0) * p.qty;
+      counts.set(code, e);
+    }
+    const list = [...counts.values()].sort((a, b) => b.n - a.n || b.value - a.value);
+    box.hidden = list.length < 2 && !S.setFilter;
+    const shown = S.allSets ? list : list.slice(0, 18);
+    const chips = shown.map((e) => el("button", { type: "button", class: "setchip", "aria-pressed": String(S.setFilter === e.code),
+      title: `${S.setNames?.[e.code] || e.code.toUpperCase()}: ${e.n} card${e.n === 1 ? "" : "s"}, ${money(e.value)}`,
+      onclick: () => { S.setFilter = S.setFilter === e.code ? null : e.code; render(); } },
+      setSymbol(e.code, "c"), el("span", { text: e.code.toUpperCase() }), el("b", { text: String(e.n) })));
+    if (list.length > 18) chips.push(el("button", { type: "button", class: "setchip", text: S.allSets ? "Fewer sets" : `All ${list.length} sets`,
+      onclick: () => { S.allSets = !S.allSets; render(); } }));
+    if (S.setFilter) chips.unshift(el("button", { type: "button", class: "setchip", "aria-pressed": "true", text: "Show every set ✕",
+      onclick: () => { S.setFilter = null; render(); } }));
+    box.replaceChildren(...chips);
+  }
+
+  function cardRow({ p, c, f }) {
+    const mine = p.print?.price;
+    const price = el("span", { class: "price", title: c.usdMax ? `Cheapest ${money(c.usd)}, priciest regular printing ${money(c.usdMax)}` : null },
+      mine != null ? money(mine) : money(c.usd),
+      mine == null && c.usdMax ? el("span", { class: "asof", text: " – " + money(c.usdMax) }) : null);
+    const tags = [];
+    if (c.flags & FLAG.GC) tags.push(el("span", { class: "tag", text: "Game Changer" }));
+    if (c.flags & FLAG.RES) tags.push(el("span", { class: "tag", text: "Reserved List" }));
+    if (p.example) tags.push(el("span", { class: "tag", text: "Example" }));
+    const deck = activeDeck();
+    if (deck && !p.example) {
+      if (deck.cards.some(([n]) => n === c.name)) tags.push(el("span", { class: "tag indeck", text: "In your deck" }));
+      else if (f.score > 0 && deck.commander === S.commander?.name) tags.push(el("span", { class: "tag canadd", text: "Could add" }));
+    }
+
+    const fitLine = f.none ? null : el("div", { class: "fit" },
+      el("span", { class: "badge " + f.cls, text: f.label }),
+      el("span", { class: "fitwhy", text: f.why }));
+    const bar = f.inc != null ? el("div", { class: "incbar", "aria-hidden": "true" }, el("i", { style: `width:${Math.min(100, f.inc)}%` })) : null;
+
+    const also = (playedWithIndex().get(c.name) || []).slice(0, 3);
+    const aiBox = el("div", { class: "ai", hidden: true });
+    const aiBtn = el("button", { type: "button", class: "btn small", text: "Ask Claude why", onclick: () => askWhy(c, aiBox, aiBtn) });
+    const more = el("details", { class: "more" }, el("summary", { text: "More" }),
+      el("div", { class: "body", style: "padding:0" },
+        also.length ? el("div", null, el("span", { class: "label", text: "Most played with (cached commanders)" }),
+          el("ol", { class: "alsolist" }, also.map(([n, inc]) => el("li", null, `${n}: ${inc}%`)))) : el("span", { class: "hint", text: "Not listed for any of the cached commanders." }),
+        S.commander ? el("div", { class: "row-actions" }, aiBtn) : null,
+        aiBox));
+
+    const qty = el("span", { class: "qty" },
+      el("button", { type: "button", "aria-label": "One fewer", text: "−", onclick: () => { p.qty -= 1; if (p.qty < 1) S.pile = S.pile.filter((x) => x !== p); savePile(); render(); } }),
+      el("span", { text: String(p.qty) }),
+      el("button", { type: "button", "aria-label": "One more", text: "+", onclick: () => { p.qty += 1; savePile(); render(); } }));
+
+    const vbox = el("div", null, el("span", { class: "hint", text: "Loading printings…" }));
+    const versions = el("details", { class: "more" }, el("summary", { text: "Versions & prices" }), vbox);
+    versions.addEventListener("toggle", async () => {
+      if (!versions.open || versions.dataset.loaded) return;
+      versions.dataset.loaded = "1";
+      const list = await printingsOf(c.name);
+      S.sets_resolved = await S.sets;
+      vbox.replaceChildren(versionsTable(p, c, list));
+    });
+    const photo = S.photos.get(p.id);
+    const yourPrint = p.print ? el("div", { class: "mine",
+      text: `Your printing: ${p.print.set.toUpperCase()} #${p.print.number}${p.print.foil ? " foil" : ""}${p.print.price == null ? " (no price listed)" : ""}${p.print.auto ? " · read from the photo" : ""}` }) : null;
+
+    // Every mode sorts the pile into PULL (worth at least the threshold) and LEAVE.
+    const pullMode = !p.example;
+    const isPull = pullMode && (unitPrice(p, c) ?? 0) >= pullAt();
+    const fresh = isPull && Date.now() - p.at < 4000;
+    return el("li", { class: "card" + (f.score < 0 ? " isbad" : "") + (pullMode ? (isPull ? " pull" : " leave") : "") },
+      el("div", { class: "bar" }, setSymbol(...entrySet(p, c)), el("span", { class: "name", text: c.name }),
+        pullMode ? el("span", { class: isPull ? "pullb" + (fresh ? " fresh" : "") : "leaveb", text: isPull ? "PULL" : "LEAVE" }) : null,
+        pips(c.ci), price),
+      el("div", { class: "body" },
+        el("div", { class: "cardgrid" },
+          el("div", { class: "body", style: "padding:0;min-width:0" },
+            el("div", { class: "meta" }, el("span", { text: `${c.type} · MV ${c.mv}` }), ...tags),
+            fitLine, bar, trendLine(c), yourPrint,
+            p.locs?.length ? el("div", { class: "place", text: "Where: " + [...new Set(p.locs.map(placeText))].slice(-4).join("; ") }) : null,
+            p.read ? el("div", { class: "read", text: `Read from the photo as “${p.read}”, corrected to the closest real card.` }) : null),
+          photo ? el("div", { class: "thumb", title: "Your photo (this visit only)" }, el("img", { src: photo, alt: "Your photo of " + c.name })) : null),
+        el("div", { class: "links" },
+          el("a", { href: p.print ? scryfallPrint([p.print.set, p.print.number]) : scryfallCard(c.name), target: "_blank", rel: "noopener", text: "View on Scryfall ↗" })),
+        versions,
+        el("div", { class: "row-actions" }, qty, more)));
+  }
+
+  // ---------- autocomplete ----------
+  function suggestBox(boxId, inputId, source, onPick) {
+    const box = $(boxId), input = $(inputId);
+    const list = el("ul", { role: "listbox", hidden: true });
+    box.append(list);
+    let items = [], sel = -1;
+    function show() {
+      const q = norm(input.value);
+      if (q.length < 2) { list.hidden = true; return; }
+      items = source(q).slice(0, 8); sel = items.length ? 0 : -1;
+      list.replaceChildren(...items.map((it, i) => el("li", { role: "option", "aria-selected": String(i === sel),
+        onmousedown: (e) => { e.preventDefault(); pick(i); } }, el("span", { text: it.label }), el("small", { text: it.note || "" }))));
+      list.hidden = !items.length;
+    }
+    function pick(i) { const it = items[i]; if (!it) return; input.value = ""; list.hidden = true; onPick(it.value); }
+    input.addEventListener("input", show);
+    input.addEventListener("blur", () => { list.hidden = true; });
+    input.addEventListener("keydown", (e) => {
+      if (list.hidden) return;
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault(); sel = (sel + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length;
+        [...list.children].forEach((li, i) => li.setAttribute("aria-selected", String(i === sel)));
+      } else if (e.key === "Enter") { e.preventDefault(); pick(sel); }
+      else if (e.key === "Escape") list.hidden = true;
+    });
+  }
+  function searchIn(list, q, nameOf) {
+    const pre = [], mid = [];
+    for (const x of list) {
+      const n = norm(nameOf(x));
+      if (n.startsWith(q)) pre.push(x); else if (n.includes(q)) mid.push(x);
+      if (pre.length >= 8) break;
+    }
+    return pre.concat(mid);
+  }
+
+  // ---------- Claude ----------
+  function getSample() {
+    if (!samplePromise) samplePromise = (window.claude?.use ? window.claude.use("sample") : Promise.resolve(null)).catch(() => null);
+    return samplePromise;
+  }
+  const ERR = {
+    not_granted: "Claude isn't allowed for this page. You can still type card names.",
+    sampling_disabled: "Claude isn't available on this account. You can still type card names.",
+    images_unavailable: "This view can't send photos to Claude. Type card names instead.",
+    image_rejected: "That file couldn't be read as a photo. Try a JPEG or PNG.",
+    rate_limited: "Too many requests just now. Wait a minute and try again.",
+    session_expired: "Your session expired. Sign in again, then retry.",
+    refused: "Claude declined that photo. Try a clearer one.",
+    invalid_json: "Claude's answer didn't come back as a card list. Try again.",
+  };
+  const errText = (e) => ERR[e?.code] || "Something went wrong reaching Claude. Try again.";
+
+  function setStatus(text, kind, withStop) {
+    const s = $("status");
+    s.hidden = !text; s.className = "status" + (kind ? " " + kind : "");
+    s.replaceChildren(el("span", { text }), withStop ? el("button", { type: "button", class: "btn small", text: "Stop", onclick: () => scanCtl?.abort() }) : null);
+  }
+
+  // Large photos: the platform shrinks each image to about 1.2 MP, too small for binder-page
+  // title bars, so also send four overlapping quarters for detail.
+  async function quarters(file) {
+    let bmp;
+    try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); } catch { return []; }
+    if (bmp.width * bmp.height < 1.8e6) { bmp.close?.(); return []; }
+    const out = [], w = bmp.width, h = bmp.height, cw = Math.round(w * 0.56), ch = Math.round(h * 0.56);
+    for (const [x, y] of [[0, 0], [w - cw, 0], [0, h - ch], [w - cw, h - ch]]) {
+      const cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
+      cv.getContext("2d").drawImage(bmp, x, y, cw, ch, 0, 0, cw, ch);
+      const b = await new Promise((res) => cv.toBlob(res, "image/jpeg", 0.9));
+      cv.width = cv.height = 0;
+      if (b) out.push(b);
+    }
+    bmp.close?.();
+    return out;
+  }
+
+  const SCAN_PROMPT = (n) => `${n > 1 ? `Image 1 is a photo of Magic: The Gathering cards. Images 2-${n} are the top-left, top-right, bottom-left and bottom-right quarters of that same photo (they overlap), for reading small text. List each card ONCE, using the whole photo for order.` : "This is a photo of Magic: The Gathering cards."}
+It shows one card, a few loose cards laid out on a surface (any arrangement, possibly slightly overlapping), or a binder page with cards in a grid.
+List every card whose title you can see, in reading order: left to right, top to bottom.
+Copy each card's name exactly as printed in its title bar. Do not guess from the artwork.
+If a title is hard to read (glare, angle, foil), give your best reading and set legible to false.
+Also read the small print at the bottom-left of each card if you can: the set code (3-5 letters, e.g. "CMM") and the collector number (e.g. "0410" or "410"). Give them only if you can actually read them; otherwise null. Never guess them from the artwork. Set foil to true only if the card is clearly foil (rainbow sheen).
+Skip card backs, empty pockets and tokens.
+Reply with only JSON: {"layout": "single" | "loose" | "grid", "cards": [{"name": "Sol Ring", "legible": true, "set": "CMM" | null, "number": "410" | null, "foil": false}]}`;
+
+  // ---------- scanning: a queue of photos -> review groups -> pile ----------
+  const OPTS_KEY = "ccs.scanopts.v1";
+  const pullAt = () => { const v = Number($("pullInput").value); return isFinite(v) && v >= 0 ? v : 1; };
+  function saveOpts() {
+    store.set(OPTS_KEY, { place: $("placeInput").value.trim(), page: $("pageInput").value, next: $("nextPage").checked,
+      review: $("reviewOn").checked, pull: $("pullInput").value });
+  }
+  function loadOpts() {
+    const o = store.get(OPTS_KEY, {}) || {};
+    if (typeof o.place === "string") $("placeInput").value = o.place;
+    if (o.page) $("pageInput").value = o.page;
+    if (typeof o.next === "boolean") $("nextPage").checked = o.next;
+    if (typeof o.review === "boolean") $("reviewOn").checked = o.review;
+    if (o.pull != null && o.pull !== "") $("pullInput").value = o.pull;
+  }
+  // The place and page for the next photo; advances the page when "next page" is on.
+  function takeLocation() {
+    const place = $("placeInput").value.trim().slice(0, 60);
+    const page = parseInt($("pageInput").value, 10);
+    const loc = { b: place || null, pg: isFinite(page) && page > 0 ? page : null };
+    if (loc.pg && $("nextPage").checked) { $("pageInput").value = String(loc.pg + 1); saveOpts(); }
+    return loc;
+  }
+
+  const MAX_PICK = 30;
+  function enqueue(files) {
+    const all = [...(files || [])].filter(Boolean);
+    const list = all.slice(0, MAX_PICK);
+    if (!list.length) return;
+    S.skipped = all.length - list.length;
+    for (const f of list) S.queue.push({ file: f, loc: takeLocation() });   // place/page fixed when the photo is taken
+    if (!S.scanning) processQueue();
+    else setStatus(`${S.queue.length} photo${S.queue.length === 1 ? "" : "s"} waiting…`, "", true);
+    if (S.skipped) $("report").hidden = false, $("report").replaceChildren(el("div", { class: "fix" },
+      el("span", { text: `You picked ${all.length} photos; the first ${MAX_PICK} are queued. Pick the other ${S.skipped} once these are done.` })));
+  }
+
+  // Keep the screen on while photos are being read (Screen Wake Lock; released when the
+  // queue empties, and taken again if the page comes back to the front mid-queue).
+  const Wake = { lock: null, warned: false };
+  async function wakeOn() {
+    if (Wake.lock || document.visibilityState !== "visible") return;
+    try {
+      Wake.lock = await navigator.wakeLock.request("screen");
+      Wake.lock.addEventListener("release", () => { Wake.lock = null; });
+    } catch {
+      if (!Wake.warned) { Wake.warned = true; $("wakeNote").hidden = false; }
+    }
+  }
+  function wakeOff() { const l = Wake.lock; Wake.lock = null; l?.release?.().catch?.(() => {}); }
+  document.addEventListener("visibilitychange", () => { if (S.scanning && document.visibilityState === "visible") wakeOn(); });
+
+  async function processQueue() {
+    const sample = await getSample();
+    if (!sample) { S.queue = []; setStatus("Photo reading needs Claude, which isn't available in this view. Type card names instead.", "err"); return; }
+    const lim = await sample.limits().catch(() => null);
+    if (!lim?.images) { S.queue = []; setStatus(ERR.images_unavailable, "err"); return; }
+    S.scanning = true;
+    wakeOn();
+    let done = 0;
+    try {
+      while (S.queue.length) {
+        const job = S.queue.shift();
+        done++;
+        const left = S.queue.length;
+        const ok = await scanOne(sample, lim, job, `Photo ${done}${left ? ` (${left} more waiting)` : ""}`);
+        if (ok === "stop") { S.queue = []; break; }
+      }
+    } finally { S.scanning = false; wakeOff(); }
+  }
+
+  async function scanOne(sample, lim, job, label) {
+    const extra = lim.images.maxCount >= 5 ? await quarters(job.file) : [];
+    const images = [job.file, ...extra];
+    scanCtl = new AbortController();
+    setStatus(`${label}: reading card names${extra.length ? " (whole photo plus 4 close-ups)" : ""}…`, "", true);
+    try {
+      const res = await sample.json(SCAN_PROMPT(images.length), { images, signal: scanCtl.signal });
+      const list = Array.isArray(res?.cards) ? res.cards : [];
+      if (!list.length) { setStatus(`${label}: no card titles found. Try closer, with less glare.`, "err"); return true; }
+      const group = { id: Math.random().toString(36).slice(2), photo: await thumbnail(job.file), loc: job.loc, items: [], unknown: [] };
+      let slot = 0;
+      for (const item of list.slice(0, 40)) {
+        slot++;
+        const raw = String(item?.name ?? "").slice(0, 120);
+        const m = match(raw);
+        if (!m.card) { group.unknown.push(raw); continue; }
+        const set = typeof item?.set === "string" ? item.set.trim().slice(0, 8) : "";
+        const num = item?.number != null ? String(item.number).trim().slice(0, 10) : "";
+        const it = { card: m.card, raw: m.how === "corrected" ? raw : null, slot, keep: true, foil: item.foil === true, print: null };
+        // Printed set + number -> that exact printing (checked against the database, never guessed).
+        if (set && num) {
+          const v = findPrint(await printingsOf(m.card.name), set, num);
+          if (v) it.print = { set: v[0], number: v[1], foil: it.foil, price: priceOf(v, it.foil) ?? null, auto: true, rar: v[3] };
+        }
+        group.items.push(it);
+      }
+      const value = group.items.reduce((a, it) => a + (itemPrice(it) ?? 0), 0);
+      const pulls = group.items.filter((it) => (itemPrice(it) ?? 0) >= pullAt()).length;
+      const summary = `${label}: ${group.items.length} card${group.items.length === 1 ? "" : "s"} found, ${money(value)}` +
+        (pulls ? `, ${pulls} worth ${money(pullAt())}+` : "") + (group.unknown.length ? `, ${group.unknown.length} not matched` : "") + ".";
+      if ($("reviewOn").checked) {
+        S.review.push(group); renderReview();
+        setStatus(summary + " Check them below, then add.", "okay", S.queue.length > 0);
+      } else {
+        commitGroup(group);
+        setStatus(summary.replace("found", "added"), "okay", S.queue.length > 0);
+        if (group.unknown.length) showReport({ corrected: [], unknown: group.unknown });
+      }
+      return true;
+    } catch (e) {
+      if (e?.code === "cancelled") { setStatus("Stopped. Photos still waiting were dropped.", ""); return "stop"; }
+      if (e?.code === "not_granted" || e?.code === "images_unavailable" || e?.code === "sampling_disabled") { setStatus(errText(e), "err"); hidePhoto(); return "stop"; }
+      setStatus(`${label}: ${errText(e)}`, "err");
+      return e?.code === "rate_limited" ? "stop" : true;
+    }
+  }
+
+  const itemPrice = (it) => it.print?.price ?? it.card.usd;
+
+  // A ~320 px thumbnail for display, so dozens of full-size phone photos aren't kept in memory.
+  async function thumbnail(file) {
+    try {
+      const bmp = await createImageBitmap(file, { imageOrientation: "from-image", resizeWidth: 320, resizeQuality: "medium" });
+      const cv = document.createElement("canvas"); cv.width = bmp.width; cv.height = bmp.height;
+      cv.getContext("2d").drawImage(bmp, 0, 0); bmp.close?.();
+      const b = await new Promise((res) => cv.toBlob(res, "image/jpeg", 0.75));
+      cv.width = cv.height = 0;
+      if (b) return URL.createObjectURL(b);
+    } catch { /* fall through */ }
+    return null;   // no thumbnail: the card simply shows without a photo
+  }
+
+  function commitGroup(group) {
+    let n = 0;
+    for (const it of group.items) {
+      if (!it.keep) continue;
+      const loc = { ...group.loc, s: it.slot };
+      const entry = addToPile(it.card, { read: it.raw || undefined, loc });
+      if (it.print && !entry.print) entry.print = { ...it.print };
+      if (group.photo) S.photos.set(entry.id, group.photo);
+      n++;
+    }
+    savePile(); render();
+    return n;
+  }
+
+  function renderReview() {
+    const box = $("review");
+    box.hidden = !S.review.length;
+    const at = pullAt();
+    const groups = S.review.map((g, gi) => {
+      const kept = g.items.filter((it) => it.keep);
+      const value = kept.reduce((a, it) => a + (itemPrice(it) ?? 0), 0);
+      const where = [g.loc.b, g.loc.pg ? `page ${g.loc.pg}` : null].filter(Boolean).join(", ");
+      const rows = g.items.map((it) => {
+        const price = itemPrice(it);
+        const cb = el("input", { type: "checkbox", "aria-label": "Add " + it.card.name });
+        cb.checked = it.keep;
+        cb.addEventListener("change", () => { it.keep = cb.checked; renderReview(); });
+        const sub = [
+          it.raw ? `read as “${it.raw}”, corrected` : null,
+          it.print ? `${it.print.set.toUpperCase()} #${it.print.number}${it.print.foil ? " foil" : ""}` : "cheapest printing",
+          S.commander ? fit(it.card).label : null,
+        ].filter(Boolean).join(" · ");
+        const isPull = (price ?? 0) >= at;
+        return el("li", { class: isPull ? "pull" : "leave" },
+          cb,
+          el("span", { class: "rname" }, setSymbol(...(it.print ? [it.print.set, it.print.rar] : [it.card.set, it.card.rar])), " ", it.card.name, isPull ? el("span", { class: "pullb fresh", text: "PULL" }) : el("span", { class: "leaveb", text: "LEAVE" })),
+          el("span", { class: "rprice", text: money(price) }),
+          el("span", { class: "rsub", text: sub }));
+      });
+      for (const raw of g.unknown) rows.push(el("li", null, el("span", { text: "?" }),
+        el("span", { class: "rname", text: `Couldn't match “${raw || "an unreadable title"}”` }),
+        el("button", { type: "button", class: "btn small", text: "Type it", onclick: () => { const i = $("addInput"); i.value = raw; i.focus(); i.dispatchEvent(new Event("input")); } })));
+      return el("div", { class: "rgroup" },
+        el("div", { class: "rhead" }, g.photo ? el("img", { src: g.photo, alt: "Scanned photo" }) : null,
+          el("span", { class: "rtitle" }, el("b", { text: `${kept.length} of ${g.items.length} checked · ${money(value)}` }),
+            where ? el("div", { class: "place", text: where }) : null)),
+        el("ul", { class: "rlist" }, rows),
+        el("div", { class: "rfoot" },
+          el("button", { type: "button", class: "btn primary small", text: `Add ${kept.length} card${kept.length === 1 ? "" : "s"}`,
+            disabled: kept.length ? null : true, onclick: () => { commitGroup(g); S.review.splice(gi, 1); renderReview(); setStatus(`Added ${kept.length} card${kept.length === 1 ? "" : "s"}.`, "okay"); } }),
+          el("button", { type: "button", class: "btn small", text: "Only the flagged ones", onclick: () => { for (const it of g.items) it.keep = (itemPrice(it) ?? 0) >= at; renderReview(); } }),
+          el("button", { type: "button", class: "btn small", text: "Discard photo", onclick: () => {
+            S.review.splice(gi, 1);
+            if (g.photo && ![...S.photos.values()].includes(g.photo)) URL.revokeObjectURL(g.photo);
+            renderReview(); } })));
+    });
+    const all = S.review.length > 1 ? el("div", { class: "row-actions" },
+      el("button", { type: "button", class: "btn primary small", text: "Add all checked", onclick: () => {
+        let n = 0; for (const g of S.review) n += commitGroup(g); S.review = []; renderReview(); setStatus(`Added ${n} cards.`, "okay"); } })) : null;
+    box.replaceChildren(...groups, ...(all ? [all] : []));
+  }
+
+  function showReport(r) {
+    const box = $("report");
+    const kids = [];
+    for (const [raw, name] of r.corrected) kids.push(el("div", { class: "fix" }, el("span", { text: `Read “${raw}” → added ${name}. Remove it below if that's wrong.` })));
+    for (const raw of r.unknown) kids.push(el("div", { class: "fix" }, el("span", { text: `Couldn't match “${raw || "an unreadable title"}”.` }),
+      el("button", { type: "button", class: "btn small", text: "Type it", onclick: () => { const i = $("addInput"); i.value = raw; i.focus(); i.dispatchEvent(new Event("input")); } })));
+    box.replaceChildren(...kids); box.hidden = !kids.length;
+  }
+
+  function hidePhoto() { $("photoBtn").hidden = true; $("uploadBtn").hidden = true; }
+
+  async function askWhy(card, box, btn) {
+    const sample = await getSample();
+    box.hidden = false;
+    if (!sample) { box.textContent = "Claude isn't available in this view."; return; }
+    btn.disabled = true; box.textContent = "Loading rules text…";
+    try {
+      if (!S.oracle) S.oracle = await fetch("oracle.json").then((r) => r.json());
+      const cm = S.commander, f = fit(card);
+      const cmText = cm.name.split(" // ").map((n) => `${n}\n${S.oracle[n] || S.oracle[S.byKey.get(norm(n))?.name] || ""}`).join("\n\n");
+      const prompt = `You help build Magic: The Gathering Commander decks. In 2-3 short sentences, say whether this card is a good fit for this commander and why: name the specific interaction or role (ramp, removal, draw, protection, wincon). Use only the rules text and stats given; don't invent card text. Plain text, no lists.
+
+COMMANDER (color identity ${cm.ci || "colorless"}):
+${cmText}
+
+CARD:
+${card.name}
+${S.oracle[card.name] || ""}
+
+Data: ${f.label}. ${f.why} Price $${card.usd ?? "unknown"}.`;
+      box.textContent = "Thinking…";
+      await sample(prompt.slice(0, 12000), { onText: ({ text }) => { box.textContent = text; } });
+    } catch (e) {
+      box.textContent = e?.text || errText(e);
+    } finally { btn.disabled = false; }
+  }
+
+  // ---------- export the pile ----------
+  function csvCell(v) {
+    let t = v == null ? "" : String(v);
+    if (/^[=+\-@]/.test(t)) t = "'" + t;              // never let a spreadsheet read a cell as a formula
+    return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  }
+  const csv = (rows) => rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
+  function exportRows() {
+    const onlyPull = $("exportPull").checked, at = pullAt();
+    return (S.shown || []).filter(({ p, c }) => !p.example && (!onlyPull || (unitPrice(p, c) ?? 0) >= at));
+  }
+  function buildExport(kind) {
+    const rows = exportRows();
+    const stamp = new Date().toISOString().slice(0, 10);
+    const where = [S.place, S.setFilter ? S.setFilter.toUpperCase() : null, S.trade ? "trade" : null, $("exportPull").checked ? "pull" : null]
+      .filter(Boolean).join("-").replace(/[^A-Za-z0-9-]+/g, "_");
+    const base = `card-pile-${stamp}${where ? "-" + where : ""}`;
+    if (kind === "tcg") {
+      // TCGplayer Mass Entry: "1 Card Name [SET]" per line (set left off when unknown).
+      const lines = rows.map(({ p, c }) => {
+        const [code] = entrySet(p, c);
+        return `${p.qty} ${c.name}${code ? ` [${code.toUpperCase()}]` : ""}`;
+      });
+      return { filename: base + "-tcgplayer.txt", data: lines.join("\n") + "\n", n: rows.length };
+    }
+    if (kind === "moxfield") {
+      const out = [["Count", "Name", "Edition", "Condition", "Language", "Foil", "Collector Number"]];
+      for (const { p, c } of rows) out.push([p.qty, c.name, (entrySet(p, c)[0] || "").toLowerCase(), "Near Mint", "English",
+        p.print?.foil ? "foil" : "", p.print?.number || ""]);
+      return { filename: base + "-collection.csv", data: csv(out), n: rows.length };
+    }
+    // Sell list: what each card is worth and what Card Kingdom offers (from the last price update).
+    const out = [["Quantity", "Name", "Set", "Printing", "Foil", "Market each", "Market total", "Card Kingdom pays each", "Card Kingdom total"]];
+    let mt = 0, bt = 0;
+    for (const { p, c } of rows) {
+      const m = unitPrice(p, c), b = trendOf(c.name)?.buy;
+      const be = b != null ? b / 100 : null;
+      mt += (m ?? 0) * p.qty; bt += (be ?? 0) * p.qty;
+      out.push([p.qty, c.name, (entrySet(p, c)[0] || "").toUpperCase(), p.print ? `#${p.print.number}` : "cheapest",
+        p.print?.foil ? "yes" : "", m?.toFixed(2) ?? "", m != null ? (m * p.qty).toFixed(2) : "", be?.toFixed(2) ?? "", be != null ? (be * p.qty).toFixed(2) : ""]);
+    }
+    out.push([], ["", "Totals", "", "", "", "", mt.toFixed(2), "", bt.toFixed(2)]);
+    return { filename: base + "-sell-list.csv", data: csv(out), n: rows.length };
+  }
+  async function runExport(kind, btn) {
+    const f = buildExport(kind);
+    const note = $("exportNote");
+    if (!f.n) { note.textContent = "Nothing to export: the pile (with its filters) has no cards" + ($("exportPull").checked ? " worth pulling." : "."); return; }
+    const label = btn.textContent;
+    const downloads = window.claude?.use ? await claude.use("downloads").catch(() => null) : null;
+    if (downloads) {
+      try {
+        await downloads.save({ filename: f.filename, data: f.data });
+        note.textContent = `Saved ${f.filename} (${f.n} card line${f.n === 1 ? "" : "s"}).`;
+        return;
+      } catch (e) {
+        if (e?.code === "declined") { note.textContent = "Not saved."; return; }
+        if (e?.code === "rate_limited") { note.textContent = "Another save is still open. Finish it, then try again."; return; }
+        // unavailable here: fall through to copying
+      }
+    }
+    try { await navigator.clipboard.writeText(f.data); btn.textContent = "Copied"; note.textContent = `This view can't save files, so the ${f.n} lines were copied instead. Paste them into a file or straight into the site.`; }
+    catch { note.textContent = "This view can't save files or copy. Open the page in a browser to export."; }
+    setTimeout(() => { btn.textContent = label; }, 1500);
+  }
+
+  // ---------- wire up ----------
+  function setCommander(name, fromAccount) {
+    if (name === NO_CMDR) {
+      S.commander = null; store.set(CMDR_KEY, NO_CMDR);
+      if (!fromAccount) saveSettings();
+      render(); return;
+    }
+    const c = commanderByName(name);
+    if (!c) return;
+    S.commander = { ...c, short: c.name.split(" // ").map((n) => n.split(",")[0]).join(" + ") };
+    store.set(CMDR_KEY, c.name);
+    if (!fromAccount) saveSettings();
+    render();
+  }
+
+  async function start() {
+    try { await load(); }
+    catch { $("asof").textContent = "Card data didn't load. Reload the page."; return; }
+    const when = S.meta?.prices_updated ? new Date(S.meta.prices_updated) : null;
+    $("asof").textContent = `Prices as of ${when && !isNaN(when) ? when.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "unknown"} · ${S.cards.length.toLocaleString()} cards`;
+
+    suggestBox("cmdSuggest", "cmdInput", (q) => {
+      const hits = searchIn(S.commanders, q, (c) => c.name).map((c) => ({
+        label: c.name, value: c.name, note: (S.edh[c.name] ? "EDHREC ✓ · " : "") + (c.ci || "C") }));
+      return ("no commander prices only".includes(q) ? [{ label: "No commander (prices only)", value: NO_CMDR, note: "" }] : []).concat(hits);
+    }, setCommander);
+    suggestBox("addSuggest", "addInput", (q) => searchIn(S.cards, q, (c) => c.name).map((c) => ({
+      label: c.name, value: c.name, note: money(c.usd) })), (name) => { addToPile(S.byKey.get(norm(name))); render(); $("report").hidden = true; });
+    $("cmdInput").disabled = false; $("addInput").disabled = false;
+
+    const saved = store.get(PILE_KEY, []);
+    S.pile = Array.isArray(saved) ? saved.filter((p) => p && typeof p.name === "string" && S.byKey.has(norm(p.name))) : [];
+    for (const p of S.pile) if (!p.id) p.id = Math.random().toString(36).slice(2);
+    if (!S.pile.length) for (const n of EXAMPLE) { const c = S.byKey.get(norm(n)); if (c) addToPile(c, { example: true }); }
+    const savedDecks = store.get(DECK_KEY, null);
+    if (savedDecks && Array.isArray(savedDecks.decks)) {
+      S.decks = savedDecks.decks.filter((d) => d && typeof d.name === "string" && Array.isArray(d.cards));
+      S.deckId = S.decks.some((d) => d.id === savedDecks.active) ? savedDecks.active : null;
+    }
+    const savedCmdr = store.get(CMDR_KEY, null);
+    setCommander(savedCmdr === NO_CMDR || commanderByName(savedCmdr) ? savedCmdr : DEFAULT_CMDR);
+    loadOpts();
+    const b = store.get("ccs.budget.v1", null); S.budget = typeof b === "number" ? b : null;
+
+    Promise.all([fetch("set_icons.json").then((r) => r.ok ? r.json() : null), fetch("sets.json").then((r) => r.ok ? r.json() : null)])
+      .then(([ic, names]) => { if (ic?.icons) S.icons = ic; if (names) { S.setNames = names; S.sets = Promise.resolve(names); } render(); renderReview(); }).catch(() => {});
+    fetch("trends.json").then((r) => r.ok ? r.json() : null).then((t) => { if (t?.cards) { S.trends = t; render(); } }).catch(() => {});
+    initSync().catch(() => setSyncNote("Saved in this browser only."));
+    getSample().then((s) => { if (!s) { $("scanHint").textContent = "Photo reading needs Claude, which isn't available in this view. Type card names below instead."; hidePhoto(); } });
+  }
+
+  $("photoInput").addEventListener("change", (e) => { enqueue(e.target.files); e.target.value = ""; });
+  $("uploadInput").addEventListener("change", (e) => { enqueue(e.target.files); e.target.value = ""; });
+  for (const id of ["placeInput", "pageInput", "nextPage", "reviewOn", "pullInput"]) $(id).addEventListener("change", () => { saveOpts(); renderReview(); render(); });
+  document.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => {
+    S.sort = b.dataset.sort;
+    document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    render();
+  }));
+  $("deckLoadBtn").addEventListener("click", () => { $("deckForm").hidden = false; $("deckText").focus(); });
+  $("deckCancelBtn").addEventListener("click", () => { $("deckForm").hidden = true; });
+  $("deckSaveBtn").addEventListener("click", loadDeckFromForm);
+  $("deckSelect").addEventListener("change", (e) => {
+    S.deckId = e.target.value || null; saveDecks();
+    const d = activeDeck();
+    if (d?.commander && d.commander !== S.commander?.name) setCommander(d.commander); else render();
+  });
+  $("deckRemoveBtn").addEventListener("click", () => {
+    S.decks = S.decks.filter((d) => d.id !== S.deckId); S.deckId = null; saveDecks(); render();
+  });
+  // iPhone/iPad (including iPadOS, which reports itself as a Mac with touch).
+  if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) $("iosTip").hidden = false;
+  $("exportBtn").addEventListener("click", () => {
+    const open = $("exportPanel").hidden;
+    $("exportPanel").hidden = !open; $("exportBtn").setAttribute("aria-expanded", String(open));
+  });
+  document.querySelectorAll("[data-export]").forEach((b) => b.addEventListener("click", () => runExport(b.dataset.export, b)));
+  $("tradeBtn").addEventListener("click", () => { S.trade = !S.trade; render(); });
+  $("placeFilter").addEventListener("change", (e) => { S.place = e.target.value; render(); });
+  $("noCmdBtn").addEventListener("click", () => setCommander(NO_CMDR));
+  $("clearExample").addEventListener("click", () => { S.pile = S.pile.filter((p) => !p.example); render(); });
+  $("clearBtn").addEventListener("click", () => { $("confirmClear").hidden = false; });
+  $("clearNo").addEventListener("click", () => { $("confirmClear").hidden = true; });
+  $("clearYes").addEventListener("click", () => { S.pile = []; savePile(); $("confirmClear").hidden = true; render(); });
+  $("copyBtn").addEventListener("click", async () => {
+    const text = S.pile.filter((p) => !p.example).map((p) => `${p.qty} ${p.name}`).join("\n");
+    const b = $("copyBtn");
+    try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; }
+    catch { b.textContent = "Copy failed"; }
+    setTimeout(() => { b.textContent = "Copy list"; }, 1500);
+  });
+
+  start();
+})();
+</script>
