@@ -22,6 +22,7 @@
   --pip-w: #f4efd2; --pip-u: #a9cde9; --pip-b: #b9aeaa; --pip-r: #eba58f; --pip-g: #9dcfae; --pip-c: #d5d4cf;
   --pip-ink: #1c211f;
   --rar-c: #2a2f2c; --rar-u: #6f8594; --rar-r: #a8862e; --rar-m: #d0592a; --rar-s: #7b5ab0;
+  --leave: #8b5a2b; --leave-bg: #f4e7d4; --leave-line: #e2c9a6;
   --display: "Cinzel", "Trajan Pro", Georgia, serif;
   --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
@@ -34,6 +35,7 @@
   --bad: #f08a7e; --bad-bg: #3b1d19; --warn: #e8b85a; --warn-bg: #3a2c10;
   --pip-w: #e6dfb8; --pip-u: #7fb0d8; --pip-b: #8d8481; --pip-r: #d98670; --pip-g: #79b48d; --pip-c: #a9a8a3;
   --rar-c: #dfe3e0; --rar-u: #a9bccb; --rar-r: #e0bf62; --rar-m: #f0844f; --rar-s: #b49ae0;
+  --leave: #e3b582; --leave-bg: #3a2b1c; --leave-line: #5a4129;
   color-scheme: dark;
 } }
 :root[data-theme="dark"] {
@@ -43,6 +45,7 @@
   --bad: #f08a7e; --bad-bg: #3b1d19; --warn: #e8b85a; --warn-bg: #3a2c10;
   --pip-w: #e6dfb8; --pip-u: #7fb0d8; --pip-b: #8d8481; --pip-r: #d98670; --pip-g: #79b48d; --pip-c: #a9a8a3;
   --rar-c: #dfe3e0; --rar-u: #a9bccb; --rar-r: #e0bf62; --rar-m: #f0844f; --rar-s: #b49ae0;
+  --leave: #e3b582; --leave-bg: #3a2b1c; --leave-line: #5a4129;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -61,6 +64,15 @@ button { cursor: pointer; }
 /* Header */
 .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-block: 20px 12px; }
 .asof { font-size: .8rem; color: var(--muted); }
+.fresh { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.agechip { font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+.agechip.ok { background: var(--good-bg); color: var(--good); }
+.agechip.aging { background: var(--warn-bg); color: var(--warn); }
+.agechip.old { background: var(--bad-bg); color: var(--bad); }
+.updatep { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 14px; margin-bottom: 12px; font-size: .88rem; display: grid; gap: 6px; }
+.updatep p { margin: 0; }
+.updmsg { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: var(--sunken); border-radius: 8px; padding: 8px 10px; }
+.updmsg code { font-family: var(--mono); font-size: .8rem; flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
 
 /* Sticky commander bar */
 .cmdbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 8px; box-shadow: 0 6px 18px -14px rgba(0,0,0,.35); }
@@ -189,7 +201,7 @@ details.more[open] summary { margin-bottom: 6px; }
 .pullb, .leaveb { display: inline-block; font-size: .78rem; font-weight: 800; letter-spacing: .08em; border-radius: 6px;
   padding: 3px 9px; margin-left: 8px; vertical-align: .05em; line-height: 1.2; white-space: nowrap; }
 .pullb { color: var(--accent-ink); background: var(--good); box-shadow: 0 0 0 3px var(--good-bg), 0 0 14px -2px var(--good); }
-.leaveb { color: var(--muted); background: var(--meh-bg); border: 1px solid var(--line); font-weight: 700; font-size: .7rem; padding: 2px 7px; }
+.leaveb { color: var(--leave); background: var(--leave-bg); border: 1px solid var(--leave-line); font-weight: 700; font-size: .7rem; padding: 2px 7px; }
 .rlist li.pull { background: var(--good-bg); box-shadow: inset 5px 0 0 var(--good); padding-left: 12px; padding-right: 6px; border-radius: 6px; border-bottom-color: transparent; margin: 2px 0; }
 .rlist li.pull .rprice { font-size: 1.02rem; }
 .rlist li.leave { opacity: .62; }
@@ -270,8 +282,21 @@ select.btn { max-width: 100%; }
 <div class="wrap">
   <header class="top">
     <h1>Commander Card Scanner</h1>
-    <span class="asof" id="asof">Loading card data…</span>
+    <span class="fresh">
+      <span class="asof" id="asof">Loading card data…</span>
+      <span class="agechip" id="ageChip" hidden></span>
+      <button type="button" class="btn small" id="updateBtn" aria-expanded="false">Update</button>
+    </span>
   </header>
+
+  <section class="updatep" id="updatePanel" hidden aria-label="Update prices">
+    <p><b>How prices get here:</b> your computer refreshes them every day (the Project 18 update job). This page only picks them up when Claude republishes it, because the page itself can't reach Scryfall or your computer.</p>
+    <p id="updateAges"></p>
+    <p>To update, send Claude this message:</p>
+    <div class="updmsg"><code id="updateMsg">Update the Commander Card Scanner: run export_scanner_data.py and republish the page with all its data files.</code>
+      <button type="button" class="btn small" id="copyUpdate">Copy message</button></div>
+    <p class="hint">Your pile, decks and places aren't touched by an update: they live in your account, not in the page.</p>
+  </section>
 
   <section class="cmdbar" aria-label="Commander">
     <div class="cmdrow">
@@ -1804,6 +1829,22 @@ Data: ${f.label}. ${f.why} Price $${card.usd ?? "unknown"}.`;
     setTimeout(() => { btn.textContent = label; }, 1500);
   }
 
+  // ---------- price age + update instructions ----------
+  function daysOld(d) { return d && !isNaN(d) ? Math.floor((Date.now() - d.getTime()) / 86400000) : null; }
+  function showAge(when) {
+    const age = daysOld(when), chip = $("ageChip");
+    if (age == null) return;
+    chip.hidden = false;
+    chip.className = "agechip " + (age <= 2 ? "ok" : age <= 7 ? "aging" : "old");
+    chip.textContent = age === 0 ? "today" : age === 1 ? "1 day old" : `${age} days old`;
+    chip.title = age <= 2 ? "Prices are current." : "Prices may have moved; tap Update to see how to refresh them.";
+    const lines = [`Card prices: ${when.toLocaleDateString("en-US", { month: "short", day: "numeric" })} (${chip.textContent}).`];
+    const t = S.trends?.days?.at?.(-1);
+    if (t) lines.push(`Price trends to ${String(t).replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3")}.`);
+    if (S.trends?.buy_day) lines.push(`Card Kingdom offers from ${String(S.trends.buy_day).replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3")}.`);
+    $("updateAges").textContent = lines.join(" ");
+  }
+
   // ---------- wire up ----------
   function setCommander(name, fromAccount) {
     if (name === NO_CMDR) {
@@ -1824,6 +1865,7 @@ Data: ${f.label}. ${f.why} Price $${card.usd ?? "unknown"}.`;
     catch { $("asof").textContent = "Card data didn't load. Reload the page."; return; }
     const when = S.meta?.prices_updated ? new Date(S.meta.prices_updated) : null;
     $("asof").textContent = `Prices as of ${when && !isNaN(when) ? when.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "unknown"} · ${S.cards.length.toLocaleString()} cards`;
+    showAge(when);
 
     suggestBox("cmdSuggest", "cmdInput", (q) => {
       const hits = searchIn(S.commanders, q, (c) => c.name).map((c) => ({
@@ -1894,6 +1936,17 @@ Data: ${f.label}. ${f.why} Price $${card.usd ?? "unknown"}.`;
     $("pileSearch").value = ""; $("typeFilter").value = ""; $("priceMin").value = ""; $("priceMax").value = "";
     document.querySelectorAll("[data-color]").forEach((x) => x.setAttribute("aria-pressed", "false"));
     render();
+  });
+  $("updateBtn").addEventListener("click", () => {
+    const open = $("updatePanel").hidden;
+    $("updatePanel").hidden = !open; $("updateBtn").setAttribute("aria-expanded", String(open));
+    if (open) showAge(S.meta?.prices_updated ? new Date(S.meta.prices_updated) : null);
+  });
+  $("copyUpdate").addEventListener("click", async () => {
+    const b = $("copyUpdate");
+    try { await navigator.clipboard.writeText($("updateMsg").textContent); b.textContent = "Copied"; }
+    catch { const r = document.createRange(); r.selectNodeContents($("updateMsg")); getSelection().removeAllRanges(); getSelection().addRange(r); b.textContent = "Selected: copy it"; }
+    setTimeout(() => { b.textContent = "Copy message"; }, 2000);
   });
   $("exportBtn").addEventListener("click", () => {
     const open = $("exportPanel").hidden;
