@@ -24,8 +24,9 @@ hand-checked binder pages behind `fixtures/binder_truth.json`:
 | 4-card cut (2×2) | **20 / 20** | 0 | ~4 s |
 | 6-card cut (two rows) | **30 / 30** | 0 | ~6 s |
 
-Every name was an exact match, so nothing needed correcting. The whole run cost
-$0.80 for 18 calls, including a 3-call pilot and a 3-call re-run of one page.
+Every name was an exact match, so nothing needed correcting. The full 15-call run
+cost $0.67. With a 3-call pilot and a 3-call re-run of one page, the total was
+$0.93 for 21 calls.
 
 **What this does and doesn't show:**
 - **Same set and setting.** The pages are from one set (Born of the Gods),
