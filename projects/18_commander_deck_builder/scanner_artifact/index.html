@@ -191,10 +191,14 @@ details.more[open] summary { margin-bottom: 6px; }
 .rhead img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
 .rhead .rtitle { flex: 1 1 160px; min-width: 0; font-size: .86rem; }
 .rlist { list-style: none; margin: 0; padding: 4px 10px; display: grid; }
-.rlist li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .88rem; }
+.rlist li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 2px 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .88rem; }
 .rlist li:last-child { border-bottom: 0; }
 .rlist .rname { min-width: 0; overflow-wrap: anywhere; }
 .rlist .rprice { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.rlist input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--good); }
+.rlist .rdel { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 1rem; line-height: 1; }
+.rlist .rdel:hover, .rlist .rdel:focus-visible { color: var(--bad); border-color: var(--bad); }
+.rlist li.off .rname, .rlist li.off .rprice { text-decoration: line-through; opacity: .55; }
 .rlist .rsub { grid-column: 2 / -1; font-size: .76rem; color: var(--muted); }
 .rlist li.pull .rprice { color: var(--good); font-weight: 600; }
 /* PULL vs LEAVE: pull = green stripe, green wash, bold glowing tag; leave = quiet gray, slightly faded. */
@@ -228,6 +232,12 @@ body.prices-only .card.leave:hover, body.prices-only .card.leave:focus-within { 
 .setchip .ss { font-size: 1rem; }
 .setchip b { font-family: var(--mono); font-weight: 500; }
 .setchip[aria-pressed="true"] { border-color: var(--accent); background: var(--sunken); font-weight: 600; }
+.playedin { display: grid; gap: 3px; }
+.pilist { margin: 0; padding-left: 1.3rem; display: grid; gap: 2px; font-size: .82rem; }
+.pilist li { min-width: 0; }
+.pilist a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--muted); overflow-wrap: anywhere; }
+.pilist .pin { color: var(--muted); font-family: var(--mono); font-size: .76rem; margin-left: 6px; white-space: nowrap; }
+.pilist li.me a { color: var(--good); font-weight: 600; border-bottom-color: var(--good); }
 .trend { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; font-size: .8rem; }
 .spark { flex: none; }
 .spark polyline { stroke-width: 1.6; stroke: var(--muted); }
@@ -1327,6 +1337,29 @@ ${candidates.join("\n") || "(none)"}`;
     box.replaceChildren(...chips);
   }
 
+  // The commanders whose EDHREC decks play a card most (top 5). Cards without an EDHREC card
+  // page in the export fall back to the cached commander pages, labeled as such.
+  function edhrecSlug(name) {
+    // Partners ("A // B", two separate cards) share one page named after both;
+    // a double-faced card (one card named "A // B") uses its front name.
+    const parts = name.split(" // ");
+    if (parts.length === 2 && !S.byKey.has(norm(name))) return parts.map(edhrecSlug).join("-");
+    return parts[0].normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+  function playedInBlock(c, also) {
+    const top = S.topCmd?.[c.name];
+    const rows = top
+      ? top.map(([n, d, pot]) => ({ n, text: `${d.toLocaleString()} decks${pot ? ` · ${Math.round((d / pot) * 100)}%` : ""}` }))
+      : also.map(([n, inc]) => ({ n, text: `${inc}% of its decks` }));
+    if (!rows.length) return null;
+    return el("div", { class: "playedin" },
+      el("span", { class: "label", text: top ? "Played most in (EDHREC)" : "Played in (your cached commanders)" }),
+      el("ol", { class: "pilist" }, rows.map(({ n, text }) => el("li", { class: n === S.commander?.name ? "me" : null },
+        el("a", { href: `https://edhrec.com/commanders/${edhrecSlug(n)}`, target: "_blank", rel: "noopener", text: n }),
+        el("span", { class: "pin", text: text })))));
+  }
+
   function cardRow({ p, c, f }) {
     const mine = p.print?.price;
     const price = el("span", { class: "price", title: c.usdMax ? `Cheapest ${money(c.usd)}, priciest regular printing ${money(c.usdMax)}` : null },
@@ -1347,14 +1380,13 @@ ${candidates.join("\n") || "(none)"}`;
       el("span", { class: "fitwhy", text: f.why }));
     const bar = f.inc != null ? el("div", { class: "incbar", "aria-hidden": "true" }, el("i", { style: `width:${Math.min(100, f.inc)}%` })) : null;
 
-    const also = (playedWithIndex().get(c.name) || []).slice(0, 3);
+    const also = (playedWithIndex().get(c.name) || []).slice(0, 5);
+    const playedIn = playedInBlock(c, also);
     const aiBox = el("div", { class: "ai", hidden: true });
     const aiBtn = el("button", { type: "button", class: "btn small", text: "Ask Claude why", onclick: () => askWhy(c, aiBox, aiBtn) });
     const more = el("details", { class: "more" }, el("summary", { text: "More" }),
       el("div", { class: "body", style: "padding:0" },
-        also.length ? el("div", null, el("span", { class: "label", text: "Most played with (cached commanders)" }),
-          el("ol", { class: "alsolist" }, also.map(([n, inc]) => el("li", null, `${n}: ${inc}%`)))) : el("span", { class: "hint", text: "Not listed for any of the cached commanders." }),
-        S.commander ? el("div", { class: "row-actions" }, aiBtn) : null,
+        S.commander ? el("div", { class: "row-actions" }, aiBtn) : el("span", { class: "hint", text: "Pick a commander to ask Claude how this card fits." }),
         aiBox));
 
     const qty = el("span", { class: "qty" },
@@ -1389,7 +1421,7 @@ ${candidates.join("\n") || "(none)"}`;
         el("div", { class: "cardgrid" },
           el("div", { class: "body", style: "padding:0;min-width:0" },
             el("div", { class: "meta" }, el("span", { text: `${c.type} · MV ${c.mv}` }), ...tags),
-            fitLine, bar, trendLine(c), yourPrint,
+            fitLine, bar, trendLine(c), playedIn, yourPrint,
             p.locs?.length ? el("div", { class: "place", text: "Where: " + [...new Set(p.locs.map(placeText))].slice(-4).join("; ") }) : null,
             p.read ? el("div", { class: "read", text: `Read from the photo as “${p.read}”, corrected to the closest real card.` }) : null),
           photo ? el("div", { class: "thumb", title: "Your photo (this visit only)" }, el("img", { src: photo, alt: "Your photo of " + c.name })) : null),
@@ -1526,9 +1558,13 @@ Reply with only JSON: {"layout": "single" | "loose" | "grid", "cards": [{"name":
     while (seen.size > 1000) seen.delete(seen.keys().next().value);
     store.set(SEEN_KEY, Object.fromEntries(seen));
   }
+  function forgetPhoto(g) {
+    if (g.hash && seen.delete(g.hash)) store.set(SEEN_KEY, Object.fromEntries(seen));
+    if (g.photo && ![...S.photos.values()].includes(g.photo)) URL.revokeObjectURL(g.photo);
+  }
   function queuePhoto(f, hash) {
     rememberPhoto(hash);
-    S.queue.push({ file: f, loc: takeLocation() });   // place/page fixed when the photo is queued
+    S.queue.push({ file: f, loc: takeLocation(), hash });   // place/page fixed when the photo is queued
   }
 
   async function enqueue(files) {
@@ -1611,7 +1647,7 @@ Reply with only JSON: {"layout": "single" | "loose" | "grid", "cards": [{"name":
       const res = await sample.json(SCAN_PROMPT(images.length), { images, signal: scanCtl.signal });
       const list = Array.isArray(res?.cards) ? res.cards : [];
       if (!list.length) { setStatus(`${label}: no card titles found. Try closer, with less glare.`, "err"); return true; }
-      const group = { id: Math.random().toString(36).slice(2), photo: await thumbnail(job.file), loc: job.loc, items: [], unknown: [] };
+      const group = { id: Math.random().toString(36).slice(2), photo: await thumbnail(job.file), loc: job.loc, hash: job.hash, items: [], unknown: [] };
       let slot = 0;
       for (const item of list.slice(0, 40)) {
         slot++;
@@ -1697,10 +1733,12 @@ Reply with only JSON: {"layout": "single" | "loose" | "grid", "cards": [{"name":
           S.commander ? fit(it.card).label : null,
         ].filter(Boolean).join(" · ");
         const isPull = (price ?? 0) >= at;
-        return el("li", { class: isPull ? "pull" : "leave" },
+        return el("li", { class: (isPull ? "pull" : "leave") + (it.keep ? "" : " off") },
           cb,
           el("span", { class: "rname" }, setSymbol(...(it.print ? [it.print.set, it.print.rar] : [it.card.set, it.card.rar])), " ", it.card.name, isPull ? el("span", { class: "pullb fresh", text: "PULL" }) : el("span", { class: "leaveb", text: "LEAVE" })),
           el("span", { class: "rprice", text: money(price) }),
+          el("button", { type: "button", class: "rdel", title: "Remove from this list", "aria-label": "Remove " + it.card.name + " from this list",
+            text: "✕", onclick: () => { g.items.splice(g.items.indexOf(it), 1); if (!g.items.length && !g.unknown.length) { S.review.splice(S.review.indexOf(g), 1); forgetPhoto(g); } renderReview(); } }),
           el("span", { class: "rsub", text: sub }));
       });
       for (const raw of g.unknown) rows.push(el("li", null, el("span", { text: "?" }),
@@ -1716,9 +1754,7 @@ Reply with only JSON: {"layout": "single" | "loose" | "grid", "cards": [{"name":
             disabled: kept.length ? null : true, onclick: () => { withUndo(`Added ${kept.length} card${kept.length === 1 ? "" : "s"}.`, () => commitGroup(g)); S.review.splice(gi, 1); renderReview(); setStatus(`Added ${kept.length} card${kept.length === 1 ? "" : "s"}.`, "okay"); } }),
           el("button", { type: "button", class: "btn small", text: "Only the flagged ones", onclick: () => { for (const it of g.items) it.keep = (itemPrice(it) ?? 0) >= at; renderReview(); } }),
           el("button", { type: "button", class: "btn small", text: "Discard photo", onclick: () => {
-            S.review.splice(gi, 1);
-            if (g.photo && ![...S.photos.values()].includes(g.photo)) URL.revokeObjectURL(g.photo);
-            renderReview(); } })));
+            S.review.splice(gi, 1); forgetPhoto(g); renderReview(); } })));
     });
     const all = S.review.length > 1 ? el("div", { class: "row-actions" },
       el("button", { type: "button", class: "btn primary small", text: "Add all checked", onclick: () => {
@@ -1890,6 +1926,7 @@ Data: ${f.label}. ${f.why} Price $${card.usd ?? "unknown"}.`;
     loadOpts();
     const b = store.get("ccs.budget.v1", null); S.budget = typeof b === "number" ? b : null;
 
+    fetch("top_commanders.json").then((r) => r.ok ? r.json() : null).then((t) => { if (t) { S.topCmd = t; render(); } }).catch(() => {});
     Promise.all([fetch("set_icons.json").then((r) => r.ok ? r.json() : null), fetch("sets.json").then((r) => r.ok ? r.json() : null)])
       .then(([ic, names]) => { if (ic?.icons) S.icons = ic; if (names) { S.setNames = names; S.sets = Promise.resolve(names); } render(); renderReview(); }).catch(() => {});
     fetch("trends.json").then((r) => r.ok ? r.json() : null).then((t) => { if (t?.cards) { S.trends = t; render(); } }).catch(() => {});

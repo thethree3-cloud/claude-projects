@@ -12,6 +12,8 @@ files), so the facts it needs ship beside it as compact JSON:
                     for every card EDHREC lists with that commander
     printings/x.json every printing of each card (set, number, finishes, prices), one file per first letter
     sets.json       set code -> set name
+    top_commanders.json  for popular cards and the cards you own: the 5 commanders whose
+                    EDHREC decks play each card most ({card: [[commander, decks, potential], ...]})
     set_icons.json  Scryfall set symbols as data: URIs ({"icons": {key: uri}, "sets": {code: key}}),
                     downloaded once into data/cache/set_icons/ (only new sets are fetched later)
     trends.json     weekly price points (last ~90 days) and the Card Kingdom buylist
@@ -43,6 +45,9 @@ WATCHLIST = HERE / "data" / "watchlist.sqlite"
 ICON_CACHE = HERE / "data" / "cache" / "set_icons"
 SCRYFALL_SETS = "https://api.scryfall.com/sets"
 HEADERS = {"User-Agent": "commander-deck-builder/0.1", "Accept": "application/json"}
+TOP_RANKED_FOR_COMMANDERS = 2000   # the most-played cards on EDHREC
+COMMANDER_FETCH_BUDGET = 300        # new EDHREC card pages per run (0.5 s apart): the cache fills over a few runs
+WANTED = DEFAULT_OUT / "wanted.txt"  # one card name per line: cards from your pile and decks, fetched first
 TREND_STEP_DAYS = 7
 
 # Flags packed into one number per card.
@@ -230,6 +235,27 @@ def export_set_icons(cache_dir=ICON_CACHE, fetch=_get, log=print, max_age_days=7
     return {"icons": icons, "sets": by_code}
 
 
+def export_top_commanders(conn, wanted=(), budget=COMMANDER_FETCH_BUDGET, top_ranked=TOP_RANKED_FOR_COMMANDERS,
+                          cache_dir=None, fetch=None, log=print):
+    """{card: [[commander, decks, potential], ...]} for the wanted cards, then the most-played ones.
+    Cached pages are always used; at most `budget` new pages are fetched per run."""
+    cache_dir = cache_dir or edhrec_client.CARD_CACHE_DIR
+    ranked = [r[0] for r in conn.execute(
+        "SELECT name FROM cards WHERE edhrec_rank IS NOT NULL AND type_line NOT LIKE 'Basic Land%' "
+        "ORDER BY edhrec_rank LIMIT ?", (top_ranked,))]
+    names = list(dict.fromkeys([w for w in wanted if w] + ranked))
+    out, fetched, waiting = {}, 0, 0
+    for name in names:
+        top, did = edhrec_client.card_commanders(name, cache_dir=cache_dir, fetch=fetch, allow_fetch=fetched < budget)
+        fetched += did
+        if top is None:
+            waiting += 1
+        elif top:
+            out[name] = [[c["name"], c["decks"], c["potential"]] for c in top]
+    log(f"top commanders: {len(out)} cards ({fetched} pages fetched this run, {waiting} still to fetch)")
+    return out
+
+
 def write_lines(path, records):
     """A JSON array with one record per line (easy to diff, still one JSON.parse)."""
     with path.open("w", encoding="utf-8") as f:
@@ -272,6 +298,9 @@ def export_all(out=DEFAULT_OUT, log=print):
     if trends:
         (args.out / "trends.json").write_text(json.dumps(trends, separators=(",", ":")), encoding="utf-8")
         log(f"trends: {len(trends['cards'])} cards x {len(trends['days'])} weekly points")
+    wanted = WANTED.read_text(encoding="utf-8").splitlines() if WANTED.exists() else []
+    top_cmd = export_top_commanders(conn, wanted=wanted, log=log)
+    (args.out / "top_commanders.json").write_text(json.dumps(top_cmd, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     icons = export_set_icons(log=log)
     if icons:
         (args.out / "set_icons.json").write_text(json.dumps(icons, separators=(",", ":")), encoding="utf-8")

@@ -135,6 +135,53 @@ def fetch_commander_page(slug, cache_dir=CACHE_DIR, max_age_days=CACHE_MAX_AGE_D
     return page
 
 
+CARD_URL = "https://json.edhrec.com/pages/cards"
+CARD_CACHE_DIR = CACHE_DIR / "edhrec_cards"
+CARD_CACHE_MAX_AGE_DAYS = 30
+TOP_COMMANDERS_HEADER = "Top Commanders"
+
+
+def parse_card_commanders(page, top=5):
+    """The commanders whose decks play a card most, from its EDHREC card page:
+    ``[{"name", "decks", "potential"}]``, most decks first. ``decks`` / ``potential``
+    = that commander's decks with the card / that could play it.
+
+    Raises:
+        EdhrecError: if the page doesn't have the expected structure.
+    """
+    try:
+        cardlists = page["container"]["json_dict"]["cardlists"]
+    except (KeyError, TypeError) as exc:
+        raise EdhrecError("Unexpected EDHREC card page format (EDHREC may have changed).") from exc
+    views = next((cl.get("cardviews") or [] for cl in cardlists if cl.get("header") == TOP_COMMANDERS_HEADER), [])
+    out = [{"name": v["name"], "decks": v.get("num_decks") or 0, "potential": v.get("potential_decks") or 0}
+           for v in views if v.get("name")]
+    return sorted(out, key=lambda x: -x["decks"])[:top]
+
+
+def card_commanders(name, cache_dir=CARD_CACHE_DIR, max_age_days=CARD_CACHE_MAX_AGE_DAYS, fetch=None, allow_fetch=True):
+    """Top commanders for one card, from a disk cache (refreshed after ``max_age_days``).
+
+    Returns ``(commanders, fetched)``; ``commanders`` is None when nothing is cached
+    and fetching isn't allowed. A card EDHREC has no page for is cached as ``[]``
+    so it isn't asked for again until the cache expires.
+    """
+    slug = slugify(name)
+    path = Path(cache_dir) / f"{slug}.json"
+    if path.exists() and time.time() - path.stat().st_mtime < max_age_days * 86400:
+        return json.loads(path.read_text())["top"], False
+    if not allow_fetch:
+        return (json.loads(path.read_text())["top"] if path.exists() else None), False
+    fetch = fetch or (lambda s: _get_json(f"{CARD_URL}/{s}.json", s))
+    try:
+        top = parse_card_commanders(fetch(slug))
+    except EdhrecError:
+        top = []
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"name": name, "top": top}))
+    return top, True
+
+
 PAGES_URL = "https://json.edhrec.com/pages"
 POPULARITY_PAGES = 20  # ~100 commanders per page -> the top ~2,000
 
